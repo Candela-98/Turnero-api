@@ -12,11 +12,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Java 24
+      - name: Set up Java 21 (Amazon Corretto)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '24'
+          distribution: 'corretto'
+          java-version: '21'
 
       - name: Grant execute permission to Gradle
         run: chmod +x ./gradlew
@@ -31,3 +31,8 @@ jobs:
           flags: unittests
           name: codecov-coverage
           fail_ci_if_error: true
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
