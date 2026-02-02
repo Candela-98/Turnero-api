@@ -29,10 +29,22 @@ dependencies {
 	runtimeOnly 'com.h2database:h2'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// Necesario para que Mockito pueda hacer "inline mocks" en Java 21+
+	// Evita warnings de carga dinámica del agente Byte Buddy y futuro bloqueo por deprecación.
+	testImplementation 'net.bytebuddy:byte-buddy-agent:1.17.5'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+
+	// Adjuntamos el agente de Byte Buddy en los tests para que Mockito funcione sin warnings.
+	// Recomendado por la doc oficial de Mockito para JDK 21+.
+	doFirst {
+		jvmArgs += [
+				"-javaagent:${classpath.find { it.name.contains('byte-buddy-agent') }.absolutePath}"
+		]
+	}
+
 	finalizedBy jacocoTestReport
 }
 
