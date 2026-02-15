@@ -8,4 +8,11 @@ public interface TurnoService {
     void reservarTurno(Turno turno);
     List<Turno> listarTurnos();
 
+    Turno buscarTurno(Long id);
+
+    void updateTurno(Turno turno, Long id);
+
+    void eliminarTurno(Long id);
+
+
 }
