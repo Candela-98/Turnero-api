@@ -46,6 +46,8 @@ public class ServicioServiceImpl implements ServicioService{
         if(servicioRepository.existsById(id)){
             servicioRepository.deleteById(id);
             System.out.println("El servicio con Id: " + id + " se elimino correctamente.");
+        }else {
+            throw new RuntimeException("Servicio no encontrado");
         }
 
     }

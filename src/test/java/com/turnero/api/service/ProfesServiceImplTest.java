@@ -126,7 +126,6 @@ public class ProfesServiceImplTest {
         profesionalService.eliminarProfesional(id);
 
         verify(profesionalRepository, times(1)).deleteById(id);
-        System.out.println("El profesional con id: " + id + " fue eliminado exitosamente.");
     }
 
     @Test
@@ -137,6 +136,5 @@ public class ProfesServiceImplTest {
         assertThrows(RuntimeException.class, () -> profesionalService.eliminarProfesional(id));
 
         verify(profesionalRepository, never()).deleteById(anyLong());
-        System.out.println("El profesional con id: " + id + " no existe");
     }
 }

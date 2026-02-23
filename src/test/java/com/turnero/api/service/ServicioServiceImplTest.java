@@ -1,7 +1,6 @@
 package com.turnero.api.service;
 import com.turnero.api.model.Servicio;
 import com.turnero.api.repository.ServicioRepository;
-import org.aspectj.bridge.Message;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,8 +35,6 @@ public class ServicioServiceImplTest {
         assertNotNull(resultado);
         assertEquals("Corte", resultado.getNombre());
         verify(servicioRepository, times(1)).save(servicio);
-        System.out.println("Se dio de alta el servicio: " + servicio.getNombre() + ", duración: " +
-                servicio.getDuracionMinutos() + "min, precio: $" + servicio.getPrecio());
     }
 
     @Test
@@ -53,7 +50,6 @@ public class ServicioServiceImplTest {
         assertNotNull(resultado);
         assertEquals(1L, resultado.getId());
         verify(servicioRepository, times(1)).findById(id);
-        System.out.println("Se encontró el servicio con id: " + servicio.getId() + " exitosamente.");
     }
 
     @Test
@@ -64,7 +60,6 @@ public class ServicioServiceImplTest {
         assertThrows(RuntimeException.class, () -> servicioService.buscarServicio(id));
 
         verify(servicioRepository, times(1)).findById(id);
-        System.out.println("No se encontró el servicio con id: " + id);
     }
 
     @Test
@@ -77,7 +72,6 @@ public class ServicioServiceImplTest {
 
         assertEquals(2, lista.size());
         verify(servicioRepository, times(1)).findAll();
-        System.out.println("Los servicios encontrados son: " + lista);
     }
 
     @Test
@@ -103,8 +97,6 @@ public class ServicioServiceImplTest {
         assertEquals("Corte + barba", existente.getNombre());
         assertEquals(45, existente.getDuracionMinutos());
         assertEquals(3000, existente.getPrecio());
-        System.out.println("Se actualizo el servicio: " + existente.getNombre() +
-                ", duración: " + existente.getDuracionMinutos() + ", precio: " + existente.getPrecio());
     }
 
     @Test
@@ -118,7 +110,6 @@ public class ServicioServiceImplTest {
         assertThrows(RuntimeException.class, () -> servicioService.updateServicio(cambios, id));
 
         verify(servicioRepository, never()).save(any());
-        System.out.println("No se pudo actualizar el servicio con id: " + cambios.getNombre());
     }
 
     @Test
@@ -139,6 +130,5 @@ public class ServicioServiceImplTest {
         servicioService.eliminarServicio(id);
 
         verify(servicioRepository, never()).deleteById(anyLong());
-        System.out.println("El servicio con id: " + id + " se eliminó exitosamente.");
     }
 }

@@ -37,7 +37,6 @@ public class ClienteServiceImplTest {
         assertNotNull(resultado);
         assertEquals("Candela", resultado.getNombre());
         verify(clienteRepository, times(1)).save(cliente);
-        System.out.println("Se dio de alta el cliente con id: " + cliente.getId() + ", nombre: " + cliente.getNombre() + ", email: " + cliente.getEmail() + ".");
     }
 
     @Test
@@ -53,7 +52,6 @@ public class ClienteServiceImplTest {
         assertNotNull(resultado);
         assertEquals(1L, resultado.getId());
         verify(clienteRepository, times(1)).findById(id);
-        System.out.println("Se encontró el cliente con id: " + cliente.getId());
     }
 
     @Test
@@ -64,7 +62,6 @@ public class ClienteServiceImplTest {
         assertThrows(RuntimeException.class, () -> clienteService.buscarCliente(id));
 
         verify(clienteRepository, times(1)).findById(id);
-        System.out.println("No se encontró el cliente con id: " + id);
     }
 
     @Test
@@ -105,8 +102,6 @@ public class ClienteServiceImplTest {
         assertEquals("CandelaAgus@mail.com", existente.getEmail());
         assertEquals("456", existente.getTelefono());
         assertEquals(cambios.getCreadoEn(), existente.getCreadoEn());
-        System.out.println("El cliente con id: " + id + " se actualizó correctamente. Nombre: " + existente.getNombre() +
-                ", email: " + existente.getEmail() + ", tel: " + existente.getTelefono() + ".");
     }
 
     @Test
@@ -120,7 +115,6 @@ public class ClienteServiceImplTest {
         assertThrows(RuntimeException.class, () -> clienteService.updateCliente(cambios, id));
 
         verify(clienteRepository, never()).save(any());
-        System.out.println("El cliente con id: " + id + " no existe.");
     }
 
     @Test
@@ -131,7 +125,6 @@ public class ClienteServiceImplTest {
         clienteService.eliminarCliente(id);
 
         verify(clienteRepository, times(1)).deleteById(id);
-        System.out.println("El cliente con id: " + id + " fue eliminado exitosamente.");
     }
 
     @Test
@@ -142,6 +135,5 @@ public class ClienteServiceImplTest {
         assertThrows(RuntimeException.class, () -> clienteService.eliminarCliente(id));
 
         verify(clienteRepository, never()).deleteById(anyLong());
-        System.out.println("El cliente que desea eliminar no existe.");
     }
 }
