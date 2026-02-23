@@ -123,11 +123,11 @@ public class ServicioServiceImplTest {
     }
 
     @Test
-    void eliminarServicio_cuandoNoExiste_noElimina() {
+    void eliminarServicio_cuandoNoExiste_lanzaExcepcion_yNoElimina() {
         Long id = 99L;
         when(servicioRepository.existsById(id)).thenReturn(false);
 
-        servicioService.eliminarServicio(id);
+        assertThrows(RuntimeException.class, () -> servicioService.eliminarServicio(id));
 
         verify(servicioRepository, never()).deleteById(anyLong());
     }
