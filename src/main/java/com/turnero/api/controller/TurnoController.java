@@ -31,4 +31,20 @@ public class TurnoController {
         return turnoService.listarTurnos();
     }
 
+    @GetMapping("/{id}")
+    public Turno buscarTurno(@PathVariable Long id) {
+        return turnoService.buscarTurno(id);
+    }
+
+    @GetMapping("/{id}")
+    public void updateTurno(@RequestBody TurnoRequestDto turnoDto, @PathVariable Long id) {
+        var turno = turnoMapper.toEntity(turnoDto);
+        turnoService.updateTurno(turno, id);
+    }
+
+    @DeleteMapping("{/id}")
+    public void eliminarTurno(@PathVariable Long id){
+        turnoService.eliminarTurno(id);
+    }
+
 }
