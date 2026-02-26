@@ -1,4 +1,4 @@
-package controller;
+package com.turnero.api.controller;
 
 
 import com.turnero.api.controller.TurnoController;

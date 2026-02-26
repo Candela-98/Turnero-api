@@ -26,7 +26,6 @@ public class ClienteRequestDto {
 
     //Getters y Setters
 
-
     public Long getClienteId() {
         return clienteId;
     }
