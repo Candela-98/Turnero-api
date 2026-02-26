@@ -4,6 +4,7 @@ import com.turnero.api.dto.TurnoRequestDto;
 import com.turnero.api.mapper.TurnoMapper;
 import com.turnero.api.model.Turno;
 import com.turnero.api.service.TurnoService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -20,7 +21,7 @@ public class TurnoController {
     }
 
     @PostMapping
-    public void reservarTurno(@RequestBody TurnoRequestDto turnoDto) {
+    public void reservarTurno(@Valid @RequestBody TurnoRequestDto turnoDto) {
 
         var turno = turnoMapper.toEntity(turnoDto);
         turnoService.reservarTurno(turno);
@@ -36,13 +37,13 @@ public class TurnoController {
         return turnoService.buscarTurno(id);
     }
 
-    @GetMapping("/{id}")
-    public void updateTurno(@RequestBody TurnoRequestDto turnoDto, @PathVariable Long id) {
+    @PutMapping("/{id}")
+    public void updateTurno(@Valid @RequestBody TurnoRequestDto turnoDto, @PathVariable Long id) {
         var turno = turnoMapper.toEntity(turnoDto);
         turnoService.updateTurno(turno, id);
     }
 
-    @DeleteMapping("{/id}")
+    @DeleteMapping("/{id}")
     public void eliminarTurno(@PathVariable Long id){
         turnoService.eliminarTurno(id);
     }
