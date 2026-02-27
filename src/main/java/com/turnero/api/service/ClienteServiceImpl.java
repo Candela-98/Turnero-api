@@ -3,9 +3,11 @@ package com.turnero.api.service;
 import com.turnero.api.model.Cliente;
 import com.turnero.api.model.Turno;
 import com.turnero.api.repository.ClienteRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Service
 public class ClienteServiceImpl implements ClienteService{
 
     private final ClienteRepository clienteRepository;

@@ -7,6 +7,9 @@ import com.turnero.api.model.Cliente;
 import com.turnero.api.model.Profesional;
 import com.turnero.api.model.Turno;
 import com.turnero.api.service.ClienteService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,13 +27,16 @@ public class ClienteController {
     }
 
     @PostMapping
-    public void altaCliente(@RequestBody ClienteRequestDto clienteDto) {
+    public ResponseEntity<Cliente> altaCliente(@RequestBody ClienteRequestDto clienteDto) {
         var cliente = clienteMapper.toEntity(clienteDto);
-        clienteService.altaCliente(cliente);
+
+        var clienteGuardado = clienteService.altaCliente(cliente);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(clienteGuardado);
     }
 
     @GetMapping("/{id}")
-    public Cliente buscarCliente(@PathVariable Long id) {
+    public Cliente buscarCliente(@Valid @PathVariable Long id) {
         return clienteService.buscarCliente(id);
     }
 
