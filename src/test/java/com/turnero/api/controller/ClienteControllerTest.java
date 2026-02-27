@@ -54,7 +54,7 @@ class ClienteControllerTest {
         // When + Assert
         mockMvc.perform(get("/api/clientes/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isCreated())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(12))
                 .andExpect(jsonPath("$.nombre").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
@@ -97,7 +97,7 @@ class ClienteControllerTest {
         mockMvc.perform(post("/api/clientes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // Assert
         then(clienteMapper).should().toEntity(any(ClienteRequestDto.class));
