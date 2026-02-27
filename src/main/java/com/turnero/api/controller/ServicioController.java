@@ -7,12 +7,13 @@ import com.turnero.api.mapper.ServicioMapper;
 import com.turnero.api.model.Servicio;
 import com.turnero.api.model.Turno;
 import com.turnero.api.service.ServicioService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/turnos")
+@RequestMapping("/api/servicios")
 public class ServicioController {
 
     private final ServicioService servicioService;
@@ -24,7 +25,7 @@ public class ServicioController {
     }
 
     @PostMapping
-    public void altaServicio(@RequestBody ServicioRequestDto servicioDto) {
+    public void altaServicio(@Valid @RequestBody ServicioRequestDto servicioDto) {
         var servicio = servicioMapper.toEntity(servicioDto);
         servicioService.altaServicio(servicio);
     }
@@ -35,7 +36,7 @@ public class ServicioController {
     }
 
     @PutMapping("/{id}")
-    public void updateServicio(@RequestBody ServicioRequestDto servicioDto, @PathVariable Long id) {
+    public void updateServicio(@Valid @RequestBody ServicioRequestDto servicioDto, @PathVariable Long id) {
         var servicio = servicioMapper.toEntity(servicioDto);
         servicioService.updateServicio(servicio, id);
     }
