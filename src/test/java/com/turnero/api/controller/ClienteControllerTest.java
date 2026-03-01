@@ -65,7 +65,7 @@ class ClienteControllerTest {
     }
 
     @Test
-    void retrieveClient_whenNameIsNull_returnsBadRequest() throws Exception {
+    void retrieveClient_whenIdIsInvalid_returnsBadRequest() throws Exception {
         // Given
         var id = "invalidId";
 
