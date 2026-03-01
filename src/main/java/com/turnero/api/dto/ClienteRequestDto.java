@@ -1,15 +1,10 @@
 package com.turnero.api.dto;
 
-import com.turnero.api.model.EstadoTurno;
-import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-
 import java.time.LocalDateTime;
 
 public class ClienteRequestDto {
 
-    @NotNull(message = "El ID del cliente es obligatorio")
     private Long clienteId;
 
     @NotNull(message = "El nombre del cliente es obligatorio")
@@ -25,7 +20,6 @@ public class ClienteRequestDto {
     private LocalDateTime fechaCreacion;
 
     //Getters y Setters
-
 
     public Long getClienteId() {
         return clienteId;

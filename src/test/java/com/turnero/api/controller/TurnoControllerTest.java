@@ -1,8 +1,7 @@
 package com.turnero.api.controller;
 
-
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.turnero.api.controller.TurnoController;
 import com.turnero.api.dto.TurnoRequestDto;
 import com.turnero.api.mapper.TurnoMapper;
 import com.turnero.api.model.EstadoTurno;
@@ -10,7 +9,6 @@ import com.turnero.api.model.Turno;
 import com.turnero.api.service.TurnoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -156,5 +154,4 @@ public class TurnoControllerTest {
                 .andExpect(status().isOk());
         verify(turnoService).eliminarTurno(7L);
     }
-
 }
