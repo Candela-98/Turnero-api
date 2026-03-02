@@ -27,32 +27,35 @@ public class ClienteController {
     }
 
     @PostMapping
-    public ResponseEntity<Cliente> altaCliente(@RequestBody ClienteRequestDto clienteDto) {
+    public ResponseEntity<Cliente> altaCliente(@Valid @RequestBody ClienteRequestDto clienteDto) {
         var cliente = clienteMapper.toEntity(clienteDto);
-
         var clienteGuardado = clienteService.altaCliente(cliente);
-
         return ResponseEntity.status(HttpStatus.CREATED).body(clienteGuardado);
     }
 
     @GetMapping("/{id}")
-    public Cliente buscarCliente(@Valid @PathVariable Long id) {
-        return clienteService.buscarCliente(id);
+    public ResponseEntity<Cliente> buscarCliente(@PathVariable Long id) {
+        Cliente cliente = clienteService.buscarCliente(id);
+        return ResponseEntity.ok(cliente);
     }
 
     @PutMapping("/{id}")
-    public void updateCliente(@RequestBody ClienteRequestDto clienteDto, @PathVariable Long id) {
+    public ResponseEntity updateCliente(@Valid @RequestBody ClienteRequestDto clienteDto, @PathVariable Long id) {
         var cliente = clienteMapper.toEntity(clienteDto);
         clienteService.updateCliente(cliente, id);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @GetMapping
-    public List<Cliente> listarClientes() {
-        return clienteService.listarClientes();
+    public ResponseEntity<List<Cliente>> listarClientes() {
+        var clientes = clienteService.listarClientes();
+        return ResponseEntity.status(HttpStatus.OK).body(clientes);
     }
 
     @DeleteMapping("/{id}")
-    public void eliminarCliente(@PathVariable Long id) {
+    public ResponseEntity eliminarCliente(@PathVariable Long id) {
         clienteService.eliminarCliente(id);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+
     }
 }
