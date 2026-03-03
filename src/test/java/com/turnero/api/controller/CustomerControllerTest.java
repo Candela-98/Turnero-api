@@ -1,4 +1,4 @@
 package com.turnero.api.controller;
 
-public class ClienteControllerTest {
+public class CustomerControllerTest {
 }
