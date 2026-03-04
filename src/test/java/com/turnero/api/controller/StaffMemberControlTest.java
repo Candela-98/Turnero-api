@@ -46,7 +46,7 @@ public class StaffMemberControlTest {
         StaffMember prof = new StaffMember();
         prof.setId(id);
         prof.setName("Daniel Leguizamon");
-        prof.setSpecialty("Barbero");
+        prof.setSpecialty("Barber");
         prof.setLicense("A12322");
         return prof;
     }
