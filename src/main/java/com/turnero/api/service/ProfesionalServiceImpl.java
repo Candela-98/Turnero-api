@@ -1,7 +1,6 @@
 package com.turnero.api.service;
 
 import com.turnero.api.model.Profesional;
-import com.turnero.api.model.Turno;
 import com.turnero.api.repository.ProfesionalRepository;
 
 import java.util.List;
