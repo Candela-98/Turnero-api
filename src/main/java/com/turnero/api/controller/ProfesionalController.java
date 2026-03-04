@@ -1,11 +1,8 @@
 package com.turnero.api.controller;
 
 import com.turnero.api.dto.ProfesionalRequestDto;
-import com.turnero.api.dto.ServicioRequestDto;
 import com.turnero.api.mapper.ProfesionalMapper;
 import com.turnero.api.model.Profesional;
-import com.turnero.api.model.Servicio;
-import com.turnero.api.model.Turno;
 import com.turnero.api.service.ProfesionalService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
