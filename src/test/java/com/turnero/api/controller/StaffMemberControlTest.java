@@ -37,7 +37,7 @@ public class StaffMemberControlTest {
         StaffMemberRequestDto dto = new StaffMemberRequestDto();
         dto.setStaffMemberId(1L);
         dto.setNameStaffMember("Daniel Leguizamon");
-        dto.setSpeciality("Barber");
+        dto.setSpecialty("Barber");
         dto.setLicense("A12322");
         return dto;
     }
@@ -46,7 +46,7 @@ public class StaffMemberControlTest {
         StaffMember prof = new StaffMember();
         prof.setId(id);
         prof.setName("Daniel Leguizamon");
-        prof.setSpeciality("Barbero");
+        prof.setSpecialty("Barbero");
         prof.setLicense("A12322");
         return prof;
     }
@@ -106,7 +106,7 @@ public class StaffMemberControlTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Daniel Leguizamon"))
-                .andExpect(jsonPath("$.speciality").value("Barber"))
+                .andExpect(jsonPath("$.specialty").value("Barber"))
                 .andExpect(jsonPath("$.license").value("A12322"));
         verify(staffService).findStaffMember(1L);
     }

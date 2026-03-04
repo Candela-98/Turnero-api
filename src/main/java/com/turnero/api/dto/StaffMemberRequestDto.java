@@ -10,7 +10,7 @@ public class StaffMemberRequestDto {
     private String nameStaffMember;
 
     @NotNull(message = "The staffmember's specialty is mandatory.")
-    private String speciality;
+    private String specialty;
 
     @NotNull(message = "The staffmember's license is mandatory.")
     private String license;
@@ -31,11 +31,11 @@ public class StaffMemberRequestDto {
         this.nameStaffMember = nameStaffMember;
     }
 
-    public String getSpeciality() {
-        return speciality;
+    public String getSpecialty() {
+        return specialty;
     }
-    public void setSpeciality(String speciality) {
-        this.speciality = speciality;
+    public void setSpecialty(String specialty) {
+        this.specialty = specialty;
     }
 
     public String getLicense() {

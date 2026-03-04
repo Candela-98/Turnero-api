@@ -29,7 +29,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         StaffMember staffMemberExist = findStaffMember(id);
 
         staffMemberExist.setName(staffMember.getName());
-        staffMemberExist.setSpeciality(staffMember.getSpeciality());
+        staffMemberExist.setSpecialty(staffMember.getSpecialty());
         staffMemberExist.setLicense(staffMember.getLicense());
 
         staffMemberRepository.save(staffMemberExist);

@@ -12,7 +12,7 @@ public class StaffMember {
 
     private String name;
 
-    private String speciality;
+    private String specialty;
 
     private String license;
 
@@ -42,11 +42,11 @@ public class StaffMember {
         this.license = license;
     }
 
-    public String getSpeciality() {
-        return speciality;
+    public String getSpecialty() {
+        return specialty;
     }
 
-    public void setSpeciality(String speciality) {
-        this.speciality = speciality;
+    public void setSpecialty(String specialty) {
+        this.specialty = specialty;
     }
 }

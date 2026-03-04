@@ -11,7 +11,7 @@ public class StaffMemberMapper {
         StaffMember staffMember = new StaffMember();
         staffMember.setId(dto.getStaffMemberId());
         staffMember.setName(dto.getNameStaffMember());
-        staffMember.setSpeciality(dto.getSpeciality());
+        staffMember.setSpecialty(dto.getSpecialty());
         staffMember.setLicense(dto.getLicense());
 
         return staffMember;

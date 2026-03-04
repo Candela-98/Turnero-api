@@ -26,7 +26,7 @@ public class StaffMemberServiceImplTest {
     void saveStaffMember_shouldSaveAndReturnStaffMember() {
         StaffMember staffMember = new StaffMember();
         staffMember.setName("Juan");
-        staffMember.setSpeciality("Barber");
+        staffMember.setSpecialty("Barber");
         staffMember.setLicense("MAT-123");
 
         when(staffMemberRepository.save(staffMember)).thenReturn(staffMember);
@@ -37,7 +37,7 @@ public class StaffMemberServiceImplTest {
         assertEquals("Juan", result.getName());
         verify(staffMemberRepository, times(1)).save(staffMember);
         System.out.println("Staffmember has been saved successfully: " + staffMember.getName() +
-                " with speciality: " + staffMember.getSpeciality() + ". Your license number is: " + staffMember.getLicense());
+                " with speciality: " + staffMember.getSpecialty() + ". Your license number is: " + staffMember.getLicense());
     }
 
     @Test
@@ -87,12 +87,12 @@ public class StaffMemberServiceImplTest {
         StaffMember current = new StaffMember();
         current.setId(id);
         current.setName("Carlos");
-        current.setSpeciality("Barber");
+        current.setSpecialty("Barber");
         current.setLicense("MAT-788");
 
         StaffMember updatedStaff = new StaffMember();
         updatedStaff.setName("Juan Carlos");
-        updatedStaff.setSpeciality("Barber plus");
+        updatedStaff.setSpecialty("Barber plus");
         updatedStaff.setLicense("MAT-778");
 
         when(staffMemberRepository.findById(id)).thenReturn(Optional.of(current));
@@ -101,7 +101,7 @@ public class StaffMemberServiceImplTest {
 
         verify(staffMemberRepository, times(1)).save(current);
         assertEquals("Juan Carlos", current.getName());
-        assertEquals("Barber plus", current.getSpeciality());
+        assertEquals("Barber plus", current.getSpecialty());
         assertEquals("MAT-778", current.getLicense());
     }
 
