@@ -9,11 +9,10 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.ClienteRequestDto;
-import com.turnero.api.mapper.ClienteMapper;
-import com.turnero.api.model.Cliente;
-import com.turnero.api.repository.ClienteRepository;
-
-import com.turnero.api.service.ClienteService;
+import com.turnero.api.mapper.CustomerMapper;
+import com.turnero.api.model.Customer;
+import com.turnero.api.repository.CustomerRepository;
+import com.turnero.api.service.CustomerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,17 +36,17 @@ class ClienteControllerIT {
     ObjectMapper objectMapper;
 
     @Autowired
-    ClienteMapper clienteMapper;
+    CustomerMapper customerMapper;
 
     @Autowired
-    ClienteService clienteService;
+    CustomerService customerService;
 
     @Autowired
-    ClienteRepository clienteRepository;
+    CustomerRepository customerRepository;
 
     @BeforeEach
     void cleanDb() {
-        clienteRepository.deleteAll();
+        customerRepository.deleteAll();
     }
 
     @Test
@@ -67,14 +66,14 @@ class ClienteControllerIT {
                 .andExpect(status().isCreated());
 
         // Then
-        List<Cliente> todos = clienteRepository.findAll();
+        List<Customer> customers = customerRepository.findAll();
 
-        assertThat(todos).hasSize(1);
-        Cliente guardado = todos.get(0);
-        assertThat(guardado.getId()).isNotNull();
-        assertThat(guardado.getNombre()).isEqualTo("Juan Perez");
-        assertThat(guardado.getEmail()).isEqualTo("juan@mail.com");
-        assertThat(guardado.getTelefono()).isEqualTo("1122334455");
-        assertThat(guardado.getCreadoEn()).isEqualTo(fecha);
+        assertThat(customers).hasSize(1);
+        Customer saved = customers.get(0);
+        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getName()).isEqualTo("Juan Perez");
+        assertThat(saved.getEmail()).isEqualTo("juan@mail.com");
+        assertThat(saved.getPhoneNumber()).isEqualTo("1122334455");
+        assertThat(saved.getCreatedIn()).isEqualTo(fecha);
     }
 }

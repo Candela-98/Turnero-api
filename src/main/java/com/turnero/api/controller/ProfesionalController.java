@@ -7,10 +7,13 @@ import com.turnero.api.model.Profesional;
 import com.turnero.api.model.Servicio;
 import com.turnero.api.model.Turno;
 import com.turnero.api.service.ProfesionalService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@RestController
+@RequestMapping("/api/profesionales")
 public class ProfesionalController {
 
     private final ProfesionalService profesionalService;
@@ -22,7 +25,7 @@ public class ProfesionalController {
     }
 
     @PostMapping
-    public void altaProfesional(@RequestBody ProfesionalRequestDto profesionalDto) {
+    public void altaProfesional(@Valid @RequestBody ProfesionalRequestDto profesionalDto) {
         var profesional = profesionalMapper.toEntity(profesionalDto);
         profesionalService.altaProfesional(profesional);
     }
@@ -33,7 +36,7 @@ public class ProfesionalController {
     }
 
     @PutMapping("/{id}")
-    public void updateProfesional(@RequestBody ProfesionalRequestDto profesionalDto, @PathVariable Long id) {
+    public void updateProfesional(@Valid @RequestBody ProfesionalRequestDto profesionalDto, @PathVariable Long id) {
         var profesional = profesionalMapper.toEntity(profesionalDto);
         profesionalService.updateProfesional(profesional, id);
     }

@@ -11,10 +11,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.turnero.api.dto.ClienteRequestDto;
-import com.turnero.api.mapper.ClienteMapper;
-import com.turnero.api.model.Cliente;
-import com.turnero.api.service.ClienteService;
+import com.turnero.api.dto.CustomerRequestDto;
+import com.turnero.api.mapper.CustomerMapper;
+import com.turnero.api.model.Customer;
+import com.turnero.api.service.CustomerService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -23,7 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ClienteController.class)
-class ClienteControllerTest {
+class CustomerControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -32,25 +32,19 @@ class ClienteControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private ClienteMapper clienteMapper;
+    private CustomerMapper customerMapper;
 
     @MockitoBean
-    private ClienteService clienteService;
+    private CustomerService customerService;
 
     @Test
-    void altaCliente_whenRequestIsValid_returns200() throws Exception {
+    void saveCustomer_whenRequestIsValid_returns200() throws Exception {
         // Given
         Long id = 12L;
-        ClienteRequestDto dto = getClientDTO(id);
+        var dto = getCustomerDTO(id);
+        Customer entity = getCustomerEntity(id);
 
-        Cliente entity = new Cliente();
-        entity.setId(12L);
-        entity.setNombre("Juan Perez");
-        entity.setEmail("juan@mail.com");
-        entity.setTelefono("1122334455");
-        entity.setCreadoEn(LocalDateTime.of(2026, 2, 24, 21, 0));
-
-        given(clienteMapper.toEntity(any(ClienteRequestDto.class))).willReturn(entity);
+        given(customerMapper.toEntity(any(CustomerRequestDto.class))).willReturn(entity);
 
         // When
         mockMvc.perform(post("/api/clientes")
@@ -59,16 +53,16 @@ class ClienteControllerTest {
                 .andExpect(status().isCreated());
 
         // Assert
-        then(clienteMapper).should().toEntity(any(ClienteRequestDto.class));
-        then(clienteService).should().altaCliente(entity);
+        then(customerMapper).should().toEntity(any(CustomerRequestDto.class));
+        then(customerService).should().saveCustomer(entity);
     }
 
     @Test
-    void altaCliente_whenNombreIsNull_returns400() throws Exception {
+    void saveCustomer_whenNombreIsNull_returns400() throws Exception {
         // Given:
         Long id = 12L;
-        ClienteRequestDto dto = getClientDTO(id);
-        dto.setNombreCliente(null);
+        var dto = getCustomerDTO(id);
+        dto.setNameCustomer(null);
 
         // When + Then
         mockMvc.perform(post("/api/clientes")
@@ -76,22 +70,16 @@ class ClienteControllerTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
 
-        then(clienteService).shouldHaveNoInteractions();
+        then(customerService).shouldHaveNoInteractions();
     }
 
     @Test
-    void retrieveClient_whenClientExists_returnsClientData() throws Exception {
+    void retrieveCustomer_whenClientExists_returnsClientData() throws Exception {
         // Given
         Long id = 12L;
+        var customer = getCustomerEntity(id);
 
-        Cliente cliente = new Cliente();
-        cliente.setId(id);
-        cliente.setNombre("Juan");
-        cliente.setEmail("juan@mail.com");
-        cliente.setTelefono("1122334455");
-        cliente.setCreadoEn(LocalDateTime.of(2026, 2, 24, 21, 0));
-
-        given(clienteService.buscarCliente(id)).willReturn(cliente);
+        given(customerService.findCustomer(id)).willReturn(customer);
 
         // When + Assert
         mockMvc.perform(get("/api/clientes/{id}", id)
@@ -103,11 +91,11 @@ class ClienteControllerTest {
                 .andExpect(jsonPath("$.telefono").value("1122334455"))
                 .andExpect(jsonPath("$.creadoEn").value("2026-02-24T21:00:00"));
 
-        then(clienteService).should().buscarCliente(any());
+        then(customerService).should().findCustomer(any());
     }
 
     @Test
-    void retrieveClient_whenIdIsInvalid_returnsBadRequest() throws Exception {
+    void retrieveCustomer_whenIdIsInvalid_returnsBadRequest() throws Exception {
         // Given
         var id = "invalidId";
 
@@ -117,17 +105,17 @@ class ClienteControllerTest {
                 .andExpect(status().isBadRequest());
 
         // Assert
-        then(clienteService).should(never()).buscarCliente(any());
+        then(customerService).should(never()).findCustomer(any());
     }
 
     @Test
-    void updateCliente_whenRequestIsValid_returns200() throws Exception {
+    void updateCustomer_whenRequestIsValid_returns200() throws Exception {
         // Given
         Long id = 12L;
-        ClienteRequestDto dto = getClientDTO(id);
-        Cliente entity = getClientEntity(id);
+        var dto = getCustomerDTO(id);
+        var entity = getCustomerEntity(id);
 
-        given(clienteMapper.toEntity(any(ClienteRequestDto.class)))
+        given(customerMapper.toEntity(any(CustomerRequestDto.class)))
                 .willReturn(entity);
 
         // When + Then
@@ -136,17 +124,17 @@ class ClienteControllerTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated());
 
-        then(clienteMapper).should().toEntity(any(ClienteRequestDto.class));
-        then(clienteService).should().updateCliente(entity, id);
-        then(clienteService).shouldHaveNoMoreInteractions();
+        then(customerMapper).should().toEntity(any(CustomerRequestDto.class));
+        then(customerService).should().updateCustomer(entity, id);
+        then(customerService).shouldHaveNoMoreInteractions();
     }
 
     @Test
-    void updateCliente_whenNameIsNull_returns400() throws Exception {
+    void updateCustomer_whenNameIsNull_returns400() throws Exception {
         // Given
         Long id = 12L;
-        ClienteRequestDto dto = getClientDTO(id);
-        dto.setNombreCliente(null);
+        var dto = getCustomerDTO(id);
+        dto.setNameCustomer(null);
 
         // When + Then
         mockMvc.perform(put("/api/clientes/{id}", 12L)
@@ -154,18 +142,18 @@ class ClienteControllerTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
 
-        then(clienteService).shouldHaveNoInteractions();
+        then(customerService).shouldHaveNoInteractions();
     }
 
     @Test
-    void listarClientes_whenClientsExist_returns200AndList() throws Exception {
+    void findAllCustomers_whenClientsExist_returns200AndList() throws Exception {
         // Given
         Long id = 12L;
-        Cliente cliente1 = getClientEntity(id);
-        Cliente cliente2 = getClientEntity(13L);
+        var customer1 = getCustomerEntity(id);
+        var customer2 = getCustomerEntity(13L);
 
-        given(clienteService.listarClientes())
-                .willReturn(List.of(cliente1, cliente2));
+        given(customerService.findAllCustomer())
+                .willReturn(List.of(customer1, customer2));
 
         // When + Then
         mockMvc.perform(get("/api/clientes")
@@ -174,27 +162,27 @@ class ClienteControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(12))
-                .andExpect(jsonPath("$[0].nombre").value("Juan"))
+                .andExpect(jsonPath("$[0].name").value("Juan"))
                 .andExpect(jsonPath("$[1].id").value(13))
-                .andExpect(jsonPath("$[1].nombre").value("Juan"));
+                .andExpect(jsonPath("$[1].name").value("Juan"));
 
-        then(clienteService).should().listarClientes();
+        then(customerService).should().findAllCustomer();
     }
 
     @Test
-    void eliminarCliente_whenClientExists_returns200() throws Exception {
+    void deleteCustomer_whenClientExists_returns200() throws Exception {
         Long id = 12L;
 
         // When + Then
         mockMvc.perform(delete("/api/clientes/{id}", id))
                 .andExpect(status().isNoContent());
 
-        then(clienteService).should().eliminarCliente(id);
-        then(clienteService).shouldHaveNoMoreInteractions();
+        then(customerService).should().deleteCustomer(id);
+        then(customerService).shouldHaveNoMoreInteractions();
     }
 
     @Test
-    void deleteClient_whenIdIsInvalid_returnsBadRequest() throws Exception {
+    void deleteCustomer_whenIdIsInvalid_returnsBadRequest() throws Exception {
         // Given
         var id = "invalidId";
 
@@ -204,29 +192,29 @@ class ClienteControllerTest {
                 .andExpect(status().isBadRequest());
 
         // Then
-        then(clienteService).should(never()).eliminarCliente(any());
+        then(customerService).should(never()).deleteCustomer(any());
     }
 
-    private ClienteRequestDto getClientDTO(Long id) {
-        ClienteRequestDto requestDto = new ClienteRequestDto();
-        requestDto.setClienteId(id);
-        requestDto.setNombreCliente("Juan");
-        requestDto.setEmail("juan@mail.com");
-        requestDto.setTelCliente("1122334455");
-        requestDto.setFechaCreacion(LocalDateTime.of(2026, 2, 24, 21, 0));
+    private CustomerRequestDto getCustomerDTO(Long id) {
+        CustomerRequestDto customerDto = new CustomerRequestDto();
+        customerDto.setCustomerId(id);
+        customerDto.setNameCustomer("Juan");
+        customerDto.setEmail("juan@mail.com");
+        customerDto.setPhoneCustomer("1122334455");
+        customerDto.setCreationDate(LocalDateTime.of(2026, 2, 24, 21, 0));
 
-        return requestDto;
+        return customerDto;
     }
 
-    private Cliente getClientEntity(Long id) {
-        var cliente = new Cliente();
-        cliente.setId(id);
-        cliente.setNombre("Juan");
-        cliente.setEmail("juan@mail.com");
-        cliente.setTelefono("1122334455");
-        cliente.setCreadoEn(LocalDateTime.of(2026, 2, 24, 21, 0));
+    private Customer getCustomerEntity(Long id) {
+        var customer = new Customer();
+        customer.setId(id);
+        customer.setName("Juan");
+        customer.setEmail("juan@mail.com");
+        customer.setPhoneNumber("1122334455");
+        customer.setCreatedIn(LocalDateTime.of(2026, 2, 24, 21, 0));
 
-        return cliente;
+        return customer;
     }
 
 }
