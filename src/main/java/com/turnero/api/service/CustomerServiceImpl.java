@@ -2,9 +2,11 @@ package com.turnero.api.service;
 
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Service
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;

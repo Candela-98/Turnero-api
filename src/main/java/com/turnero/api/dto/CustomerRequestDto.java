@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 
 public class CustomerRequestDto {
 
-    @NotNull(message = "The customer ID is mandatory.")
     private Long customerId;
 
     @NotNull(message = "The customer's name is required.")
