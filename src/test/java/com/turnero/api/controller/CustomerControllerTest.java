@@ -47,7 +47,7 @@ class CustomerControllerTest {
         given(customerMapper.toEntity(any(CustomerRequestDto.class))).willReturn(entity);
 
         // When
-        mockMvc.perform(post("/api/clientes")
+        mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated());
@@ -65,7 +65,7 @@ class CustomerControllerTest {
         dto.setNameCustomer(null);
 
         // When + Then
-        mockMvc.perform(post("/api/clientes")
+        mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
@@ -74,7 +74,7 @@ class CustomerControllerTest {
     }
 
     @Test
-    void retrieveCustomer_whenClientExists_returnsClientData() throws Exception {
+    void retrieveCustomer_whenCustomerExists_returnsCustomerData() throws Exception {
         // Given
         Long id = 12L;
         var customer = getCustomerEntity(id);
@@ -82,7 +82,7 @@ class CustomerControllerTest {
         given(customerService.findCustomer(id)).willReturn(customer);
 
         // When + Assert
-        mockMvc.perform(get("/api/clientes/{id}", id)
+        mockMvc.perform(get("/api/customers/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(12))
@@ -100,7 +100,7 @@ class CustomerControllerTest {
         var id = "invalidId";
 
         // When
-        mockMvc.perform(get("/api/clientes/{id}", id)
+        mockMvc.perform(get("/api/customers/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
@@ -119,7 +119,7 @@ class CustomerControllerTest {
                 .willReturn(entity);
 
         // When + Then
-        mockMvc.perform(put("/api/clientes/{id}", id)
+        mockMvc.perform(put("/api/customers/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNoContent());
@@ -137,7 +137,7 @@ class CustomerControllerTest {
         dto.setNameCustomer(null);
 
         // When + Then
-        mockMvc.perform(put("/api/clientes/{id}", 12L)
+        mockMvc.perform(put("/api/customers/{id}", 12L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
@@ -146,7 +146,7 @@ class CustomerControllerTest {
     }
 
     @Test
-    void findAllCustomers_whenClientsExist_returns200AndList() throws Exception {
+    void findAllCustomers_whenCustomersExist_returns200AndList() throws Exception {
         // Given
         Long id = 12L;
         var customer1 = getCustomerEntity(id);
@@ -156,7 +156,7 @@ class CustomerControllerTest {
                 .willReturn(List.of(customer1, customer2));
 
         // When + Then
-        mockMvc.perform(get("/api/clientes")
+        mockMvc.perform(get("/api/customers")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -170,11 +170,11 @@ class CustomerControllerTest {
     }
 
     @Test
-    void deleteCustomer_whenClientExists_returns200() throws Exception {
+    void deleteCustomer_whenCustomerExists_returns200() throws Exception {
         Long id = 12L;
 
         // When + Then
-        mockMvc.perform(delete("/api/clientes/{id}", id))
+        mockMvc.perform(delete("/api/customers/{id}", id))
                 .andExpect(status().isNoContent());
 
         then(customerService).should().deleteCustomer(id);
@@ -187,7 +187,7 @@ class CustomerControllerTest {
         var id = "invalidId";
 
         // When
-        mockMvc.perform(delete("/api/clientes/{id}", id)
+        mockMvc.perform(delete("/api/customers/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 

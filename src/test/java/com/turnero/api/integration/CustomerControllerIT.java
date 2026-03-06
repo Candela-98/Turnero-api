@@ -50,7 +50,7 @@ class CustomerControllerIT {
     }
 
     @Test
-    void saveCustomer_whenRequestIsValid_persistsClient_andReturns200() throws Exception {
+    void saveCustomer_whenRequestIsValid_persistsCustomer_andReturns200() throws Exception {
         // Given
         CustomerRequestDto dto = new CustomerRequestDto();
         dto.setNameCustomer("Juan Perez");
@@ -60,7 +60,7 @@ class CustomerControllerIT {
         dto.setCreationDate(fecha);
 
         // When
-        mockMvc.perform(post("/api/clientes")
+        mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated());
