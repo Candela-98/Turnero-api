@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.turnero.api.dto.ClienteRequestDto;
+import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
-class ClienteControllerIT {
+class CustomerControllerIT {
 
     @Autowired
     MockMvc mockMvc;
@@ -50,14 +50,14 @@ class ClienteControllerIT {
     }
 
     @Test
-    void altaCliente_whenRequestIsValid_persistsClient_andReturns200() throws Exception {
+    void saveCustomer_whenRequestIsValid_persistsClient_andReturns200() throws Exception {
         // Given
-        ClienteRequestDto dto = new ClienteRequestDto();
-        dto.setNombreCliente("Juan Perez");
+        CustomerRequestDto dto = new CustomerRequestDto();
+        dto.setNameCustomer("Juan Perez");
         dto.setEmail("juan@mail.com");
-        dto.setTelCliente("1122334455");
+        dto.setPhoneCustomer("1122334455");
         LocalDateTime fecha = LocalDateTime.of(2026, 2, 24, 21, 0);
-        dto.setFechaCreacion(fecha);
+        dto.setCreationDate(fecha);
 
         // When
         mockMvc.perform(post("/api/clientes")

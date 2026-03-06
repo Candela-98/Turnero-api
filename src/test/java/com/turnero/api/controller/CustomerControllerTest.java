@@ -22,7 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(ClienteController.class)
+@WebMvcTest(CustomerController.class)
 class CustomerControllerTest {
 
     @Autowired
@@ -86,10 +86,10 @@ class CustomerControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(12))
-                .andExpect(jsonPath("$.nombre").value("Juan"))
+                .andExpect(jsonPath("$.name").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
-                .andExpect(jsonPath("$.telefono").value("1122334455"))
-                .andExpect(jsonPath("$.creadoEn").value("2026-02-24T21:00:00"));
+                .andExpect(jsonPath("$.phoneNumber").value("1122334455"))
+                .andExpect(jsonPath("$.createdIn").value("2026-02-24T21:00:00"));
 
         then(customerService).should().findCustomer(any());
     }
@@ -122,7 +122,7 @@ class CustomerControllerTest {
         mockMvc.perform(put("/api/clientes/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isNoContent());
 
         then(customerMapper).should().toEntity(any(CustomerRequestDto.class));
         then(customerService).should().updateCustomer(entity, id);
