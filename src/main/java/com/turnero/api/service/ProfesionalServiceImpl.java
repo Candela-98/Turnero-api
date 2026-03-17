@@ -3,9 +3,11 @@ package com.turnero.api.service;
 import com.turnero.api.model.Profesional;
 import com.turnero.api.model.Turno;
 import com.turnero.api.repository.ProfesionalRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Service
 public class ProfesionalServiceImpl implements ProfesionalService{
 
     private final ProfesionalRepository profesionalRepository;
