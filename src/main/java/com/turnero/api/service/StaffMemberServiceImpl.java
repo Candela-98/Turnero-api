@@ -2,9 +2,11 @@ package com.turnero.api.service;
 
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.repository.StaffMemberRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Service
 public class StaffMemberServiceImpl implements StaffMemberService {
 
     private final StaffMemberRepository staffMemberRepository;
