@@ -5,6 +5,7 @@ import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.service.AppointmentService;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -21,10 +22,10 @@ public class AppointmentController {
     }
 
     @PostMapping
-    public void saveAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto) {
-
+    public ResponseEntity<Appointment> saveAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto) {
         var appointment = appointmentMapper.toEntity(appointmentDto);
         appointmentService.saveAppointment(appointment);
+        return ResponseEntity.ok(appointment);
     }
 
     @GetMapping
