@@ -1,12 +1,8 @@
 package com.turnero.api.dto;
 
-import com.turnero.api.model.EstadoTurno;
-import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-
-import java.time.LocalDateTime;
 
 public class ServicioRequestDto {
     @NotNull(message = "El ID del servicio es obligatorio")

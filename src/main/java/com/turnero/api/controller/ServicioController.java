@@ -2,10 +2,8 @@ package com.turnero.api.controller;
 
 
 import com.turnero.api.dto.ServicioRequestDto;
-import com.turnero.api.dto.TurnoRequestDto;
 import com.turnero.api.mapper.ServicioMapper;
 import com.turnero.api.model.Servicio;
-import com.turnero.api.model.Turno;
 import com.turnero.api.service.ServicioService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;

@@ -3,19 +3,14 @@ package com.turnero.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.ServicioRequestDto;
 import com.turnero.api.mapper.ServicioMapper;
-import com.turnero.api.mapper.TurnoMapper;
 import com.turnero.api.model.Servicio;
 import com.turnero.api.service.ServicioService;
-import com.turnero.api.service.TurnoService;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
