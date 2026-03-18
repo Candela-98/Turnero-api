@@ -1,9 +1,7 @@
 package com.turnero.api.mapper;
 
 import com.turnero.api.dto.ServicioRequestDto;
-import com.turnero.api.dto.TurnoRequestDto;
 import com.turnero.api.model.Servicio;
-import com.turnero.api.model.Turno;
 import org.springframework.stereotype.Component;
 
 @Component
