@@ -5,6 +5,7 @@ import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.service.StaffMemberService;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,9 +23,10 @@ public class StaffMemberController {
     }
 
     @PostMapping
-    public void saveStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto) {
+    public ResponseEntity<StaffMember> saveStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto) {
         var staff = staffMemberMapper.toEntity(staffDto);
         staffMemberService.saveStaffMember(staff);
+        return ResponseEntity.ok(staff);
     }
 
     @GetMapping("/{id}")

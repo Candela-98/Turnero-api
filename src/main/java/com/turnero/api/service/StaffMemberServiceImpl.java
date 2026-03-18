@@ -2,7 +2,9 @@ package com.turnero.api.service;
 
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.repository.StaffMemberRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -23,7 +25,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     @Override
     public StaffMember findStaffMember(Long id) {
         return staffMemberRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Staffmember not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Staffmember not found"));
     }
 
     @Override
