@@ -11,9 +11,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -39,7 +42,16 @@ public class ServiceOfferingControllerTest {
         return dto;
     }
 
-    private ServiceOffering servicioConId(long id){
+    private ServiceOffering getServiceOfferingEntity() {
+        ServiceOffering s = new ServiceOffering();
+        s.setId(1L);
+        s.setName("Corte y barba");
+        s.setDurationMinutes(60);
+        s.setPrice(10000.0);
+        return s;
+    }
+
+    private ServiceOffering servOfferingWithId(long id){
         ServiceOffering s = new ServiceOffering();
         s.setId(id);
         s.setName("Corte y barba");
@@ -50,41 +62,48 @@ public class ServiceOfferingControllerTest {
 
     @Test
     void saveServOffering_ok_shouldReturn200_andCallService() throws Exception {
+        // Given
         ServOfferingRequestDto dto = validDto();
         ServiceOffering entity = new ServiceOffering();
-        when(sMapper.toEntity(any(ServOfferingRequestDto.class))).thenReturn(entity);
+        given(sMapper.toEntity(any(ServOfferingRequestDto.class))).willReturn(entity);
 
+        // When
         mockMvc.perform(post("/api/service-offerings")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
 
-        verify(sMapper).toEntity(any(ServOfferingRequestDto.class));
-        verify(servOfferingService).saveServiceOffering(entity);
+        // Assert
+        then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
+        then(servOfferingService).should().saveServiceOffering(entity);
     }
 
     @Test
     void saveServOffering_withInvalidDto_shouldReturn400() throws Exception {
+        //Given
         ServOfferingRequestDto dto = validDto();
         dto.setName("");
-
         ServiceOffering entity = new ServiceOffering();
-        when(sMapper.toEntity(any(ServOfferingRequestDto.class))).thenReturn(entity);
+        given(sMapper.toEntity(any(ServOfferingRequestDto.class))).willReturn(entity);
 
+        // When
         mockMvc.perform(post("/api/service-offerings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
 
-        verify(sMapper).toEntity(any(ServOfferingRequestDto.class));
-        verify(servOfferingService).saveServiceOffering(entity);
+        // Assert
+        then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
+        then(servOfferingService).should().saveServiceOffering(entity);
     }
 
     @Test
     void findAllServOffering_ok_shouldReturn200_andCallService() throws Exception {
-        when(servOfferingService.findAllServOffering())
-                .thenReturn(java.util.List.of(servicioConId(1L), servicioConId(2L)));
+        // Given
+        given(servOfferingService.findAllServOffering())
+                .willReturn(java.util.List.of(servOfferingWithId(1L), servOfferingWithId(2L)));
 
+        //when + then
         mockMvc.perform(get("/api/service-offerings"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -92,13 +111,15 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[1].id").value(2));
 
-        verify(servOfferingService).findAllServOffering();
+        then(servOfferingService).should().findAllServOffering();
     }
 
     @Test
     void findServiceOffering_ok_shouldReturn200_andCallService() throws Exception{
-        when (servOfferingService.findServiceOffering(1L)).thenReturn(servicioConId(1L));
+        // Given
+        given (servOfferingService.findServiceOffering(1L)).willReturn(servOfferingWithId(1L));
 
+        // When + Then
         mockMvc.perform(get("/api/service-offerings/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -106,52 +127,61 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$.name").value("Corte y barba"))
                 .andExpect(jsonPath("$.durationMinutes").value(60))
                 .andExpect(jsonPath("$.price").value(10000.0));
-        verify(servOfferingService).findServiceOffering(1L);
+        then(servOfferingService).should().findServiceOffering(1L);
     }
 
     @Test
     void findServOffering_withNonExistentId_shouldReturn404() throws Exception {
-        when(servOfferingService.findServiceOffering(999L)).thenReturn(null);
+        //Given
+        given(servOfferingService.findServiceOffering(999L)).willThrow(new ResponseStatusException(NOT_FOUND, "Service offering not found"));
+
+        // When + Then
         mockMvc.perform(get("/api/service-offerings/999"))
-                .andExpect(status().isOk())
+                .andExpect(status().isNotFound())
                 .andExpect(content().string(""));
 
-        verify(servOfferingService).findServiceOffering(999L);
+        then(servOfferingService).should().findServiceOffering(999L);
     }
 
     @Test
     void updateServOffering_ok_shouldReturn200_andCallService() throws Exception{
+        // Given
         ServOfferingRequestDto dto = validDto();
         ServiceOffering entity = new ServiceOffering();
-        when(sMapper.toEntity(any(ServOfferingRequestDto.class))).thenReturn(entity);
+        given(sMapper.toEntity(any(ServOfferingRequestDto.class))).willReturn(entity);
+
+        // When + Then
         mockMvc.perform(put("/api/service-offerings/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
+
+        then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
+        then(servOfferingService).should().updateServOffering(entity, 1L);
     }
 
     @Test
     void updateServOffering_withInvalidDto_shouldReturn400() throws Exception{
+        //Given
         ServOfferingRequestDto dto = validDto();
-        dto.setName("");
+        dto.setName(null);
 
-        ServiceOffering entity = new ServiceOffering();
-        when(sMapper.toEntity(any(ServOfferingRequestDto.class))).thenReturn(entity);
-
+        // When + Then
         mockMvc.perform(put("/api/service-offerings/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isBadRequest());
 
-        verify(sMapper).toEntity(any(ServOfferingRequestDto.class));
-        verify(servOfferingService).updateServOffering(entity, 1L);
+        then(sMapper).shouldHaveNoInteractions();
+        then(servOfferingService).shouldHaveNoInteractions();
     }
 
     @Test
     void deleteServOffering_ok_shouldReturn200_andCallService() throws Exception {
+        //When + Then
         mockMvc.perform(delete("/api/service-offerings/1"))
                 .andExpect(status().isOk());
 
-        verify(servOfferingService).deleteServOffering(1L);
+        then(servOfferingService).should().deleteServOffering(1L);
     }
 }
