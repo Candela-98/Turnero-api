@@ -2,7 +2,9 @@ package com.turnero.api.service;
 
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -23,7 +25,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer findCustomer(Long id) {
         return customerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
     }
 
     @Override
@@ -50,7 +52,7 @@ public class CustomerServiceImpl implements CustomerService {
             customerRepository.deleteById(id);
             System.out.println("Customer with Id " + id + " successfully removed.");
         } else {
-            throw new RuntimeException("Customer not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found");
         }
     }
 }
