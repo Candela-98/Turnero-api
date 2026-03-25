@@ -44,7 +44,7 @@ class AppointmentServiceImplTest {
     }
 
     @Test
-    void saveAppointment_cuandoRepositoryFalla_lanzaExcepcion() {
+    void saveAppointment_whenRepositoryFails_throwsException() {
         Appointment appointment = new Appointment();
         doThrow(new RuntimeException("Error saving")).when(appointmentRepository).save(appointment);
         assertThrows(RuntimeException.class, () -> appointmentService.saveAppointment(appointment));
