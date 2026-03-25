@@ -30,23 +30,27 @@ public class StaffMemberController {
     }
 
     @GetMapping("/{id}")
-    public StaffMember findStaffMember(@PathVariable Long id) {
-        return staffMemberService.findStaffMember(id);
+    public ResponseEntity<StaffMember> findStaffMember(@PathVariable Long id) {
+        var staff = staffMemberService.findStaffMember(id);
+        return ResponseEntity.ok(staff);
     }
 
     @PutMapping("/{id}")
-    public void updateStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto, @PathVariable Long id) {
+    public ResponseEntity<StaffMember> updateStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto, @PathVariable Long id) {
         var staff = staffMemberMapper.toEntity(staffDto);
         staffMemberService.updateStaffMember(staff, id);
+        return ResponseEntity.ok(staff);
     }
 
     @GetMapping
-    public List<StaffMember> findAllStaffMember() {
-        return staffMemberService.findAllStaffMember();
+    public ResponseEntity<List<StaffMember>> findAllStaffMember() {
+        var staffMembers = staffMemberService.findAllStaffMember();
+        return ResponseEntity.ok(staffMembers);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteStaffMember(@PathVariable Long id) {
+    public ResponseEntity<StaffMember> deleteStaffMember(@PathVariable Long id) {
         staffMemberService.deleteStaffMember(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -191,7 +191,7 @@ public class AppointmentControllerTest {
 
         //When + Then
         mockMvc.perform(delete("/api/appointments/7"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
         then(appointmentService).should().deleteAppointment(7L);
     }
 

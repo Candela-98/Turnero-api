@@ -180,7 +180,7 @@ public class StaffMemberControlTest {
     void deleteStaffMember_ok_shouldReturn200_andCallService() throws Exception {
         //When + Then
         mockMvc.perform(delete("/api/staffmembers/1"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         then(staffService).should().deleteStaffMember(1L);
     }

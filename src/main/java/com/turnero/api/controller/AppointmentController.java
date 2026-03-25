@@ -29,24 +29,28 @@ public class AppointmentController {
     }
 
     @GetMapping
-    public List<Appointment> findAllAppointment() {
-        return appointmentService.findAllAppointments();
+    public ResponseEntity<List<Appointment>> findAllAppointment() {
+        var appointments = appointmentService.findAllAppointments();
+        return ResponseEntity.ok(appointments);
     }
 
     @GetMapping("/{id}")
-    public Appointment findAppointment(@PathVariable Long id) {
-        return appointmentService.findAppointment(id);
+    public ResponseEntity<Appointment> findAppointment(@PathVariable Long id) {
+        var appointment = appointmentService.findAppointment(id);
+        return ResponseEntity.ok(appointment);
     }
 
     @PutMapping("/{id}")
-    public void updateAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto, @PathVariable Long id) {
+    public ResponseEntity<Appointment> updateAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto, @PathVariable Long id) {
         var appointment = appointmentMapper.toEntity(appointmentDto);
         appointmentService.updateAppointment(appointment, id);
+        return ResponseEntity.ok(appointment);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteAppointment(@PathVariable Long id){
+    public ResponseEntity<Appointment> deleteAppointment(@PathVariable Long id){
         appointmentService.deleteAppointment(id);
+        return ResponseEntity.noContent().build();
     }
 
 }

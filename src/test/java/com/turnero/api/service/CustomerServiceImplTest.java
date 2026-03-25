@@ -105,7 +105,7 @@ public class CustomerServiceImplTest {
     }
 
     @Test
-    void updateCustomer_cuandoNoExiste_lanzaExcepcion_yNoGuarda() {
+    void updateCustomer_whenEntityDoesNotExist_throwsException_andDoesNotSave() {
         Long id = 99L;
         when(customerRepository.findById(id)).thenReturn(Optional.empty());
 
