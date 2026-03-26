@@ -30,23 +30,27 @@ public class ServOfferingController {
     }
 
     @GetMapping("/{id}")
-    public ServiceOffering findServiceOffering(@PathVariable Long id) {
-        return servOfferingService.findServiceOffering(id);
+    public ResponseEntity<ServiceOffering> findServiceOffering(@PathVariable Long id) {
+        var serviceOffering = servOfferingService.findServiceOffering(id);
+        return ResponseEntity.ok(serviceOffering);
     }
 
     @PutMapping("/{id}")
-    public void updateServOffering(@Valid @RequestBody ServOfferingRequestDto servOfferingDto, @PathVariable Long id) {
-        var servicioOffering = serviceOfferingMapper.toEntity(servOfferingDto);
-        servOfferingService.updateServOffering(servicioOffering, id);
+    public ResponseEntity<ServiceOffering> updateServOffering(@Valid @RequestBody ServOfferingRequestDto servOfferingDto, @PathVariable Long id) {
+        var serviceOfferingOffering = serviceOfferingMapper.toEntity(servOfferingDto);
+        servOfferingService.updateServOffering(serviceOfferingOffering, id);
+        return ResponseEntity.ok(serviceOfferingOffering);
     }
 
     @GetMapping
-    public List<ServiceOffering> findAllServOffering() {
-        return servOfferingService.findAllServOffering();
+    public ResponseEntity<List<ServiceOffering>> findAllServOffering() {
+        var servOfferings = servOfferingService.findAllServOffering();
+        return ResponseEntity.ok(servOfferings);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteServOffering(@PathVariable Long id) {
+    public ResponseEntity<ServiceOffering> deleteServOffering(@PathVariable Long id) {
         servOfferingService.deleteServOffering(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -180,7 +180,7 @@ public class ServiceOfferingControllerTest {
     void deleteServOffering_ok_shouldReturn200_andCallService() throws Exception {
         //When + Then
         mockMvc.perform(delete("/api/service-offerings/1"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         then(servOfferingService).should().deleteServOffering(1L);
     }
