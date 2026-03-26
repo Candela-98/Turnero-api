@@ -19,10 +19,10 @@ public class ServiceOfferingServiceImplTest {
     private ServOfferingRepository servOfferingRepository;
 
     @InjectMocks
-    private ServOfferingServiceImpl servicioService;
+    private ServOfferingServiceImpl servOfferingService;
 
     @Test
-    void altaServicio_deberiaGuardarYRetornarServicio() {
+    void saveServiceOffering_shouldSaveAndReturnServiceOffering() {
         ServiceOffering serviceOffering = new ServiceOffering();
         serviceOffering.setName("Corte");
         serviceOffering.setDurationMinutes(30);
@@ -30,104 +30,104 @@ public class ServiceOfferingServiceImplTest {
 
         when(servOfferingRepository.save(serviceOffering)).thenReturn(serviceOffering);
 
-        ServiceOffering resultado = servicioService.saveServiceOffering(serviceOffering);
+        ServiceOffering result = servOfferingService.saveServiceOffering(serviceOffering);
 
-        assertNotNull(resultado);
-        assertEquals("Corte", resultado.getName());
+        assertNotNull(result);
+        assertEquals("Corte", result.getName());
         verify(servOfferingRepository, times(1)).save(serviceOffering);
     }
 
     @Test
-    void buscarServicio_cuandoExiste_retornaServicio() {
+    void findServiceOffering_whenExists_returnsServiceOffering() {
         Long id = 1L;
         ServiceOffering serviceOffering = new ServiceOffering();
         serviceOffering.setId(id);
 
         when(servOfferingRepository.findById(id)).thenReturn(Optional.of(serviceOffering));
 
-        ServiceOffering resultado = servicioService.findServiceOffering(id);
+        ServiceOffering foundServOffering = servOfferingService.findServiceOffering(id);
 
-        assertNotNull(resultado);
-        assertEquals(1L, resultado.getId());
+        assertNotNull(foundServOffering);
+        assertEquals(1L, foundServOffering.getId());
         verify(servOfferingRepository, times(1)).findById(id);
     }
 
     @Test
-    void buscarServicio_cuandoNoExiste_lanzaExcepcion() {
+    void findServiceOffering_whenNotExists_throwsException() {
         Long id = 99L;
         when(servOfferingRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> servicioService.findServiceOffering(id));
+        assertThrows(RuntimeException.class, () -> servOfferingService.findServiceOffering(id));
 
         verify(servOfferingRepository, times(1)).findById(id);
     }
 
     @Test
-    void listarServicios_deberiaRetornarLista() {
+    void findAllServiceOfferings_shouldReturnList() {
         ServiceOffering s1 = new ServiceOffering();
         ServiceOffering s2 = new ServiceOffering();
         when(servOfferingRepository.findAll()).thenReturn(List.of(s1, s2));
 
-        List<ServiceOffering> lista = servicioService.findAllServOffering();
+        List<ServiceOffering> listServOffering = servOfferingService.findAllServOffering();
 
-        assertEquals(2, lista.size());
+        assertEquals(2, listServOffering.size());
         verify(servOfferingRepository, times(1)).findAll();
     }
 
     @Test
-    void updateServicio_cuandoExiste_actualizaYGuarda() {
+    void updateServiceOffering_whenExists_updatesAndSaves() {
         Long id = 1L;
 
-        ServiceOffering existente = new ServiceOffering();
-        existente.setId(id);
-        existente.setName("Corte");
-        existente.setDurationMinutes(20);
-        existente.setPrice(1000);
+        ServiceOffering currentServiceOffering = new ServiceOffering();
+        currentServiceOffering.setId(id);
+        currentServiceOffering.setName("Corte");
+        currentServiceOffering.setDurationMinutes(20);
+        currentServiceOffering.setPrice(1000);
 
-        ServiceOffering cambios = new ServiceOffering();
-        cambios.setName("Corte + barba");
-        cambios.setDurationMinutes(45);
-        cambios.setPrice(3000);
+        ServiceOffering updatedServiceOffering = new ServiceOffering();
+        updatedServiceOffering.setName("Corte + barba");
+        updatedServiceOffering.setDurationMinutes(45);
+        updatedServiceOffering.setPrice(3000);
 
-        when(servOfferingRepository.findById(id)).thenReturn(Optional.of(existente));
+        when(servOfferingRepository.findById(id)).thenReturn(Optional.of(currentServiceOffering));
 
-        servicioService.updateServOffering(cambios, id);
+        servOfferingService.updateServOffering(updatedServiceOffering, id);
 
-        verify(servOfferingRepository, times(1)).save(existente);
-        assertEquals("Corte + barba", existente.getName());
-        assertEquals(45, existente.getDurationMinutes());
-        assertEquals(3000, existente.getPrice());
+        verify(servOfferingRepository, times(1)).save(currentServiceOffering);
+        assertEquals("Corte + barba", currentServiceOffering.getName());
+        assertEquals(45, currentServiceOffering.getDurationMinutes());
+        assertEquals(3000, currentServiceOffering.getPrice());
     }
 
     @Test
-    void updateServicio_cuandoNoExiste_lanzaExcepcion_yNoGuarda() {
+    void updateServiceOffering_whenNotExists_throwsException_andDoesNotSave() {
         Long id = 99L;
         when(servOfferingRepository.findById(id)).thenReturn(Optional.empty());
 
-        ServiceOffering cambios = new ServiceOffering();
-        cambios.setName("Corte + barba");
+        ServiceOffering updatedServiceOffering = new ServiceOffering();
+        updatedServiceOffering.setName("Corte + barba");
 
-        assertThrows(RuntimeException.class, () -> servicioService.updateServOffering(cambios, id));
+        assertThrows(RuntimeException.class, () -> servOfferingService.updateServOffering(updatedServiceOffering, id));
 
         verify(servOfferingRepository, never()).save(any());
     }
 
     @Test
-    void eliminarServicio_cuandoExiste_elimina() {
+    void deleteServiceOffering_whenExists_deletes() {
         Long id = 1L;
         when(servOfferingRepository.existsById(id)).thenReturn(true);
 
-        servicioService.deleteServOffering(id);
+        servOfferingService.deleteServOffering(id);
 
         verify(servOfferingRepository, times(1)).deleteById(id);
     }
 
     @Test
-    void eliminarServicio_cuandoNoExiste_lanzaExcepcion_yNoElimina() {
+    void deleteServiceOffering_whenNotExists_throwsException_andDoesNotDelete() {
         Long id = 99L;
         when(servOfferingRepository.existsById(id)).thenReturn(false);
 
-        assertThrows(RuntimeException.class, () -> servicioService.deleteServOffering(id));
+        assertThrows(RuntimeException.class, () -> servOfferingService.deleteServOffering(id));
 
         verify(servOfferingRepository, never()).deleteById(anyLong());
     }
