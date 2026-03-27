@@ -1,0 +1,281 @@
+package com.turnero.api.integration;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.controller.AppointmentController;
+import com.turnero.api.dto.AppointmentRequestDto;
+import com.turnero.api.mapper.AppointmentMapper;
+import com.turnero.api.model.Appointment;
+import com.turnero.api.model.AppointmentStatus;
+import com.turnero.api.repository.AppointmentRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Transactional
+public class AppointmentControllerIT {
+
+    @Autowired
+    MockMvc mockMvc;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Autowired
+    AppointmentMapper appointmentMapper;
+
+    @Autowired
+    AppointmentController appointmentController;
+
+    @Autowired
+    AppointmentRepository appointmentRepository;
+
+    @BeforeEach
+    void cleanDb() {
+        appointmentRepository.deleteAll();
+    }
+
+    private AppointmentRequestDto getAppointmentRequestDto() {
+        AppointmentRequestDto dto = new AppointmentRequestDto();
+        dto.setCustomerId(1L);
+        dto.setServiceId(1L);
+        dto.setStaffMemberId(1L);
+        dto.setDateTime(LocalDateTime.of(2026, 2, 24, 21, 0));
+        dto.setDurationMinutes(60);
+        dto.setNotes("Test appointment");
+        return dto;
+    }
+
+    private Appointment getAppointment() {
+        Appointment appointment = new Appointment();
+        appointment.setCustomerId(1L);
+        appointment.setServiceId(1L);
+        appointment.setStaffMemberId(1L);
+        appointment.setDateTime(LocalDateTime.of(2026, 2, 24, 21, 0));
+        appointment.setDurationMinutes(60);
+        appointment.setNotes("Test appointment");
+        return appointment;
+    }
+
+    @Test
+    void saveAppointment_whenRequestIsValid_persistsAppointment_andReturns201() throws Exception {
+        //Given
+        AppointmentRequestDto dto = getAppointmentRequestDto();
+        dto.setDateTime(LocalDateTime.now().plusDays(1));
+        dto.setStatus(AppointmentStatus.PENDING);
+
+        // When
+        mockMvc.perform(post("/api/appointments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk());
+
+        // Then
+        List<Appointment> appointments = appointmentRepository.findAll();
+
+        assertThat(appointments).hasSize(1);
+        Appointment saved = appointments.get(0);
+
+        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getCustomerId()).isEqualTo(1L);
+        assertThat(saved.getServiceId()).isEqualTo(1L);
+        assertThat(saved.getStaffMemberId()).isEqualTo(1L);
+        assertThat(saved.getDurationMinutes()).isEqualTo(60);
+        assertThat(saved.getNotes()).isEqualTo("Test appointment");
+    }
+
+    @Test
+    void saveAppointment_whenCustomerIdIsNull_returns400() throws Exception {
+        //Given
+        AppointmentRequestDto dto = getAppointmentRequestDto();
+        dto.setCustomerId(null);
+
+        //When + Then
+        mockMvc.perform(post("/api/appointments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+
+        //Then
+        assertThat(appointmentRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void findAppointment_whenAppointmentExists_returns200AndAppointment() throws Exception {
+        //Given
+        LocalDateTime expectedDate = LocalDateTime.of(2026, 2, 24, 21, 0);
+        Appointment appointment = getAppointment();
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        //When
+        MvcResult result = mockMvc.perform(get("/api/appointments/{id}", saved.getId()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        //Then
+        String json = result.getResponse().getContentAsString();
+        Appointment response = objectMapper.readValue(json, Appointment.class);
+
+        assertThat(response.getId()).isEqualTo(saved.getId());
+        assertThat(response.getCustomerId()).isEqualTo(1L);
+        assertThat(response.getServiceId()).isEqualTo(1L);
+        assertThat(response.getStaffMemberId()).isEqualTo(1L);
+        assertThat(response.getDateTime()).isEqualTo(expectedDate);
+        assertThat(response.getDurationMinutes()).isEqualTo(60);
+        assertThat(response.getNotes()).isEqualTo("Test appointment");
+
+    }
+
+    @Test
+    void findAppointment_whenAppointmentDoesNotExist_returns404() throws Exception{
+        //Given
+        Long id = 999L;
+
+        mockMvc.perform(get("/api/appointments/{id}", id))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateAppointment_whenRequestIsValid_updatesAppointment_andReturns204() throws Exception{
+        //Given
+        Appointment appointment = getAppointment();
+        appointment.setDateTime(LocalDateTime.now().plusDays(1));
+        appointment.setStatus(AppointmentStatus.PENDING);
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        AppointmentRequestDto dto = getAppointmentRequestDto();
+        dto.setDateTime(LocalDateTime.now().plusDays(2));
+        dto.setDurationMinutes(30);
+        dto.setStatus(AppointmentStatus.CONFIRMED); // o el que tengas
+        dto.setNotes("Updated appointment");
+
+        // When
+        mockMvc.perform(put("/api/appointments/{id}", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk());
+
+        // Then
+        Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
+
+        assertThat(updated.getDateTime()).isEqualTo(dto.getDateTime());
+        assertThat(updated.getDurationMinutes()).isEqualTo(30);
+        assertThat(updated.getNotes()).isEqualTo("Updated appointment");
+    }
+
+    @Test
+    void udpateAppointment_whenCustomerIdIsNull_returns400() throws Exception{
+        //Given
+        Appointment appointment = getAppointment();
+        Appointment saved = appointmentRepository.save(appointment);
+
+        AppointmentRequestDto dto = getAppointmentRequestDto();
+        dto.setCustomerId(null);
+
+        // When + Then
+        mockMvc.perform(put("/api/appointments/{id}", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+
+        assertThat(appointmentRepository.findById(saved.getId())).isPresent();
+    }
+
+    @Test
+    void listAppointments_whenAppointmentsExist_returns200AndAppointmentList() throws Exception {
+        // Given
+        Appointment appointment1 = getAppointment();
+        Appointment appointment2 = new Appointment();
+        appointment2.setCustomerId(2L);
+        appointment2.setServiceId(2L);
+        appointment2.setStaffMemberId(2L);
+        appointment2.setDateTime(LocalDateTime.of(2026, 3, 1, 10, 0));
+        appointment2.setDurationMinutes(30);
+        appointment2.setNotes("Second appointment");
+
+        appointmentRepository.save(appointment1);
+        appointmentRepository.save(appointment2);
+
+        // When
+        MvcResult result = mockMvc.perform(get("/api/appointments")
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        //Then
+        String json = result.getResponse().getContentAsString();
+        List<Appointment> response = objectMapper.readValue(json, new TypeReference<>() {});
+        assertThat(response).hasSize(2);
+        assertThat(response).extracting(Appointment::getCustomerId)
+                .containsExactlyInAnyOrder(1L, 2L);
+        assertThat(response).extracting(Appointment::getServiceId)
+                .containsExactlyInAnyOrder(1L, 2L);
+        assertThat(response).extracting(Appointment::getStaffMemberId)
+                .containsExactlyInAnyOrder(1L, 2L);
+        assertThat(response).extracting(Appointment::getDateTime)
+                .containsExactlyInAnyOrder(LocalDateTime.of(2026, 2, 24, 21, 0), LocalDateTime.of(2026, 3, 1, 10, 0));
+        assertThat(response).extracting(Appointment::getDurationMinutes)
+                .containsExactlyInAnyOrder(60, 30);
+        assertThat(response).extracting(Appointment::getNotes)
+                .containsExactlyInAnyOrder("Test appointment", "Second appointment");
+
+    }
+
+    @Test
+    void listAppointments_whenNoAppointmentsExist_returns200AndEmptyList() throws Exception {
+        // When
+        MvcResult result = mockMvc.perform(get("/api/appointments")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // Then
+        String json = result.getResponse().getContentAsString();
+        List<Appointment> response = objectMapper.readValue(json, new TypeReference<>() {});
+        assertThat(response).isEmpty();
+    }
+
+    @Test
+    void deleteAppointment_whenAppointmentExists_deletesAppointment_andReturns204() throws Exception{
+        //Given
+        Appointment appointment = getAppointment();
+        Appointment saved = appointmentRepository.save(appointment);
+
+        //When
+        mockMvc.perform(delete("/api/appointments/{id}", saved.getId()))
+                .andExpect(status().isNoContent());
+
+        //Then
+        assertThat(appointmentRepository.existsById(saved.getId())).isFalse();
+    }
+
+    @Test
+    void deleteAppointment_whenAppointmentDoesNotExist_returns404() throws Exception{
+        //Given
+        Long id = 999L;
+
+        // When + Then
+        mockMvc .perform(delete("/api/appointments/{id}", id))
+                .andExpect(status().isNotFound());
+    }
+}
