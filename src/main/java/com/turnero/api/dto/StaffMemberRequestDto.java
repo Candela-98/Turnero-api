@@ -3,7 +3,7 @@ package com.turnero.api.dto;
 import jakarta.validation.constraints.NotNull;
 
 public class StaffMemberRequestDto {
-    @NotNull(message = "The StaffMember ID is mandatory.")
+
     private Long staffMemberId;
 
     @NotNull(message = "The name of the staffmember is mandatory.")

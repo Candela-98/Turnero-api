@@ -50,7 +50,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
             staffMemberRepository.deleteById(id);
             System.out.println("Staffmember with ID " + id + " successfully deleted.");
         } else {
-            throw new RuntimeException("Staffmember not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Staffmember not found");
         }
 
     }

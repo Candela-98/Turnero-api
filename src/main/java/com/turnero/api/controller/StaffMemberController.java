@@ -39,7 +39,7 @@ public class StaffMemberController {
     public ResponseEntity<StaffMember> updateStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto, @PathVariable Long id) {
         var staff = staffMemberMapper.toEntity(staffDto);
         staffMemberService.updateStaffMember(staff, id);
-        return ResponseEntity.ok(staff);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping
