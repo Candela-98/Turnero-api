@@ -5,6 +5,7 @@ import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.service.ServOfferingService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,8 +26,8 @@ public class ServOfferingController {
     @PostMapping
     public ResponseEntity<ServiceOffering> saveServiceOffering(@Valid @RequestBody ServOfferingRequestDto servOfferingDto) {
         var serviceOffering = serviceOfferingMapper.toEntity(servOfferingDto);
-        servOfferingService.saveServiceOffering(serviceOffering);
-        return ResponseEntity.ok(serviceOffering);
+        var serviceOfferingSaved = servOfferingService.saveServiceOffering(serviceOffering);
+        return ResponseEntity.status(HttpStatus.CREATED).body(serviceOfferingSaved);
     }
 
     @GetMapping("/{id}")
@@ -39,7 +40,7 @@ public class ServOfferingController {
     public ResponseEntity<ServiceOffering> updateServOffering(@Valid @RequestBody ServOfferingRequestDto servOfferingDto, @PathVariable Long id) {
         var serviceOfferingOffering = serviceOfferingMapper.toEntity(servOfferingDto);
         servOfferingService.updateServOffering(serviceOfferingOffering, id);
-        return ResponseEntity.ok(serviceOfferingOffering);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

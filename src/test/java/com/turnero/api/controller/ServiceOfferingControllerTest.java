@@ -71,7 +71,7 @@ public class ServiceOfferingControllerTest {
         mockMvc.perform(post("/api/service-offerings")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // Assert
         then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
@@ -90,7 +90,7 @@ public class ServiceOfferingControllerTest {
         mockMvc.perform(post("/api/service-offerings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // Assert
         then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
@@ -154,7 +154,7 @@ public class ServiceOfferingControllerTest {
         mockMvc.perform(put("/api/service-offerings/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
         then(servOfferingService).should().updateServOffering(entity, 1L);
