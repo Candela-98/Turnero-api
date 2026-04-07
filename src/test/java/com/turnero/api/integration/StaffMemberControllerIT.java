@@ -140,7 +140,6 @@ public class StaffMemberControllerIT {
         StaffMember staffMember = getStaffMember();
         StaffMember saved = staffMemberRepository.save(staffMember);
 
-
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
         dto.setNameStaffMember("Matias Updated");
         dto.setSpecialty("Barber Updated");
