@@ -55,7 +55,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointmentRepository.deleteById(id);
             System.out.println("Appointment with ID " + id + " successfully deleted.");
         } else {
-            throw new RuntimeException("Appointment not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found");
         }
     }
 }
