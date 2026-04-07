@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 public class ServOfferingRequestDto {
-    @NotNull(message = "The service offering ID is required")
+
     private Long Id;
 
     @NotNull(message = "The service offering duration is required")

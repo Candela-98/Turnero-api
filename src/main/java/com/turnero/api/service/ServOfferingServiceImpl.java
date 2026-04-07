@@ -50,7 +50,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
             servOfferingRepository.deleteById(id);
             System.out.println("Service offering with Id: " + id + " successfully deleted.");
         }else {
-            throw new RuntimeException("Service offering not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service offering not found");
         }
 
     }
