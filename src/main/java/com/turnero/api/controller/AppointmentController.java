@@ -5,6 +5,7 @@ import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.service.AppointmentService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -25,7 +26,7 @@ public class AppointmentController {
     public ResponseEntity<Appointment> saveAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto) {
         var appointment = appointmentMapper.toEntity(appointmentDto);
         appointmentService.saveAppointment(appointment);
-        return ResponseEntity.ok(appointment);
+        return ResponseEntity.status(HttpStatus.CREATED).body(appointment);
     }
 
     @GetMapping
@@ -44,7 +45,7 @@ public class AppointmentController {
     public ResponseEntity<Appointment> updateAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto, @PathVariable Long id) {
         var appointment = appointmentMapper.toEntity(appointmentDto);
         appointmentService.updateAppointment(appointment, id);
-        return ResponseEntity.ok(appointment);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")

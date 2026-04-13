@@ -58,7 +58,7 @@ class CustomerControllerTest {
     }
 
     @Test
-    void saveCustomer_whenNombreIsNull_returns400() throws Exception {
+    void saveCustomer_whenNameIsNull_returns400() throws Exception {
         // Given:
         Long id = 12L;
         var dto = getCustomerDTO(id);
@@ -196,14 +196,13 @@ class CustomerControllerTest {
     }
 
     private CustomerRequestDto getCustomerDTO(Long id) {
-        CustomerRequestDto customerDto = new CustomerRequestDto();
-        customerDto.setCustomerId(id);
-        customerDto.setNameCustomer("Juan");
-        customerDto.setEmail("juan@mail.com");
-        customerDto.setPhoneCustomer("1122334455");
-        customerDto.setCreationDate(LocalDateTime.of(2026, 2, 24, 21, 0));
-
-        return customerDto;
+        return CustomerRequestDto.builder()
+                .customerId(id)
+                .nameCustomer("Juan")
+                .email("juan@mail.com")
+                .phoneCustomer("1122334455")
+                .creationDate(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .build();
     }
 
     private Customer getCustomerEntity(Long id) {

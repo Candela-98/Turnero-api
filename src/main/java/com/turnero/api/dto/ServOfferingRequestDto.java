@@ -3,7 +3,10 @@ package com.turnero.api.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import lombok.*;
 
+@Data
+@Builder
 public class ServOfferingRequestDto {
 
     private Long Id;
@@ -19,33 +22,4 @@ public class ServOfferingRequestDto {
     @Positive(message = "The price must be greater than 0")
     private double price;
 
-    // Getters y setters
-
-    public Long getId() {
-        return Id;
-    }
-    public void setId(Long id) {
-        this.Id = id;
-    }
-
-    public int getDurationMinutes() {
-        return durationMinutes;
-    }
-    public void setDurationMinutes(int durationMinutes) {
-        this.durationMinutes = durationMinutes;
-    }
-
-    public String getName() {
-        return name;
-    }
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public double getPrice() {
-        return price;
-    }
-    public void setPrice(double price) {
-        this.price = price;
-    }
 }

@@ -55,11 +55,11 @@ public class ServOfferingControllerIT {
     }
 
     private ServOfferingRequestDto getServOfferingRequestDto() {
-        ServOfferingRequestDto dto = new ServOfferingRequestDto();
-        dto.setName("Haircut and Beard");
-        dto.setDurationMinutes(60);
-        dto.setPrice(10000.0);
-        return dto;
+        return ServOfferingRequestDto.builder()
+                .name("Haircut and Beard")
+                .durationMinutes(60)
+                .price(10000.0)
+                .build();
     }
 
     private ServiceOffering getServiceOffering() {

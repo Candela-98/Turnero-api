@@ -239,13 +239,12 @@ class CustomerControllerIT {
     }
 
     private CustomerRequestDto getCustomerRequestDto() {
-        CustomerRequestDto dto = new CustomerRequestDto();
-        dto.setNameCustomer("Juan Perez");
-        dto.setEmail("juan@mail.com");
-        dto.setPhoneCustomer("1122334455");
-        dto.setCreationDate(LocalDateTime.of(2026, 2, 24, 21, 0));
-
-        return dto;
+        return CustomerRequestDto.builder()
+                .nameCustomer("Juan Perez")
+                .email("juan@mail.com")
+                .phoneCustomer("1122334455")
+                .creationDate(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .build();
     }
 
     private Customer getCustomer() {
