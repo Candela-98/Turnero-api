@@ -2,20 +2,18 @@ package com.turnero.api.service;
 
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.repository.StaffMemberRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @Service
 public class StaffMemberServiceImpl implements StaffMemberService {
 
     private final StaffMemberRepository staffMemberRepository;
-
-    public StaffMemberServiceImpl(StaffMemberRepository staffMemberRepository) {
-        this.staffMemberRepository = staffMemberRepository;
-    }
 
     @Override
     public StaffMember saveStaffMember(StaffMember staffMember) {
