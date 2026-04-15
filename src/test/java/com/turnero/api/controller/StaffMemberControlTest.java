@@ -153,7 +153,7 @@ public class StaffMemberControlTest {
         mockMvc.perform(put("/api/staffmembers/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         //Then
         then(staffMapper).should().toEntity(any(StaffMemberRequestDto.class));
