@@ -1,7 +1,8 @@
 package com.turnero.api.dto;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.Data;
+import lombok.Builder;
 
 @Data
 @Builder

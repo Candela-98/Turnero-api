@@ -1,8 +1,8 @@
 package com.turnero.api.dto;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
-
+import lombok.Builder;
+import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data

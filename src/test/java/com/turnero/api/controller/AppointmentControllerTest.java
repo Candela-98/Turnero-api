@@ -3,7 +3,6 @@ package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.AppointmentRequestDto;
-import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.AppointmentStatus;
 import com.turnero.api.model.Appointment;
@@ -21,7 +20,6 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -51,26 +49,26 @@ public class AppointmentControllerTest {
     }
 
     private Appointment getAppointmentEntity(Long id) {
-        Appointment t = new Appointment();
-        t.setId(id);
-        t.setCustomerId(id);
-        t.setServiceId(2L);
-        t.setStaffMemberId(3L);
-        t.setDateTime(LocalDateTime.now().plusDays(1));
-        t.setDurationMinutes(30);
-        t.setStatus(AppointmentStatus.CONFIRMED);
-        t.setNotes("Notes");
-        t.setCreatedAt(LocalDateTime.now());
-        t.setUpdateAt(LocalDateTime.now());
-        return t;
+        return  Appointment.builder()
+                .id(id)
+                .customerId(id)
+                .serviceId(2L)
+                .staffMemberId(3L)
+                .dateTime(LocalDateTime.now().plusDays(1))
+                .durationMinutes(30)
+                .status(AppointmentStatus.CONFIRMED)
+                .notes("Notes")
+                .createdAt(LocalDateTime.now())
+                .updateAt(LocalDateTime.now())
+                .build();
     }
 
     @Test
-    void saveAppointment_ok_shouldReturn200_andCallService() throws Exception {
+    void saveAppointment_ok_shouldReturn201_andCallService() throws Exception {
         //Given
         Long id = 1L;
         var dto = getAppointmentDto(id);
-        Appointment entity = new Appointment();
+        Appointment entity = getAppointmentEntity(id);
 
         given(appointmentMapper.toEntity(any(AppointmentRequestDto.class)))
                 .willReturn(entity);
@@ -104,7 +102,7 @@ public class AppointmentControllerTest {
     }
 
     @Test
-    void findAllAppointment() throws Exception{
+    void findAllAppointment_shouldReturn200_andList() throws Exception{
         //Given
         Long id = 1L;
         var appointment1 = getAppointmentEntity(id);
@@ -145,7 +143,7 @@ public class AppointmentControllerTest {
         //Given
         Long id = 5L;
         var dto = getAppointmentDto(id);
-        var entity = new Appointment();
+        var entity = getAppointmentEntity(id);
 
         given(appointmentMapper.toEntity(any(AppointmentRequestDto.class))).willReturn(entity);
 

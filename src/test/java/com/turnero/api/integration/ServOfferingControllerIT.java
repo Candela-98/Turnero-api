@@ -63,11 +63,11 @@ public class ServOfferingControllerIT {
     }
 
     private ServiceOffering getServiceOffering() {
-        ServiceOffering serviceOffering = new ServiceOffering();
-        serviceOffering.setName("Haircut and Beard");
-        serviceOffering.setDurationMinutes(60);
-        serviceOffering.setPrice(10000.0);
-        return serviceOffering;
+        return ServiceOffering.builder()
+                .name("Haircut and Beard")
+                .durationMinutes(60)
+                .price(10000.0)
+                .build();
     }
 
 

@@ -46,12 +46,12 @@ public class StaffMemberControlTest {
     }
 
     private StaffMember getStaffMemberEntity(Long id){
-        StaffMember prof = new StaffMember();
-        prof.setId(id);
-        prof.setName("Daniel Leguizamon");
-        prof.setSpecialty("Barber");
-        prof.setLicense("A12322");
-        return prof;
+        return  StaffMember.builder()
+                .id(id)
+                .name("Daniel Leguizamon")
+                .specialty("Barber")
+                .license("A12322")
+                .build();
     }
 
     @Test
@@ -59,7 +59,7 @@ public class StaffMemberControlTest {
         // Given
         Long id = 1L;
         var dto = getStaffMemberDTO(id);
-        var entity = new StaffMember();
+        var entity = getStaffMemberEntity(id);
 
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
 
@@ -148,7 +148,7 @@ public class StaffMemberControlTest {
         // Given
         Long id = 1L;
         var dto = getStaffMemberDTO(id);
-        var entity = new StaffMember();
+        var entity = getStaffMemberEntity(id);
 
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
 

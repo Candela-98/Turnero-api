@@ -248,13 +248,12 @@ class CustomerControllerIT {
     }
 
     private Customer getCustomer() {
-        Customer customer = new Customer();
-        customer.setName("Juan Perez");
-        customer.setEmail("juan@mail.com");
-        customer.setPhoneNumber("1122334455");
-        customer.setCreatedIn(LocalDateTime.of(2026, 2, 24, 21, 0));
-
-        return customer;
+        return Customer.builder()
+                .name("Juan Perez")
+                .email("juan@mail.com")
+                .phoneNumber("1122334455")
+                .createdIn(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .build();
     }
 
 }

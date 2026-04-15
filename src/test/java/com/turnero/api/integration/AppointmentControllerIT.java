@@ -66,14 +66,14 @@ public class AppointmentControllerIT {
     }
 
     private Appointment getAppointment() {
-        Appointment appointment = new Appointment();
-        appointment.setCustomerId(1L);
-        appointment.setServiceId(1L);
-        appointment.setStaffMemberId(1L);
-        appointment.setDateTime(LocalDateTime.now().plusDays(1));
-        appointment.setDurationMinutes(60);
-        appointment.setNotes("Test appointment");
-        return appointment;
+        return Appointment.builder()
+                .customerId(1L)
+                .serviceId(1L)
+                .staffMemberId(1L)
+                .dateTime(LocalDateTime.now().plusDays(1))
+                .durationMinutes(60)
+                .notes("Test appointment")
+                .build();
     }
 
     @Test
@@ -204,7 +204,7 @@ public class AppointmentControllerIT {
     void listAppointments_whenAppointmentsExist_returns200AndAppointmentList() throws Exception {
         // Given
         Appointment appointment1 = getAppointment();
-        Appointment appointment2 = new Appointment();
+        Appointment appointment2 = getAppointment();
         appointment2.setCustomerId(2L);
         appointment2.setServiceId(2L);
         appointment2.setStaffMemberId(2L);

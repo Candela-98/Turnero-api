@@ -3,7 +3,8 @@ package com.turnero.api.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import lombok.*;
+import lombok.Data;
+import lombok.Builder;
 
 @Data
 @Builder

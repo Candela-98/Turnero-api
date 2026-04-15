@@ -1,16 +1,20 @@
 package com.turnero.api.model;
 
 import jakarta.persistence.*;
-import org.springframework.context.annotation.Import;
 
 import java.time.LocalDateTime;
-import lombok.*;
-import org.springframework.stereotype.Service;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "appointments")
 public class Appointment {

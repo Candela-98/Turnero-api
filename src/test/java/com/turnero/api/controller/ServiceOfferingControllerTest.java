@@ -45,12 +45,12 @@ public class ServiceOfferingControllerTest {
     }
 
     private ServiceOffering getServiceOfferingEntity(Long id) {
-        ServiceOffering s = new ServiceOffering();
-        s.setId(id);
-        s.setName("Corte y barba");
-        s.setDurationMinutes(60);
-        s.setPrice(10000.0);
-        return s;
+        return ServiceOffering.builder()
+                .id(id)
+                .name("Corte y barba")
+                .durationMinutes(60)
+                .price(10000.0)
+                .build();
     }
 
     @Test
@@ -58,7 +58,7 @@ public class ServiceOfferingControllerTest {
         // Given
         Long id = 1L;
         var dto = getServiceOfferingDto(id);
-        var entity = new ServiceOffering();
+        var entity = getServiceOfferingEntity(id);
         given(sMapper.toEntity(any(ServOfferingRequestDto.class))).willReturn(entity);
 
         // When
@@ -148,7 +148,7 @@ public class ServiceOfferingControllerTest {
         // Given
         Long id = 1L;
         var dto = getServiceOfferingDto(id);
-        ServiceOffering entity = new ServiceOffering();
+        ServiceOffering entity = getServiceOfferingEntity(id);
         given(sMapper.toEntity(any(ServOfferingRequestDto.class))).willReturn(entity);
 
         // When + Then

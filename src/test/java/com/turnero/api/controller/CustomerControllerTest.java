@@ -206,14 +206,14 @@ class CustomerControllerTest {
     }
 
     private Customer getCustomerEntity(Long id) {
-        var customer = new Customer();
-        customer.setId(id);
-        customer.setName("Juan");
-        customer.setEmail("juan@mail.com");
-        customer.setPhoneNumber("1122334455");
-        customer.setCreatedIn(LocalDateTime.of(2026, 2, 24, 21, 0));
+        return Customer.builder()
+                .id(id)
+                .name("Juan")
+                .email("juan@mail.com")
+                .phoneNumber("1122334455")
+                .createdIn(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .build();
 
-        return customer;
     }
 
 }
