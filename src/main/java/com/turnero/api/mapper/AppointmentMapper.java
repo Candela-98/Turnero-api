@@ -2,25 +2,14 @@ package com.turnero.api.mapper;
 
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.model.*;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-import java.time.LocalDateTime;
 
-@Component
-public class AppointmentMapper {
+@Mapper(componentModel = "spring")
+public interface AppointmentMapper {
 
-    public Appointment toEntity(AppointmentRequestDto dto) {
-        Appointment appointment = new Appointment();
-        appointment.setCustomerId(dto.getCustomerId());
-        appointment.setServiceId(dto.getServiceId());
-        appointment.setStaffMemberId(dto.getStaffMemberId());
-        appointment.setDateTime(dto.getDateTime());
-        appointment.setDurationMinutes(dto.getDurationMinutes());
-        appointment.setStatus(dto.getStatus());
-        appointment.setNotes(dto.getNotes());
-        appointment.setCreatedAt(LocalDateTime.now());
-        appointment.setUpdateAt(LocalDateTime.now());
-
-        return appointment;
-    }
+    @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
+    @Mapping(target = "updateAt", expression = "java(java.time.LocalDateTime.now())")
+    Appointment toEntity(AppointmentRequestDto dto);
 }

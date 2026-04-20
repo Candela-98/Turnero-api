@@ -33,6 +33,10 @@ dependencies {
 	// Necesario para que Mockito pueda hacer "inline mocks" en Java 21+
 	// Evita warnings de carga dinámica del agente Byte Buddy y futuro bloqueo por deprecación.
 	testImplementation 'net.bytebuddy:byte-buddy-agent:1.17.5'
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
 }
 
 tasks.named('test') {
