@@ -3,7 +3,6 @@ package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.AppointmentRequestDto;
-import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.AppointmentStatus;
 import com.turnero.api.model.Appointment;
@@ -21,7 +20,6 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -38,53 +36,39 @@ public class AppointmentControllerTest {
     @MockitoBean
     private AppointmentMapper appointmentMapper;
 
-    private AppointmentRequestDto validDto(Long id) {
-        AppointmentRequestDto dto = new AppointmentRequestDto();
-        dto.setCustomerId(1L);
-        dto.setServiceId(2L);
-        dto.setStaffMemberId(3L);
-        dto.setDateTime(LocalDateTime.now().plusDays(1)); // cumple @Future
-        dto.setDurationMinutes(30); // cumple @Min(1)
-        dto.setStatus(AppointmentStatus.CONFIRMED);
-        dto.setNotes("Notes");
-        return dto;
+    private AppointmentRequestDto getAppointmentDto(Long id) {
+        return AppointmentRequestDto.builder()
+                .customerId(id)
+                .serviceId(2L)
+                .staffMemberId(3L)
+                .dateTime(LocalDateTime.now().plusDays(1))
+                .durationMinutes(30)
+                .status(AppointmentStatus.CONFIRMED)
+                .notes("Notes")
+                .build();
     }
 
     private Appointment getAppointmentEntity(Long id) {
-        Appointment t = new Appointment();
-        t.setCustomerId(id);
-        t.setServiceId(2L);
-        t.setStaffMemberId(3L);
-        t.setDateTime(LocalDateTime.of(2026, 2, 15, 10, 0));
-        t.setDurationMinutes(30);
-        t.setStatus(AppointmentStatus.CONFIRMED);
-        t.setNotes("Notes");
-        t.setCreatedAt(LocalDateTime.of(2026, 2, 1, 10, 0));
-        t.setUpdateAt(LocalDateTime.of(2026, 2, 2, 10, 0));
-        return t;
-    }
-
-    private Appointment appointmentWhitId(long id) {
-        Appointment t = new Appointment();
-        t.setId(id);
-        t.setCustomerId(1L);
-        t.setServiceId(2L);
-        t.setStaffMemberId(3L);
-        t.setDateTime(LocalDateTime.of(2026, 2, 15, 10, 0));
-        t.setDurationMinutes(30);
-        t.setStatus(AppointmentStatus.CONFIRMED);
-        t.setNotes("Notes");
-        t.setCreatedAt(LocalDateTime.of(2026, 2, 1, 10, 0));
-        t.setUpdateAt(LocalDateTime.of(2026, 2, 2, 10, 0));
-        return t;
+        return  Appointment.builder()
+                .id(id)
+                .customerId(id)
+                .serviceId(2L)
+                .staffMemberId(3L)
+                .dateTime(LocalDateTime.now().plusDays(1))
+                .durationMinutes(30)
+                .status(AppointmentStatus.CONFIRMED)
+                .notes("Notes")
+                .createdAt(LocalDateTime.now())
+                .updateAt(LocalDateTime.now())
+                .build();
     }
 
     @Test
-    void saveAppointment_ok_shouldReturn200_andCallService() throws Exception {
+    void saveAppointment_ok_shouldReturn201_andCallService() throws Exception {
         //Given
         Long id = 1L;
-        var dto = validDto(id);
-        Appointment entity = new Appointment();
+        var dto = getAppointmentDto(id);
+        Appointment entity = getAppointmentEntity(id);
 
         given(appointmentMapper.toEntity(any(AppointmentRequestDto.class)))
                 .willReturn(entity);
@@ -93,7 +77,7 @@ public class AppointmentControllerTest {
         mockMvc.perform(post("/api/appointments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // Assert
         then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
@@ -103,7 +87,8 @@ public class AppointmentControllerTest {
     @Test
     void saveAppointment_withInvalidDto_shouldReturn400() throws Exception{
         // Given
-        AppointmentRequestDto dto = validDto(1L);
+        Long id = 1L;
+        AppointmentRequestDto dto = getAppointmentDto(id);
         dto.setCustomerId(null);
 
         // When + Then
@@ -117,12 +102,12 @@ public class AppointmentControllerTest {
     }
 
     @Test
-    void findAllAppointment() throws Exception{
+    void findAllAppointment_shouldReturn200_andList() throws Exception{
         //Given
-        given(appointmentService.findAllAppointments()).willReturn(List.of(
-                appointmentWhitId(1),
-                appointmentWhitId(2)
-        ));
+        Long id = 1L;
+        var appointment1 = getAppointmentEntity(id);
+        var appointment2 = getAppointmentEntity(2L);
+        given(appointmentService.findAllAppointments()).willReturn(List.of(appointment1, appointment2));
 
         //When + Then
         mockMvc.perform(get("/api/appointments"))
@@ -136,26 +121,29 @@ public class AppointmentControllerTest {
     }
 
     @Test
-    void findAppointment() throws Exception {
+    void findAppointment_ok_shouldReturn200_andCallService() throws Exception {
         //Given
-        given(appointmentService.findAppointment(10L)).willReturn(appointmentWhitId(10));
+        Long id = 1L;
+        var appointment = getAppointmentEntity(id);
+        given(appointmentService.findAppointment(id)).willReturn(appointment);
 
         //When + Then
-        mockMvc.perform(get("/api/appointments/10"))
+        mockMvc.perform(get("/api/appointments/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(10))
+                .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.customerId").value(1))
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
-        then(appointmentService).should().findAppointment(10L);
+        then(appointmentService).should().findAppointment(id);
     }
 
     @Test
     void updateAppointment_ok_shouldReturn200_andCallService() throws Exception{
         //Given
-        AppointmentRequestDto dto = validDto(5L);
-        Appointment entity = new Appointment();
+        Long id = 5L;
+        var dto = getAppointmentDto(id);
+        var entity = getAppointmentEntity(id);
 
         given(appointmentMapper.toEntity(any(AppointmentRequestDto.class))).willReturn(entity);
 
@@ -163,17 +151,18 @@ public class AppointmentControllerTest {
             mockMvc.perform(put("/api/appointments/5")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isOk());
+                    .andExpect(status().isNoContent());
             then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
-            then(appointmentService).should().updateAppointment(entity, 5L);
+            then(appointmentService).should().updateAppointment(entity,id);
 
     }
 
     @Test
     void updateAppointment_withInvalidDto_shouldReturn400() throws Exception{
         //Given
-        AppointmentRequestDto dto = validDto(5L);
-        dto.setDateTime(LocalDateTime.now().minusDays(1)); //rompe @Feature
+        Long id = 5L;
+        var dto = getAppointmentDto(id);
+        dto.setDateTime(LocalDateTime.now().minusDays(1));
 
         //When + Then
         mockMvc.perform(put("/api/appointments/5")

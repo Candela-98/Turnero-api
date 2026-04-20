@@ -1,7 +1,11 @@
 package com.turnero.api.dto;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+import lombok.Builder;
 
+@Data
+@Builder
 public class StaffMemberRequestDto {
 
     private Long staffMemberId;
@@ -15,33 +19,5 @@ public class StaffMemberRequestDto {
     @NotNull(message = "The staffmember's license is mandatory.")
     private String license;
 
-    //Getters y Setters
 
-    public Long getStaffMemberId() {
-        return staffMemberId;
-    }
-    public void setStaffMemberId(Long staffMemberId) {
-        this.staffMemberId = staffMemberId;
-    }
-
-    public String getNameStaffMember() {
-        return nameStaffMember;
-    }
-    public void setNameStaffMember(String nameStaffMember) {
-        this.nameStaffMember = nameStaffMember;
-    }
-
-    public String getSpecialty() {
-        return specialty;
-    }
-    public void setSpecialty(String specialty) {
-        this.specialty = specialty;
-    }
-
-    public String getLicense() {
-        return license;
-    }
-    public void setLicense(String license) {
-        this.license = license;
-    }
 }
