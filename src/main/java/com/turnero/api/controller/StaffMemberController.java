@@ -5,6 +5,7 @@ import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.service.StaffMemberService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +27,7 @@ public class StaffMemberController {
     public ResponseEntity<StaffMember> saveStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto) {
         var staff = staffMemberMapper.toEntity(staffDto);
         staffMemberService.saveStaffMember(staff);
-        return ResponseEntity.ok(staff);
+        return ResponseEntity.status(HttpStatus.CREATED).body(staff);
     }
 
     @GetMapping("/{id}")

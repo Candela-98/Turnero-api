@@ -5,7 +5,11 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
+import lombok.Data;
+import lombok.Builder;
 
+@Data
+@Builder
 public class AppointmentRequestDto {
 
     @NotNull(message = "Customer ID is required")
@@ -29,25 +33,5 @@ public class AppointmentRequestDto {
 
     private String notes;
 
-    // Getters y setters
-    public Long getCustomerId() { return customerId; }
-    public void setCustomerId(Long customerId) { this.customerId = customerId; }
 
-    public Long getServiceId() { return serviceId; }
-    public void setServiceId(Long serviceId) { this.serviceId = serviceId; }
-
-    public Long getStaffMemberId() { return staffMemberId; }
-    public void setStaffMemberId(Long staffMemberId) { this.staffMemberId = staffMemberId; }
-
-    public LocalDateTime getDateTime() { return dateTime; }
-    public void setDateTime(LocalDateTime dateTime) { this.dateTime = dateTime; }
-
-    public int getDurationMinutes() { return durationMinutes; }
-    public void setDurationMinutes(int durationMinutes) { this.durationMinutes = durationMinutes; }
-
-    public AppointmentStatus getStatus() { return status; }
-    public void setStatus(AppointmentStatus status) { this.status = status; }
-
-    public String getNotes() { return notes; }
-    public void setNotes(String notes) { this.notes = notes; }
 }

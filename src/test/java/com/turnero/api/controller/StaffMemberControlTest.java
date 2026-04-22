@@ -14,10 +14,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -36,44 +36,38 @@ public class StaffMemberControlTest {
     @MockitoBean
     private StaffMemberMapper staffMapper;
 
-    private StaffMemberRequestDto validDto(){
-        StaffMemberRequestDto dto = new StaffMemberRequestDto();
-        dto.setStaffMemberId(1L);
-        dto.setNameStaffMember("Daniel Leguizamon");
-        dto.setSpecialty("Barber");
-        dto.setLicense("A12322");
-        return dto;
+    private StaffMemberRequestDto getStaffMemberDTO(Long id){
+        return StaffMemberRequestDto.builder()
+                .staffMemberId(id)
+                .nameStaffMember("Daniel Leguizamon")
+                .specialty("Barber")
+                .license("A12322")
+                .build();
     }
 
-    private StaffMember getStaffMemberEntity(){
-        StaffMember prof = new StaffMember();
-        prof.setId(1L);
-        prof.setName("Daniel Leguizamon");
-        prof.setSpecialty("Barber");
-        prof.setLicense("A12322");
-        return prof;
+    private StaffMember getStaffMemberEntity(Long id){
+        return  StaffMember.builder()
+                .id(id)
+                .name("Daniel Leguizamon")
+                .specialty("Barber")
+                .license("A12322")
+                .build();
     }
 
-    private StaffMember staffMemberWithId(long id){
-        StaffMember prof = new StaffMember();
-        prof.setId(id);
-        prof.setName("Daniel Leguizamon");
-        prof.setSpecialty("Barber");
-        prof.setLicense("A12322");
-        return prof;
-    }
-
+    @Test
     void saveStaffMember_ok_shouldReturn200_andCallService() throws Exception{
         // Given
-        StaffMemberRequestDto dto = validDto();
-        StaffMember entity = new StaffMember();
+        Long id = 1L;
+        var dto = getStaffMemberDTO(id);
+        var entity = getStaffMemberEntity(id);
+
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
 
         // When
         mockMvc.perform(post("/api/staffmembers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // Assert
         then(staffMapper).should().toEntity(any(StaffMemberRequestDto.class));
@@ -81,9 +75,10 @@ public class StaffMemberControlTest {
     }
 
     @Test
-    void saveStaffMember_withInvalidDto_shouldReturn400() throws Exception {
+    void saveStaffMember_whenNameIsNull_shouldReturn400() throws Exception {
         // Given
-        StaffMemberRequestDto dto = validDto();
+        Long id = 1L;
+        StaffMemberRequestDto dto = getStaffMemberDTO(id);
         dto.setNameStaffMember(null);
 
         // When
@@ -100,8 +95,12 @@ public class StaffMemberControlTest {
     @Test
     void listStaffMembers_ok_shouldReturn200_andCallService() throws Exception {
         //Given
+        Long id = 1L;
+        var staffMember1 = getStaffMemberEntity(id);
+        var staffMember2 = getStaffMemberEntity(2L);
+
         given(staffService.findAllStaffMember())
-                .willReturn(java.util.List.of(staffMemberWithId(1L), staffMemberWithId(2L)));
+                .willReturn(List.of(staffMember1, staffMember2));
 
         //When + Then
         mockMvc.perform(get("/api/staffmembers"))
@@ -117,7 +116,9 @@ public class StaffMemberControlTest {
     @Test
     void findStaffMember_ok_shouldReturn200_andCallService() throws Exception{
         // Given
-        given (staffService.findStaffMember(1L)).willReturn(staffMemberWithId(1L));
+        Long id = 1L;
+        var staffMember = getStaffMemberEntity(id);
+        given (staffService.findStaffMember(id)).willReturn(staffMember);
 
         // When + Then
         mockMvc.perform(get("/api/staffmembers/1"))
@@ -145,8 +146,10 @@ public class StaffMemberControlTest {
     @Test
     void updateStaffMember_ok_shouldReturn200_andCallService() throws Exception{
         // Given
-        StaffMemberRequestDto dto = validDto();
-        StaffMember entity = new StaffMember();
+        Long id = 1L;
+        var dto = getStaffMemberDTO(id);
+        var entity = getStaffMemberEntity(id);
+
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
 
         // When
@@ -163,7 +166,8 @@ public class StaffMemberControlTest {
     @Test
     void updateStaffMember_withInvalidDto_shouldReturn400() throws Exception{
         //Given
-        StaffMemberRequestDto dto = validDto();
+        Long id = 1L;
+        var dto = getStaffMemberDTO(id);
         dto.setNameStaffMember(null);
 
         // When + Then

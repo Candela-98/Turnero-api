@@ -54,25 +54,26 @@ public class AppointmentControllerIT {
     }
 
     private AppointmentRequestDto getAppointmentRequestDto() {
-        AppointmentRequestDto dto = new AppointmentRequestDto();
-        dto.setCustomerId(1L);
-        dto.setServiceId(1L);
-        dto.setStaffMemberId(1L);
-        dto.setDateTime(LocalDateTime.of(2026, 2, 24, 21, 0));
-        dto.setDurationMinutes(60);
-        dto.setNotes("Test appointment");
-        return dto;
+        return AppointmentRequestDto.builder()
+                .customerId(1L)
+                .serviceId(1L)
+                .staffMemberId(1L)
+                .dateTime(LocalDateTime.now().plusDays(1))
+                .durationMinutes(60)
+                .notes("Test appointment")
+                .status(AppointmentStatus.PENDING)
+                .build();
     }
 
     private Appointment getAppointment() {
-        Appointment appointment = new Appointment();
-        appointment.setCustomerId(1L);
-        appointment.setServiceId(1L);
-        appointment.setStaffMemberId(1L);
-        appointment.setDateTime(LocalDateTime.of(2026, 2, 24, 21, 0));
-        appointment.setDurationMinutes(60);
-        appointment.setNotes("Test appointment");
-        return appointment;
+        return Appointment.builder()
+                .customerId(1L)
+                .serviceId(1L)
+                .staffMemberId(1L)
+                .dateTime(LocalDateTime.now().plusDays(1))
+                .durationMinutes(60)
+                .notes("Test appointment")
+                .build();
     }
 
     @Test
@@ -86,7 +87,7 @@ public class AppointmentControllerIT {
         mockMvc.perform(post("/api/appointments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // Then
         List<Appointment> appointments = appointmentRepository.findAll();
@@ -121,27 +122,25 @@ public class AppointmentControllerIT {
     @Test
     void findAppointment_whenAppointmentExists_returns200AndAppointment() throws Exception {
         //Given
-        LocalDateTime expectedDate = LocalDateTime.of(2026, 2, 24, 21, 0);
         Appointment appointment = getAppointment();
-
         Appointment saved = appointmentRepository.save(appointment);
 
-        //When
+        // When
         MvcResult result = mockMvc.perform(get("/api/appointments/{id}", saved.getId()))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        //Then
+        // Then
         String json = result.getResponse().getContentAsString();
         Appointment response = objectMapper.readValue(json, Appointment.class);
 
         assertThat(response.getId()).isEqualTo(saved.getId());
-        assertThat(response.getCustomerId()).isEqualTo(1L);
-        assertThat(response.getServiceId()).isEqualTo(1L);
-        assertThat(response.getStaffMemberId()).isEqualTo(1L);
-        assertThat(response.getDateTime()).isEqualTo(expectedDate);
-        assertThat(response.getDurationMinutes()).isEqualTo(60);
-        assertThat(response.getNotes()).isEqualTo("Test appointment");
+        assertThat(response.getCustomerId()).isEqualTo(saved.getCustomerId());
+        assertThat(response.getServiceId()).isEqualTo(saved.getServiceId());
+        assertThat(response.getStaffMemberId()).isEqualTo(saved.getStaffMemberId());
+        assertThat(response.getDateTime()).isEqualTo(saved.getDateTime());
+        assertThat(response.getDurationMinutes()).isEqualTo(saved.getDurationMinutes());
+        assertThat(response.getNotes()).isEqualTo(saved.getNotes());
 
     }
 
@@ -173,7 +172,7 @@ public class AppointmentControllerIT {
         mockMvc.perform(put("/api/appointments/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // Then
         Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
@@ -205,11 +204,11 @@ public class AppointmentControllerIT {
     void listAppointments_whenAppointmentsExist_returns200AndAppointmentList() throws Exception {
         // Given
         Appointment appointment1 = getAppointment();
-        Appointment appointment2 = new Appointment();
+        Appointment appointment2 = getAppointment();
         appointment2.setCustomerId(2L);
         appointment2.setServiceId(2L);
         appointment2.setStaffMemberId(2L);
-        appointment2.setDateTime(LocalDateTime.of(2026, 3, 1, 10, 0));
+        appointment2.setDateTime(LocalDateTime.of(2026, 6, 1, 10, 0));
         appointment2.setDurationMinutes(30);
         appointment2.setNotes("Second appointment");
 
@@ -233,7 +232,7 @@ public class AppointmentControllerIT {
         assertThat(response).extracting(Appointment::getStaffMemberId)
                 .containsExactlyInAnyOrder(1L, 2L);
         assertThat(response).extracting(Appointment::getDateTime)
-                .containsExactlyInAnyOrder(LocalDateTime.of(2026, 2, 24, 21, 0), LocalDateTime.of(2026, 3, 1, 10, 0));
+                .containsExactlyInAnyOrder(appointment1.getDateTime(), appointment2.getDateTime());
         assertThat(response).extracting(Appointment::getDurationMinutes)
                 .containsExactlyInAnyOrder(60, 30);
         assertThat(response).extracting(Appointment::getNotes)

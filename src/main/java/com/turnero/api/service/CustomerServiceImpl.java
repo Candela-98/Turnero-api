@@ -2,20 +2,18 @@ package com.turnero.api.service;
 
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @Service
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
-
-    public CustomerServiceImpl(CustomerRepository customerRepository){
-        this.customerRepository = customerRepository;
-    }
 
     @Override
     public Customer saveCustomer(Customer customer) {

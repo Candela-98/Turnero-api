@@ -1,9 +1,12 @@
 package com.turnero.api.dto;
 
 import jakarta.validation.constraints.NotNull;
-
+import lombok.Builder;
+import lombok.Data;
 import java.time.LocalDateTime;
 
+@Data
+@Builder
 public class CustomerRequestDto {
 
     private Long customerId;
@@ -20,41 +23,4 @@ public class CustomerRequestDto {
     @NotNull(message = "The customer creation date is mandatory.")
     private LocalDateTime creationDate;
 
-    //Getters y Setters
-
-
-    public Long getCustomerId() {
-        return customerId;
-    }
-    public void setCustomerId(Long customerId) {
-        this.customerId = customerId;
-    }
-
-    public String getNameCustomer() {
-        return nameCustomer;
-    }
-    public void setNameCustomer(String nameCustomer) {
-        this.nameCustomer = nameCustomer;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPhoneCustomer() {
-        return phoneCustomer;
-    }
-    public void setPhoneCustomer(String phoneCustomer) {
-        this.phoneCustomer = phoneCustomer;
-    }
-
-    public LocalDateTime getCreationDate() {
-        return creationDate;
-    }
-    public void setCreationDate(LocalDateTime creationDate) {
-        this.creationDate = creationDate;
-    }
 }

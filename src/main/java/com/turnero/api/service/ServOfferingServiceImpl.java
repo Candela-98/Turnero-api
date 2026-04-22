@@ -2,19 +2,17 @@ package com.turnero.api.service;
 
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.repository.ServOfferingRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @Service
 public class ServOfferingServiceImpl implements ServOfferingService {
     private final ServOfferingRepository servOfferingRepository;
-
-    public ServOfferingServiceImpl(ServOfferingRepository servOfferingRepository) {
-        this.servOfferingRepository = servOfferingRepository;
-    }
 
     @Override
     public ServiceOffering saveServiceOffering(ServiceOffering serviceOffering) {

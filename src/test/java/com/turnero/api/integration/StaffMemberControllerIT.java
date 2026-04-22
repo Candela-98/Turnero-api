@@ -52,23 +52,23 @@ public class StaffMemberControllerIT {
     }
 
     private StaffMemberRequestDto getStaffMemberRequestDto() {
-        StaffMemberRequestDto dto = new StaffMemberRequestDto();
-        dto.setNameStaffMember("Matias");
-        dto.setSpecialty("Barber");
-        dto.setLicense("123456");
-        return dto;
+        return StaffMemberRequestDto.builder()
+                .nameStaffMember("Matias")
+                .specialty("Barber")
+                .license("123456")
+                .build();
     }
 
     private StaffMember getStaffMember() {
-        StaffMember staffMember = new StaffMember();
-        staffMember.setName("Matias");
-        staffMember.setSpecialty("Barber");
-        staffMember.setLicense("123456");
-        return staffMember;
+         return StaffMember.builder()
+                 .name("Matias")
+                 .specialty("Barber")
+                 .license("123456")
+                 .build();
     }
 
     @Test
-    void saveStaffMember_whenRequestIsValid_persistsStaffMember_andReturns200() throws Exception {
+    void saveStaffMember_whenRequestIsValid_persistsStaffMember_andReturns201() throws Exception {
         //Given
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
 
@@ -76,7 +76,7 @@ public class StaffMemberControllerIT {
         mockMvc.perform(post("/api/staffmembers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         //Then
         List<StaffMember> staffMembers = staffMemberRepository.findAll();
