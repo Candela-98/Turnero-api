@@ -1,11 +1,10 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.repository.StaffMemberRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -23,7 +22,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     @Override
     public StaffMember findStaffMember(Long id) {
         return staffMemberRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Staffmember not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + id));
     }
 
     @Override
@@ -48,7 +47,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
             staffMemberRepository.deleteById(id);
             System.out.println("Staffmember with ID " + id + " successfully deleted.");
         } else {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Staffmember not found");
+            throw new ResourceNotFoundException("Staffmember not found with ID: " + id);
         }
 
     }
