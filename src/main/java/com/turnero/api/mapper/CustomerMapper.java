@@ -2,20 +2,15 @@ package com.turnero.api.mapper;
 
 import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.model.Customer;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-@Component
-public class CustomerMapper {
+@Mapper(componentModel = "spring")
+public interface CustomerMapper {
 
-    public Customer toEntity(CustomerRequestDto dtoCustomer){
-        Customer customer = new Customer();
-
-        customer.setId(dtoCustomer.getCustomerId());
-        customer.setName(dtoCustomer.getNameCustomer());
-        customer.setEmail(dtoCustomer.getEmail());
-        customer.setPhoneNumber(dtoCustomer.getPhoneCustomer());
-        customer.setCreatedIn(dtoCustomer.getCreationDate());
-
-        return customer;
-    }
+    @Mapping(source = "customerId", target = "id")
+    @Mapping(source = "nameCustomer", target = "name")
+    @Mapping(source = "phoneCustomer", target = "phoneNumber")
+    @Mapping(source = "creationDate", target = "createdIn")
+    Customer toEntity(CustomerRequestDto dtoCustomer);
 }
