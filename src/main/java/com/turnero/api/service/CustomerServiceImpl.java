@@ -1,11 +1,10 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -23,7 +22,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer findCustomer(Long id) {
         return customerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
     }
 
     @Override
@@ -50,7 +49,7 @@ public class CustomerServiceImpl implements CustomerService {
             customerRepository.deleteById(id);
             System.out.println("Customer with Id " + id + " successfully removed.");
         } else {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found");
+            throw new ResourceNotFoundException("Customer not found with ID: " + id);
         }
     }
 }

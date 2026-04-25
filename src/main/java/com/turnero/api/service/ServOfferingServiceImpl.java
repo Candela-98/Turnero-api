@@ -1,11 +1,10 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.repository.ServOfferingRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -22,7 +21,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     @Override
     public ServiceOffering findServiceOffering(Long id) {
         return servOfferingRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Service offering not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Service offering not found with ID: " + id));
     }
 
     public List<ServiceOffering> findAllServOffering() {
@@ -48,7 +47,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
             servOfferingRepository.deleteById(id);
             System.out.println("Service offering with Id: " + id + " successfully deleted.");
         }else {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service offering not found");
+            throw new ResourceNotFoundException("Service offering not found with ID: " + id);
         }
 
     }

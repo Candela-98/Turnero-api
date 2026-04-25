@@ -17,10 +17,10 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @WebMvcTest(ServOfferingController.class)
 public class ServiceOfferingControllerTest {
@@ -138,7 +138,9 @@ public class ServiceOfferingControllerTest {
         // When + Then
         mockMvc.perform(get("/api/service-offerings/999"))
                 .andExpect(status().isNotFound())
-                .andExpect(content().string(""));
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Service offering not found"));
 
         then(servOfferingService).should().findServiceOffering(999L);
     }

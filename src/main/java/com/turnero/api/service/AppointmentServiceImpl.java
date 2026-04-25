@@ -1,11 +1,10 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.repository.AppointmentRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -28,7 +27,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     public Appointment findAppointment(Long id) {
         return appointmentRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Appointment not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
     }
 
     @Override
@@ -53,7 +52,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointmentRepository.deleteById(id);
             System.out.println("Appointment with ID " + id + " successfully deleted.");
         } else {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found");
+            throw new ResourceNotFoundException("Appointment not found with ID: " + id);
         }
     }
 }
