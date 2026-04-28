@@ -26,7 +26,7 @@ import java.util.List;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -102,7 +102,11 @@ public class ServOfferingControllerIT {
         mockMvc.perform(post("/api/service-offerings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                        .andExpect(status().isBadRequest())
+                        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                        .andExpect(jsonPath("$.status").value(400))
+                        .andExpect(jsonPath("$.error").value("Bad Request"))
+                        .andExpect(jsonPath("$.validations.name").value("The service offering name is required"));
 
         assertThat(servOfferingRepository.findAll()).isEmpty();
     }
@@ -133,7 +137,11 @@ public class ServOfferingControllerIT {
         Long id = 999L;
 
         mockMvc.perform(get("/api/service-offerings/{id}", id))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Service offering not found with ID: " + id));
     }
 
     @Test
@@ -169,7 +177,11 @@ public class ServOfferingControllerIT {
         mockMvc.perform(put("/api/service-offerings/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.validations.name").value("The service offering name is required"));
 
     }
 
@@ -237,7 +249,11 @@ public class ServOfferingControllerIT {
 
         // When + Then
         mockMvc.perform(delete("/api/service-offerings/{id}", id))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Service offering not found with ID: " + id));
     }
 
 }

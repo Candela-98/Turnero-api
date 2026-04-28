@@ -3,6 +3,7 @@ package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.AppointmentRequestDto;
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.AppointmentStatus;
 import com.turnero.api.model.Appointment;
@@ -18,8 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -95,7 +95,12 @@ public class AppointmentControllerTest {
         mockMvc.perform(post("/api/appointments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.customerId").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
         then(appointmentMapper).shouldHaveNoInteractions();
@@ -139,6 +144,24 @@ public class AppointmentControllerTest {
     }
 
     @Test
+    void findAppointment_withNonExistingId_shouldReturn404() throws Exception {
+        //Given
+        Long id = 999L;
+        given(appointmentService.findAppointment(id))
+                .willThrow(new ResourceNotFoundException("Appointment not found"));
+
+        //When + Then
+        mockMvc.perform(get("/api/appointments/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Appointment not found"));
+
+        then(appointmentService).should().findAppointment(id);
+    }
+
+    @Test
     void updateAppointment_ok_shouldReturn200_andCallService() throws Exception{
         //Given
         Long id = 5L;
@@ -168,7 +191,13 @@ public class AppointmentControllerTest {
         mockMvc.perform(put("/api/appointments/5")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.dateTime").exists());
+
         then(appointmentService).shouldHaveNoInteractions();
         then(appointmentMapper).shouldHaveNoInteractions();
     }
@@ -182,6 +211,26 @@ public class AppointmentControllerTest {
         mockMvc.perform(delete("/api/appointments/7"))
                 .andExpect(status().isNoContent());
         then(appointmentService).should().deleteAppointment(7L);
+    }
+
+    @Test
+    void deleteAppointment_withNonExistingId_shouldReturn404() throws Exception{
+        //Given
+        Long id = 999L;
+        willThrow(new ResourceNotFoundException("Appointment not found"))
+                .given(appointmentService)
+                .deleteAppointment(id);
+
+        //When + Then
+        mockMvc.perform(delete("/api/appointments/{id}", id)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Appointment not found"));
+
+        then(appointmentService).should().deleteAppointment(id);
     }
 
 }

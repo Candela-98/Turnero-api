@@ -1,4 +1,5 @@
 package com.turnero.api.service;
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.repository.ServOfferingRepository;
 import org.junit.jupiter.api.Test;
@@ -57,7 +58,10 @@ public class ServiceOfferingServiceImplTest {
         Long id = 99L;
         when(servOfferingRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> servOfferingService.findServiceOffering(id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> servOfferingService.findServiceOffering(id));
+
+        assertEquals("Service offering not found with ID: " + id, exception.getMessage());
 
         verify(servOfferingRepository, times(1)).findById(id);
     }
@@ -107,7 +111,10 @@ public class ServiceOfferingServiceImplTest {
         ServiceOffering updatedServiceOffering = new ServiceOffering();
         updatedServiceOffering.setName("Corte + barba");
 
-        assertThrows(RuntimeException.class, () -> servOfferingService.updateServOffering(updatedServiceOffering, id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> servOfferingService.updateServOffering(updatedServiceOffering, id));
+
+        assertEquals("Service offering not found with ID: " + id, exception.getMessage());
 
         verify(servOfferingRepository, never()).save(any());
     }
@@ -127,7 +134,10 @@ public class ServiceOfferingServiceImplTest {
         Long id = 99L;
         when(servOfferingRepository.existsById(id)).thenReturn(false);
 
-        assertThrows(RuntimeException.class, () -> servOfferingService.deleteServOffering(id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> servOfferingService.deleteServOffering(id));
+
+        assertEquals("Service offering not found with ID: " + id, exception.getMessage());
 
         verify(servOfferingRepository, never()).deleteById(anyLong());
     }

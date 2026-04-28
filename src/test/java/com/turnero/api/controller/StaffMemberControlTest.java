@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.StaffMemberRequestDto;
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.StaffMemberMapper;
 
 import com.turnero.api.model.StaffMember;
@@ -12,16 +13,15 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.web.servlet.function.RequestPredicates.contentType;
 
 @WebMvcTest(StaffMemberController.class)
 public class StaffMemberControlTest {
@@ -85,7 +85,12 @@ public class StaffMemberControlTest {
         mockMvc.perform(post("/api/staffmembers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.nameStaffMember").exists());
 
         // Then
         then(staffMapper).shouldHaveNoInteractions();
@@ -134,11 +139,14 @@ public class StaffMemberControlTest {
     @Test
     void findStaffMember_withNonExistingId_shouldReturn404() throws Exception {
         // Given
-        given(staffService.findStaffMember(999L)).willThrow(new ResponseStatusException(NOT_FOUND, "Staff member not found"));
+        given(staffService.findStaffMember(999L)).willThrow(new ResourceNotFoundException("Staff member not found"));
 
         // When + Then
         mockMvc.perform(get("/api/staffmembers/999"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staff member not found"));
 
         then(staffService).should().findStaffMember(999L);
     }
@@ -171,10 +179,15 @@ public class StaffMemberControlTest {
         dto.setNameStaffMember(null);
 
         // When + Then
-        mockMvc.perform(put("/api/staffmembers/1")
+        mockMvc.perform(put("/api/staffmembers/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.nameStaffMember").exists());
 
         then(staffMapper).shouldHaveNoInteractions();
         then(staffService).shouldHaveNoInteractions();
@@ -187,6 +200,22 @@ public class StaffMemberControlTest {
                 .andExpect(status().isNoContent());
 
         then(staffService).should().deleteStaffMember(1L);
+    }
+
+    @Test
+    void deleteStaffMember_withNonExistingId_shouldReturn404() throws Exception {
+        // Given
+        willThrow(new ResourceNotFoundException("Staff member not found"))
+                .given(staffService).deleteStaffMember(999L);
+
+        // When + Then
+        mockMvc.perform(delete("/api/staffmembers/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staff member not found"));
+
+        then(staffService).should().deleteStaffMember(999L);
     }
 }
 

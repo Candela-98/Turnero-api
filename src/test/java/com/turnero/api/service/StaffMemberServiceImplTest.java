@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.repository.StaffMemberRepository;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,10 @@ public class StaffMemberServiceImplTest {
         Long id = 99L;
         when(staffMemberRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> staffMemberService.findStaffMember(id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> staffMemberService.findStaffMember(id));
+
+        assertEquals("Staffmember not found with ID: " + id, exception.getMessage());
 
         verify(staffMemberRepository, times(1)).findById(id);
         System.out.println("Staff member not found with: " + id);
@@ -113,7 +117,10 @@ public class StaffMemberServiceImplTest {
         StaffMember updateStaff = new StaffMember();
         updateStaff.setName("New");
 
-        assertThrows(RuntimeException.class, () -> staffMemberService.updateStaffMember(updateStaff, id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> staffMemberService.updateStaffMember(updateStaff, id));
+
+        assertEquals("Staffmember not found with ID: " + id, exception.getMessage());
 
         verify(staffMemberRepository, never()).save(any());
     }
@@ -133,7 +140,10 @@ public class StaffMemberServiceImplTest {
         Long id = 99L;
         when(staffMemberRepository.existsById(id)).thenReturn(false);
 
-        assertThrows(RuntimeException.class, () -> staffMemberService.deleteStaffMember(id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> staffMemberService.deleteStaffMember(id));
+
+        assertEquals("Staffmember not found with ID: " + id, exception.getMessage());
 
         verify(staffMemberRepository, never()).deleteById(anyLong());
     }

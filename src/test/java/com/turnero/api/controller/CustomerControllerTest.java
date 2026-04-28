@@ -68,7 +68,12 @@ class CustomerControllerTest {
         mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                        .andExpect(status().isBadRequest())
+                        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                        .andExpect(jsonPath("$.status").value(400))
+                        .andExpect(jsonPath("$.error").value("Bad Request"))
+                        .andExpect(jsonPath("$.message").value("Validation error"))
+                        .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
 
         then(customerService).shouldHaveNoInteractions();
     }
@@ -102,7 +107,11 @@ class CustomerControllerTest {
         // When
         mockMvc.perform(get("/api/customers/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Invalid parameter type"));
 
         // Assert
         then(customerService).should(never()).findCustomer(any());
@@ -140,7 +149,12 @@ class CustomerControllerTest {
         mockMvc.perform(put("/api/customers/{id}", 12L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
 
         then(customerService).shouldHaveNoInteractions();
     }
@@ -182,14 +196,18 @@ class CustomerControllerTest {
     }
 
     @Test
-    void deleteCustomer_whenIdIsInvalid_returnsBadRequest() throws Exception {
+    void deleteCustomer_withNonExistentId_shouldReturn404() throws Exception {
         // Given
         var id = "invalidId";
 
         // When
         mockMvc.perform(delete("/api/customers/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Invalid parameter type"));
 
         // Then
         then(customerService).should(never()).deleteCustomer(any());

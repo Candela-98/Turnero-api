@@ -2,7 +2,8 @@ package com.turnero.api.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.web.servlet.function.RequestPredicates.contentType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -85,7 +86,11 @@ class CustomerControllerIT {
         mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
 
         // Then
         assertThat(customerRepository.findAll()).isEmpty();
@@ -122,7 +127,11 @@ class CustomerControllerIT {
         Long id = 999L;
 
         mockMvc.perform(get("/api/customers/{id}", id))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found"));
     }
 
     @Test
@@ -160,7 +169,11 @@ class CustomerControllerIT {
         mockMvc.perform(put("/api/customers/{id}", dto.getCustomerId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
     }
 
     @Test
@@ -235,7 +248,11 @@ class CustomerControllerIT {
 
         // When + Then
         mockMvc.perform(delete("/api/customers/{id}", id))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found with ID: " + id));
     }
 
     private CustomerRequestDto getCustomerRequestDto() {

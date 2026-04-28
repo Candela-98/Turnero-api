@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.AppointmentStatus;
 import com.turnero.api.repository.AppointmentRepository;
@@ -68,7 +69,12 @@ class AppointmentServiceImplTest {
         Long id = 99L;
         when(appointmentRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> appointmentService.findAppointment(id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> appointmentService.findAppointment(id)
+        );
+
+        assertEquals("Appointment not found with ID: 99", exception.getMessage());
     }
 
     @Test
@@ -117,7 +123,12 @@ class AppointmentServiceImplTest {
         Long id = 99L;
         when(appointmentRepository.existsById(id)).thenReturn(false);
 
-        assertThrows(RuntimeException.class, () -> appointmentService.deleteAppointment(id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> appointmentService.deleteAppointment(id)
+        );
+
+        assertEquals("Appointment not found with ID: 99", exception.getMessage());
 
         verify(appointmentRepository, never()).deleteById(anyLong());
     }

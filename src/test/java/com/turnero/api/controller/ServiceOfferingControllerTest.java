@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.ServOfferingRequestDto;
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.service.ServOfferingService;
@@ -11,13 +12,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -83,7 +82,12 @@ public class ServiceOfferingControllerTest {
         mockMvc.perform(post("/api/service-offerings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.name").exists());
 
         // Assert
         then(sMapper).shouldHaveNoInteractions();
@@ -133,7 +137,7 @@ public class ServiceOfferingControllerTest {
     void findServOffering_withNonExistentId_shouldReturn404() throws Exception {
         //Given
         given(servOfferingService.findServiceOffering(999L))
-                .willThrow(new ResponseStatusException(NOT_FOUND, "Service offering not found"));
+                .willThrow(new ResourceNotFoundException("Service offering not found"));
 
         // When + Then
         mockMvc.perform(get("/api/service-offerings/999"))
@@ -174,7 +178,12 @@ public class ServiceOfferingControllerTest {
         mockMvc.perform(put("/api/service-offerings/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.name").exists());
 
         then(sMapper).shouldHaveNoInteractions();
         then(servOfferingService).shouldHaveNoInteractions();
@@ -187,5 +196,21 @@ public class ServiceOfferingControllerTest {
                 .andExpect(status().isNoContent());
 
         then(servOfferingService).should().deleteServOffering(1L);
+    }
+
+    @Test
+    void deleteServOffering_withNonExistentId_shouldReturn404() throws Exception {
+        //Given
+        willThrow(new ResourceNotFoundException("Service offering not found"))
+                .given(servOfferingService).deleteServOffering(999L);
+
+        // When + Then
+        mockMvc.perform(delete("/api/service-offerings/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Service offering not found"));
+
+        then(servOfferingService).should().deleteServOffering(999L);
     }
 }

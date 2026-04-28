@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
 import org.junit.jupiter.api.Test;
@@ -59,7 +60,10 @@ public class CustomerServiceImplTest {
         Long id = 99L;
         when(customerRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> customerService.findCustomer(id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> customerService.findCustomer(id));
+
+        assertEquals("Customer not found", exception.getMessage());
 
         verify(customerRepository, times(1)).findById(id);
     }
@@ -112,7 +116,10 @@ public class CustomerServiceImplTest {
         Customer updatedCustomer = new Customer();
         updatedCustomer.setName("Nuevo");
 
-        assertThrows(RuntimeException.class, () -> customerService.updateCustomer(updatedCustomer, id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> customerService.updateCustomer(updatedCustomer, id));
+
+        assertEquals("Customer not found", exception.getMessage());
 
         verify(customerRepository, never()).save(any());
     }
@@ -132,7 +139,10 @@ public class CustomerServiceImplTest {
         Long id = 99L;
         when(customerRepository.existsById(id)).thenReturn(false);
 
-        assertThrows(RuntimeException.class, () -> customerService.deleteCustomer(id));
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> customerService.deleteCustomer(id));
+
+        assertEquals("Customer not found with ID: 99", exception.getMessage());
 
         verify(customerRepository, never()).deleteById(anyLong());
     }
