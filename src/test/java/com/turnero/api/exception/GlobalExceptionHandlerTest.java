@@ -80,7 +80,7 @@ public class GlobalExceptionHandlerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.error").value("Validation Error"));
+                .andExpect(jsonPath("$.error").value("Bad Request"));
     }
 
     @Test
