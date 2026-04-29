@@ -6,6 +6,7 @@ import com.turnero.api.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -16,6 +17,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public Customer saveCustomer(Customer customer) {
+        customer.setCreatedIn(LocalDateTime.now());
         return customerRepository.save(customer);
     }
 

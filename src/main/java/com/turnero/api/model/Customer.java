@@ -23,12 +23,16 @@ public class Customer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column (name = "name", nullable = false, unique = true, length = 100)
     private String name;
 
+    @Column(name = "email", nullable = false, unique = true, length = 150)
     private String email;
 
+    @Column(name = "phone_number", nullable = false, unique = true, length = 30)
     private String phoneNumber;
 
+    @Column(name = "created_in", nullable = false)
     private LocalDateTime createdIn;
 
 }

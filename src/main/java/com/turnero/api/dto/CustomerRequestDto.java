@@ -1,26 +1,25 @@
 package com.turnero.api.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Data;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
 public class CustomerRequestDto {
 
-    private Long customerId;
-
-    @NotNull(message = "The customer's name is required.")
+    @NotBlank(message = "The customer's name is required.")
+    @Size(max = 100, message = "The customer's name must have at most 100 characters.")
     private String nameCustomer;
 
-    @NotNull(message = "The customer's email address is required.")
+    @NotBlank(message = "The customer's email address is required.")
+    @Email(message = "The customer's email address must be valid.")
+    @Size(max = 150, message = "The customer's email address must have at most 150 characters.")
     private String email;
 
-    @NotNull(message = "The customer's phone number is mandatory.")
+    @NotBlank(message = "The customer's phone number is mandatory.")
+    @Size(max = 30, message = "The customer's phone number must have at most 30 characters.")
     private String phoneCustomer;
-
-    @NotNull(message = "The customer creation date is mandatory.")
-    private LocalDateTime creationDate;
-
 }

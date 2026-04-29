@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.turnero.api.dto.CustomerRequestDto;
+import com.turnero.api.dto.CustomerResponseDto;
 import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
 import com.turnero.api.service.CustomerService;
@@ -24,29 +25,33 @@ public class CustomerController {
     }
 
     @PostMapping
-    public ResponseEntity<Customer> saveCustomer(@Valid @RequestBody CustomerRequestDto customerDto) {
+    public ResponseEntity<CustomerResponseDto> saveCustomer(@Valid @RequestBody CustomerRequestDto customerDto) {
         var customer = customerMapper.toEntity(customerDto);
         var customerSaved = customerService.saveCustomer(customer);
-        return ResponseEntity.status(HttpStatus.CREATED).body(customerSaved);
+        var customerResponseDto = customerMapper.toResponseDto(customerSaved);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(customerResponseDto);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Customer> findCustomer(@PathVariable Long id) {
+    public ResponseEntity<CustomerResponseDto> findCustomer(@PathVariable Long id) {
         var customer = customerService.findCustomer(id);
-        return ResponseEntity.ok(customer);
+        var customerResponseDto = customerMapper.toResponseDto(customer);
+        return ResponseEntity.ok(customerResponseDto);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity updateCustomer(@Valid @RequestBody CustomerRequestDto customerDto, @PathVariable Long id) {
+    public ResponseEntity<Void> updateCustomer(@Valid @RequestBody CustomerRequestDto customerDto, @PathVariable Long id) {
         var customer = customerMapper.toEntity(customerDto);
         customerService.updateCustomer(customer, id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping
-    public ResponseEntity<List<Customer>> listCustomer() {
+    public ResponseEntity<List<CustomerResponseDto>> listCustomer() {
         var customers = customerService.findAllCustomer();
-        return ResponseEntity.ok(customers);
+        var customersResponseDto = customerMapper.toResponseDtoList(customers);
+        return ResponseEntity.ok(customersResponseDto);
     }
 
     @DeleteMapping("/{id}")

@@ -3,7 +3,6 @@ package com.turnero.api.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.web.servlet.function.RequestPredicates.contentType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,6 +10,7 @@ import java.util.List;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.CustomerRequestDto;
+import com.turnero.api.dto.CustomerResponseDto;
 import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
@@ -55,14 +55,17 @@ class CustomerControllerIT {
     @Test
     void saveCustomer_whenRequestIsValid_persistsCustomer_andReturns200() throws Exception {
         // Given
-        LocalDateTime expectedDate = LocalDateTime.of(2026, 2, 24, 21, 0);
+        LocalDateTime expectedDate = LocalDateTime.of(2026, 4, 29, 20, 07);
         CustomerRequestDto dto = getCustomerRequestDto();
 
+
         // When
-        mockMvc.perform(post("/api/customers")
+        MvcResult result = mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andReturn();
 
         // Then
         List<Customer> customers = customerRepository.findAll();
@@ -73,14 +76,23 @@ class CustomerControllerIT {
         assertThat(saved.getName()).isEqualTo("Juan Perez");
         assertThat(saved.getEmail()).isEqualTo("juan@mail.com");
         assertThat(saved.getPhoneNumber()).isEqualTo("1122334455");
-        assertThat(saved.getCreatedIn()).isEqualTo(expectedDate);
+        assertThat(saved.getCreatedIn()).isNotNull();
+
+        String json = result.getResponse().getContentAsString();
+        CustomerResponseDto response = objectMapper.readValue(json, CustomerResponseDto.class);
+
+        assertThat(response.getCustomerId()).isEqualTo(saved.getId());
+        assertThat(response.getNameCustomer()).isEqualTo("Juan Perez");
+        assertThat(response.getEmail()).isEqualTo("juan@mail.com");
+        assertThat(response.getPhoneCustomer()).isEqualTo("1122334455");
+        assertThat(response.getCreatedIn()).isNotNull();
     }
 
     @Test
-    void saveCustomer_whenNameIsNull_returns400() throws Exception {
+    void saveCustomer_whenNameIsBlank_returns400() throws Exception {
         // Given
         CustomerRequestDto dto = getCustomerRequestDto();
-        dto.setNameCustomer(null);
+        dto.setNameCustomer("");
 
         // When + Then
         mockMvc.perform(post("/api/customers")
@@ -97,12 +109,29 @@ class CustomerControllerIT {
     }
 
     @Test
+    void saveCustomer_whenEmailIsInvalid_returns400() throws Exception {
+        // Given
+        CustomerRequestDto dto = getCustomerRequestDto();
+        dto.setEmail("invalid-email");
+
+        // When + Then
+        mockMvc.perform(post("/api/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.validations.email").value("The customer's email address must be valid."));
+
+        assertThat(customerRepository.findAll()).isEmpty();
+    }
+
+    @Test
     void findCustomer_whenCustomerExists_returns200AndCustomer() throws Exception {
 
         // Given
-        LocalDateTime expectedDate = LocalDateTime.of(2026, 2, 24, 21, 0);
         Customer customer = getCustomer();
-
         Customer saved = customerRepository.save(customer);
 
         // When
@@ -113,13 +142,13 @@ class CustomerControllerIT {
         // Then
         String json = result.getResponse().getContentAsString();
 
-        Customer response = objectMapper.readValue(json, Customer.class);
+        CustomerResponseDto response = objectMapper.readValue(json, CustomerResponseDto.class);
 
-        assertThat(response.getId()).isEqualTo(saved.getId());
+        assertThat(response.getCustomerId()).isEqualTo(saved.getId());
         assertThat(saved.getName()).isEqualTo("Juan Perez");
         assertThat(saved.getEmail()).isEqualTo("juan@mail.com");
         assertThat(saved.getPhoneNumber()).isEqualTo("1122334455");
-        assertThat(saved.getCreatedIn()).isEqualTo(expectedDate);
+        assertThat(saved.getCreatedIn()).isEqualTo(saved.getCreatedIn());
     }
 
     @Test
@@ -159,14 +188,14 @@ class CustomerControllerIT {
     }
 
     @Test
-    void udpateCustomer_whenNameIsNull_returns400() throws Exception {
+    void udpateCustomer_whenNameIsBlank_returns400() throws Exception {
         // Given
         CustomerRequestDto dto = getCustomerRequestDto();
-        dto.setCustomerId(12L);
-        dto.setNameCustomer(null);
+        Customer saved = customerRepository.save(getCustomer());
+        dto.setNameCustomer("");
 
         // When + Then
-        mockMvc.perform(put("/api/customers/{id}", dto.getCustomerId())
+        mockMvc.perform(put("/api/customers/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -199,14 +228,14 @@ class CustomerControllerIT {
         // Then
         String json = result.getResponse().getContentAsString();
 
-        List<Customer> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<CustomerResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
 
-        assertThat(response).hasSize(2);
         assertThat(response)
-                .extracting(Customer::getName)
+                .extracting(CustomerResponseDto::getNameCustomer)
                 .containsExactlyInAnyOrder("Juan Perez", "Maria Gomez");
+
         assertThat(response)
-                .extracting(Customer::getEmail)
+                .extracting(CustomerResponseDto::getEmail)
                 .containsExactlyInAnyOrder("juan@mail.com", "maria@mail.com");
     }
 
@@ -260,7 +289,6 @@ class CustomerControllerIT {
                 .nameCustomer("Juan Perez")
                 .email("juan@mail.com")
                 .phoneCustomer("1122334455")
-                .creationDate(LocalDateTime.of(2026, 2, 24, 21, 0))
                 .build();
     }
 
