@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.StaffMemberRequestDto;
+import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.StaffMemberMapper;
 
@@ -38,7 +39,6 @@ public class StaffMemberControlTest {
 
     private StaffMemberRequestDto getStaffMemberDTO(Long id){
         return StaffMemberRequestDto.builder()
-                .staffMemberId(id)
                 .nameStaffMember("Daniel Leguizamon")
                 .specialty("Barber")
                 .license("A12322")
@@ -54,14 +54,25 @@ public class StaffMemberControlTest {
                 .build();
     }
 
+    private StaffMemberResponseDto getStaffMemberResponseDTO(Long id){
+        return StaffMemberResponseDto.builder()
+                .id(id)
+                .nameStaffMember("Daniel Leguizamon")
+                .specialty("Barber")
+                .license("A12322")
+                .build();
+    }
+
     @Test
     void saveStaffMember_ok_shouldReturn200_andCallService() throws Exception{
         // Given
         Long id = 1L;
         var dto = getStaffMemberDTO(id);
         var entity = getStaffMemberEntity(id);
+        var responseDto = getStaffMemberResponseDTO(id);
 
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
+            given(staffMapper.toResponseDto(any(StaffMember.class))).willReturn(responseDto);
 
         // When
         mockMvc.perform(post("/api/staffmembers")
@@ -72,14 +83,15 @@ public class StaffMemberControlTest {
         // Assert
         then(staffMapper).should().toEntity(any(StaffMemberRequestDto.class));
         then(staffService).should().saveStaffMember(entity);
+        then(staffMapper).should().toResponseDto(entity);
     }
 
     @Test
-    void saveStaffMember_whenNameIsNull_shouldReturn400() throws Exception {
+    void saveStaffMember_whenNameIsBlank_shouldReturn400() throws Exception {
         // Given
         Long id = 1L;
         StaffMemberRequestDto dto = getStaffMemberDTO(id);
-        dto.setNameStaffMember(null);
+        dto.setNameStaffMember("");
 
         // When
         mockMvc.perform(post("/api/staffmembers")
@@ -98,6 +110,29 @@ public class StaffMemberControlTest {
     }
 
     @Test
+    void saveStaffMember_whenLicenseIsBlank_shouldReturn400() throws Exception {
+        // Given
+        Long id = 1L;
+        StaffMemberRequestDto dto = getStaffMemberDTO(id);
+        dto.setLicense("");
+
+        // When
+        mockMvc.perform(post("/api/staffmembers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.license").exists());
+
+        // Then
+        then(staffMapper).shouldHaveNoInteractions();
+        then(staffService).shouldHaveNoInteractions();
+    }
+
+    @Test
     void listStaffMembers_ok_shouldReturn200_andCallService() throws Exception {
         //Given
         Long id = 1L;
@@ -106,6 +141,8 @@ public class StaffMemberControlTest {
 
         given(staffService.findAllStaffMember())
                 .willReturn(List.of(staffMember1, staffMember2));
+        given(staffMapper.toResponseDtoList(List.of(staffMember1, staffMember2)))
+                .willReturn(List.of(getStaffMemberResponseDTO(id), getStaffMemberResponseDTO(2L)));
 
         //When + Then
         mockMvc.perform(get("/api/staffmembers"))
@@ -116,6 +153,7 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$[1].id").value(2));
 
         then(staffService).should().findAllStaffMember();
+        then(staffMapper).should().toResponseDtoList(List.of(staffMember1, staffMember2));
     }
 
     @Test
@@ -123,17 +161,22 @@ public class StaffMemberControlTest {
         // Given
         Long id = 1L;
         var staffMember = getStaffMemberEntity(id);
+        var responseDto = getStaffMemberResponseDTO(id);
+
         given (staffService.findStaffMember(id)).willReturn(staffMember);
+        given(staffMapper.toResponseDto(staffMember)).willReturn(responseDto);
 
         // When + Then
         mockMvc.perform(get("/api/staffmembers/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.name").value("Daniel Leguizamon"))
+                .andExpect(jsonPath("$.nameStaffMember").value("Daniel Leguizamon"))
                 .andExpect(jsonPath("$.specialty").value("Barber"))
                 .andExpect(jsonPath("$.license").value("A12322"));
+
         then(staffService).should().findStaffMember(1L);
+        then(staffMapper).should().toResponseDto(staffMember);
     }
 
     @Test
@@ -142,13 +185,16 @@ public class StaffMemberControlTest {
         given(staffService.findStaffMember(999L)).willThrow(new ResourceNotFoundException("Staff member not found"));
 
         // When + Then
-        mockMvc.perform(get("/api/staffmembers/999"))
+        mockMvc.perform(get("/api/staffmembers/999")
+                .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Staff member not found"));
 
         then(staffService).should().findStaffMember(999L);
+        then(staffMapper).shouldHaveNoInteractions();
     }
 
     @Test
@@ -176,7 +222,7 @@ public class StaffMemberControlTest {
         //Given
         Long id = 1L;
         var dto = getStaffMemberDTO(id);
-        dto.setNameStaffMember(null);
+        dto.setNameStaffMember("");
 
         // When + Then
         mockMvc.perform(put("/api/staffmembers/{id}", id)
@@ -205,8 +251,10 @@ public class StaffMemberControlTest {
     @Test
     void deleteStaffMember_withNonExistingId_shouldReturn404() throws Exception {
         // Given
+        Long id = 999L;
+
         willThrow(new ResourceNotFoundException("Staff member not found"))
-                .given(staffService).deleteStaffMember(999L);
+                .given(staffService).deleteStaffMember(id);
 
         // When + Then
         mockMvc.perform(delete("/api/staffmembers/999"))

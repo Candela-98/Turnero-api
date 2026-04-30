@@ -3,6 +3,7 @@ package com.turnero.api.integration;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.StaffMemberRequestDto;
+import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.repository.StaffMemberRepository;
@@ -73,29 +74,36 @@ public class StaffMemberControllerIT {
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
 
         //When
-        mockMvc.perform(post("/api/staffmembers")
+        MvcResult result = mockMvc.perform(post("/api/staffmembers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn();
 
-        //Then
         List<StaffMember> staffMembers = staffMemberRepository.findAll();
 
         assertThat(staffMembers).hasSize(1);
         StaffMember saved = staffMembers.get(0);
+
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo("Matias");
         assertThat(saved.getSpecialty()).isEqualTo("Barber");
         assertThat(saved.getLicense()).isEqualTo("123456");
 
+        String json = result.getResponse().getContentAsString();
+        StaffMemberResponseDto response = objectMapper.readValue(json, StaffMemberResponseDto.class);
 
+        assertThat(response.getId()).isEqualTo(saved.getId());
+        assertThat(response.getNameStaffMember()).isEqualTo("Matias");
+        assertThat(response.getSpecialty()).isEqualTo("Barber");
+        assertThat(response.getLicense()).isEqualTo("123456");
     }
 
     @Test
-    void saveStaffMember_whenNameIsNull_returns400() throws Exception {
+    void saveStaffMember_whenNameIsBlank_returns400() throws Exception {
         // Given
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
-        dto.setNameStaffMember(null);
+        dto.setNameStaffMember("");
 
         // When + Then
         mockMvc.perform(post("/api/staffmembers")
@@ -123,10 +131,10 @@ public class StaffMemberControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        StaffMember response = objectMapper.readValue(json, StaffMember.class);
+        StaffMemberResponseDto response = objectMapper.readValue(json, StaffMemberResponseDto.class);
 
         assertThat(response.getId()).isEqualTo(saved.getId());
-        assertThat(response.getName()).isEqualTo("Matias");
+        assertThat(response.getNameStaffMember()).isEqualTo("Matias");
     }
 
     @Test
@@ -168,12 +176,12 @@ public class StaffMemberControllerIT {
     }
 
     @Test
-    void updateStaffMember_whenNameIsNull_returns400() throws Exception {
+    void updateStaffMember_whenNameIsBlank_returns400() throws Exception {
         // Given
         StaffMember saved = staffMemberRepository.save(getStaffMember());
 
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
-        dto.setNameStaffMember(null);
+        dto.setNameStaffMember("");
 
         // When + Then
         mockMvc.perform(put("/api/staffmembers/{id}", saved.getId())
@@ -206,9 +214,15 @@ public class StaffMemberControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<StaffMember> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<StaffMemberResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
 
-        assertThat(response).hasSize(2);
+        assertThat(response)
+                .extracting(StaffMemberResponseDto::getNameStaffMember)
+                .containsExactlyInAnyOrder("Matias", "Maria");
+
+        assertThat(response)
+                .extracting(StaffMemberResponseDto::getSpecialty)
+                .containsExactlyInAnyOrder("Barber", "Colorista");
     }
 
     @Test
