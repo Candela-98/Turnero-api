@@ -81,10 +81,10 @@ class CustomerControllerIT {
         String json = result.getResponse().getContentAsString();
         CustomerResponseDto response = objectMapper.readValue(json, CustomerResponseDto.class);
 
-        assertThat(response.getCustomerId()).isEqualTo(saved.getId());
-        assertThat(response.getNameCustomer()).isEqualTo("Juan Perez");
+        assertThat(response.getId()).isEqualTo(saved.getId());
+        assertThat(response.getName()).isEqualTo("Juan Perez");
         assertThat(response.getEmail()).isEqualTo("juan@mail.com");
-        assertThat(response.getPhoneCustomer()).isEqualTo("1122334455");
+        assertThat(response.getPhone()).isEqualTo("1122334455");
         assertThat(response.getCreatedIn()).isNotNull();
     }
 
@@ -92,7 +92,7 @@ class CustomerControllerIT {
     void saveCustomer_whenNameIsBlank_returns400() throws Exception {
         // Given
         CustomerRequestDto dto = getCustomerRequestDto();
-        dto.setNameCustomer("");
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(post("/api/customers")
@@ -102,7 +102,7 @@ class CustomerControllerIT {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
+                .andExpect(jsonPath("$.validations.name").value("The customer's name is required."));
 
         // Then
         assertThat(customerRepository.findAll()).isEmpty();
@@ -144,7 +144,7 @@ class CustomerControllerIT {
 
         CustomerResponseDto response = objectMapper.readValue(json, CustomerResponseDto.class);
 
-        assertThat(response.getCustomerId()).isEqualTo(saved.getId());
+        assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(saved.getName()).isEqualTo("Juan Perez");
         assertThat(saved.getEmail()).isEqualTo("juan@mail.com");
         assertThat(saved.getPhoneNumber()).isEqualTo("1122334455");
@@ -171,7 +171,7 @@ class CustomerControllerIT {
         Customer saved = customerRepository.save(customer);
 
         CustomerRequestDto dto = getCustomerRequestDto();
-        dto.setNameCustomer("Juan Updated");
+        dto.setName("Juan Updated");
         dto.setEmail("new@mail.com");
 
         // When
@@ -192,7 +192,7 @@ class CustomerControllerIT {
         // Given
         CustomerRequestDto dto = getCustomerRequestDto();
         Customer saved = customerRepository.save(getCustomer());
-        dto.setNameCustomer("");
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(put("/api/customers/{id}", saved.getId())
@@ -202,7 +202,7 @@ class CustomerControllerIT {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
+                .andExpect(jsonPath("$.validations.name").value("The customer's name is required."));
     }
 
     @Test
@@ -231,7 +231,7 @@ class CustomerControllerIT {
         List<CustomerResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
 
         assertThat(response)
-                .extracting(CustomerResponseDto::getNameCustomer)
+                .extracting(CustomerResponseDto::getName)
                 .containsExactlyInAnyOrder("Juan Perez", "Maria Gomez");
 
         assertThat(response)
@@ -286,9 +286,9 @@ class CustomerControllerIT {
 
     private CustomerRequestDto getCustomerRequestDto() {
         return CustomerRequestDto.builder()
-                .nameCustomer("Juan Perez")
+                .name("Juan Perez")
                 .email("juan@mail.com")
-                .phoneCustomer("1122334455")
+                .phone("1122334455")
                 .build();
     }
 

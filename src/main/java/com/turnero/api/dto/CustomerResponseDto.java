@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 @Builder
 public class CustomerResponseDto {
 
-    private Long customerId;
-    private String nameCustomer;
+    private Long id;
+    private String name;
     private String email;
-    private String phoneCustomer;
+    private String phone;
     private LocalDateTime createdIn;
 }
