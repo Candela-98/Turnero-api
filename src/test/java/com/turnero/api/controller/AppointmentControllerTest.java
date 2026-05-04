@@ -3,6 +3,7 @@ package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.AppointmentRequestDto;
+import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.AppointmentStatus;
@@ -15,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import javax.swing.text.html.parser.Entity;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -63,25 +65,49 @@ public class AppointmentControllerTest {
                 .build();
     }
 
+    private AppointmentResponseDto getAppointmentResponseDto(Long id) {
+        return AppointmentResponseDto.builder()
+                .id(id)
+                .customerId(id)
+                .serviceId(2L)
+                .staffMemberId(3L)
+                .dateTime(LocalDateTime.now().plusDays(1))
+                .durationMinutes(30)
+                .status(AppointmentStatus.CONFIRMED)
+                .notes("Notes")
+                .createdAt(LocalDateTime.now())
+                .updateAt(LocalDateTime.now())
+                .build();
+    }
+
     @Test
     void saveAppointment_ok_shouldReturn201_andCallService() throws Exception {
         //Given
         Long id = 1L;
         var dto = getAppointmentDto(id);
+        var responseDto = getAppointmentResponseDto(id);
         Appointment entity = getAppointmentEntity(id);
 
         given(appointmentMapper.toEntity(any(AppointmentRequestDto.class)))
                 .willReturn(entity);
+        given(appointmentMapper.toResponseDto(entity)).willReturn(responseDto);
 
         // When
         mockMvc.perform(post("/api/appointments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.customerId").value(1))
+                .andExpect(jsonPath("$.serviceId").value(2))
+                .andExpect(jsonPath("$.staffMemberId").value(3))
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
         // Assert
         then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
         then(appointmentService).should().saveAppointment(entity);
+        then(appointmentMapper).should().toResponseDto(entity);
     }
 
     @Test
@@ -112,7 +138,13 @@ public class AppointmentControllerTest {
         Long id = 1L;
         var appointment1 = getAppointmentEntity(id);
         var appointment2 = getAppointmentEntity(2L);
+
+        var responseDto1 = getAppointmentResponseDto(id);
+        var responseDto2 = getAppointmentResponseDto(2L);
+
         given(appointmentService.findAllAppointments()).willReturn(List.of(appointment1, appointment2));
+        given(appointmentMapper.toResponseDtoList(List.of(appointment1, appointment2)))
+                .willReturn(List.of(responseDto1, responseDto2));
 
         //When + Then
         mockMvc.perform(get("/api/appointments"))
@@ -123,6 +155,7 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$[1].id").value(2));
 
         then(appointmentService).should().findAllAppointments();
+        then(appointmentMapper).should().toResponseDtoList(List.of(appointment1, appointment2));
     }
 
     @Test
@@ -130,7 +163,10 @@ public class AppointmentControllerTest {
         //Given
         Long id = 1L;
         var appointment = getAppointmentEntity(id);
+        var responseDto = getAppointmentResponseDto(id);
+
         given(appointmentService.findAppointment(id)).willReturn(appointment);
+        given(appointmentMapper.toResponseDto(appointment)).willReturn(responseDto);
 
         //When + Then
         mockMvc.perform(get("/api/appointments/{id}", id))
@@ -138,9 +174,12 @@ public class AppointmentControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.customerId").value(1))
+                .andExpect(jsonPath("$.serviceId").value(2))
+                .andExpect(jsonPath("$.staffMemberId").value(3))
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
         then(appointmentService).should().findAppointment(id);
+        then(appointmentMapper).should().toResponseDto(appointment);
     }
 
     @Test

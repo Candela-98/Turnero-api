@@ -42,6 +42,5 @@ public class Appointment {
 
     private LocalDateTime updateAt;
 
-
 }
 

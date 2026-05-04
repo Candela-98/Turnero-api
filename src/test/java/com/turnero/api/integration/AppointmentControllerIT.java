@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.controller.AppointmentController;
 import com.turnero.api.dto.AppointmentRequestDto;
+import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.AppointmentStatus;
@@ -76,6 +77,18 @@ public class AppointmentControllerIT {
                 .build();
     }
 
+    private AppointmentResponseDto getAppointmentResponseDto() {
+        return AppointmentResponseDto.builder()
+                .id(1L)
+                .customerId(1L)
+                .serviceId(1L)
+                .staffMemberId(1L)
+                .dateTime(LocalDateTime.now().plusDays(1))
+                .durationMinutes(60)
+                .notes("Test appointment")
+                .build();
+    }
+
     @Test
     void saveAppointment_whenRequestIsValid_persistsAppointment_andReturns201() throws Exception {
         //Given
@@ -84,10 +97,12 @@ public class AppointmentControllerIT {
         dto.setStatus(AppointmentStatus.PENDING);
 
         // When
-        mockMvc.perform(post("/api/appointments")
+        MvcResult result = mockMvc.perform(post("/api/appointments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andReturn();
 
         // Then
         List<Appointment> appointments = appointmentRepository.findAll();
@@ -101,6 +116,16 @@ public class AppointmentControllerIT {
         assertThat(saved.getStaffMemberId()).isEqualTo(1L);
         assertThat(saved.getDurationMinutes()).isEqualTo(60);
         assertThat(saved.getNotes()).isEqualTo("Test appointment");
+
+        String json = result.getResponse().getContentAsString();
+        AppointmentResponseDto response = objectMapper.readValue(json, AppointmentResponseDto.class);
+        assertThat(response.getId()).isEqualTo(saved.getId());
+        assertThat(response.getCustomerId()).isEqualTo(saved.getCustomerId());
+        assertThat(response.getServiceId()).isEqualTo(saved.getServiceId());
+        assertThat(response.getStaffMemberId()).isEqualTo(saved.getStaffMemberId());
+        assertThat(response.getDateTime()).isEqualTo(saved.getDateTime());
+        assertThat(response.getDurationMinutes()).isEqualTo(saved.getDurationMinutes());
+        assertThat(response.getNotes()).isEqualTo(saved.getNotes());
     }
 
     @Test
@@ -137,7 +162,7 @@ public class AppointmentControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        Appointment response = objectMapper.readValue(json, Appointment.class);
+        AppointmentResponseDto response = objectMapper.readValue(json, AppointmentResponseDto.class);
 
         assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(response.getCustomerId()).isEqualTo(saved.getCustomerId());
@@ -237,19 +262,19 @@ public class AppointmentControllerIT {
 
         //Then
         String json = result.getResponse().getContentAsString();
-        List<Appointment> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<AppointmentResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(response).hasSize(2);
-        assertThat(response).extracting(Appointment::getCustomerId)
+        assertThat(response).extracting(AppointmentResponseDto::getCustomerId)
                 .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(response).extracting(Appointment::getServiceId)
+        assertThat(response).extracting(AppointmentResponseDto::getServiceId)
                 .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(response).extracting(Appointment::getStaffMemberId)
+        assertThat(response).extracting(AppointmentResponseDto::getStaffMemberId)
                 .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(response).extracting(Appointment::getDateTime)
+        assertThat(response).extracting(AppointmentResponseDto::getDateTime)
                 .containsExactlyInAnyOrder(appointment1.getDateTime(), appointment2.getDateTime());
-        assertThat(response).extracting(Appointment::getDurationMinutes)
+        assertThat(response).extracting(AppointmentResponseDto::getDurationMinutes)
                 .containsExactlyInAnyOrder(60, 30);
-        assertThat(response).extracting(Appointment::getNotes)
+        assertThat(response).extracting(AppointmentResponseDto::getNotes)
                 .containsExactlyInAnyOrder("Test appointment", "Second appointment");
 
     }
@@ -264,7 +289,7 @@ public class AppointmentControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<Appointment> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<AppointmentResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(response).isEmpty();
     }
 
