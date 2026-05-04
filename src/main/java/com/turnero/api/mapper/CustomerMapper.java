@@ -11,13 +11,13 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface CustomerMapper {
 
-    @Mapping(source = "nameCustomer", target = "name")
-    @Mapping(source = "phoneCustomer", target = "phoneNumber")
+    @Mapping(source = "name", target = "name")
+    @Mapping(source = "phone", target = "phoneNumber")
     Customer toEntity(CustomerRequestDto dtoCustomer);
 
-    @Mapping(source = "id", target = "customerId")
-    @Mapping(source = "name", target = "nameCustomer")
-    @Mapping(source = "phoneNumber", target = "phoneCustomer")
+    @Mapping(source = "id", target = "id")
+    @Mapping(source = "name", target = "name")
+    @Mapping(source = "phoneNumber", target = "phone")
     CustomerResponseDto toResponseDto(Customer customer);
 
     List<CustomerResponseDto> toResponseDtoList(List<Customer> customers);

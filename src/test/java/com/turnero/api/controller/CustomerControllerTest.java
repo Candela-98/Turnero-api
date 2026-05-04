@@ -56,10 +56,10 @@ class CustomerControllerTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.customerId").value(12))
-                .andExpect(jsonPath("$.nameCustomer").value("Juan"))
+                .andExpect(jsonPath("$.id").value(12))
+                .andExpect(jsonPath("$.name").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
-                .andExpect(jsonPath("$.phoneCustomer").value("1122334455"))
+                .andExpect(jsonPath("$.phone").value("1122334455"))
                 .andExpect(jsonPath("$.createdIn").value("2026-02-24T21:00:00"));
 
         // Assert
@@ -73,7 +73,7 @@ class CustomerControllerTest {
         // Given:
         Long id = 12L;
         var dto = getCustomerDTO();
-        dto.setNameCustomer("");
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(post("/api/customers")
@@ -84,7 +84,7 @@ class CustomerControllerTest {
                         .andExpect(jsonPath("$.status").value(400))
                         .andExpect(jsonPath("$.error").value("Bad Request"))
                         .andExpect(jsonPath("$.message").value("Validation error"))
-                        .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
+                        .andExpect(jsonPath("$.validations.name").value("The customer's name is required."));
 
         then(customerService).shouldHaveNoInteractions();
     }
@@ -124,10 +124,10 @@ class CustomerControllerTest {
         mockMvc.perform(get("/api/customers/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.customerId").value(12))
-                .andExpect(jsonPath("$.nameCustomer").value("Juan"))
+                .andExpect(jsonPath("$.id").value(12))
+                .andExpect(jsonPath("$.name").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
-                .andExpect(jsonPath("$.phoneCustomer").value("1122334455"))
+                .andExpect(jsonPath("$.phone").value("1122334455"))
                 .andExpect(jsonPath("$.createdIn").value("2026-02-24T21:00:00"));
 
         then(customerService).should().findCustomer(any());
@@ -178,7 +178,7 @@ class CustomerControllerTest {
         // Given
         Long id = 12L;
         var dto = getCustomerDTO();
-        dto.setNameCustomer("");
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(put("/api/customers/{id}", 12L)
@@ -189,7 +189,7 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
+                .andExpect(jsonPath("$.validations.name").value("The customer's name is required."));
 
         then(customerService).shouldHaveNoInteractions();
     }
@@ -215,10 +215,10 @@ class CustomerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].customerId").value(12))
-                .andExpect(jsonPath("$[0].nameCustomer").value("Juan"))
-                .andExpect(jsonPath("$[1].customerId").value(13))
-                .andExpect(jsonPath("$[1].nameCustomer").value("Juan"));
+                .andExpect(jsonPath("$[0].id").value(12))
+                .andExpect(jsonPath("$[0].name").value("Juan"))
+                .andExpect(jsonPath("$[1].id").value(13))
+                .andExpect(jsonPath("$[1].name").value("Juan"));
 
         then(customerService).should().findAllCustomer();
         then(customerMapper).should().toResponseDtoList(List.of(customer1, customer2));
@@ -256,18 +256,18 @@ class CustomerControllerTest {
 
     private CustomerRequestDto getCustomerDTO() {
         return CustomerRequestDto.builder()
-                .nameCustomer("Juan")
+                .name("Juan")
                 .email("juan@mail.com")
-                .phoneCustomer("1122334455")
+                .phone("1122334455")
                 .build();
     }
 
     private CustomerResponseDto getCustomerResponseDto(Long id) {
         return CustomerResponseDto.builder()
-                .customerId(id)
-                .nameCustomer("Juan")
+                .id(id)
+                .name("Juan")
                 .email("juan@mail.com")
-                .phoneCustomer("1122334455")
+                .phone("1122334455")
                 .createdIn(LocalDateTime.of(2026, 2, 24, 21, 0))
                 .build();
     }
