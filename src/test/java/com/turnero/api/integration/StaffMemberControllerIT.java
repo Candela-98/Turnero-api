@@ -54,7 +54,7 @@ public class StaffMemberControllerIT {
 
     private StaffMemberRequestDto getStaffMemberRequestDto() {
         return StaffMemberRequestDto.builder()
-                .nameStaffMember("Matias")
+                .name("Matias")
                 .specialty("Barber")
                 .license("123456")
                 .build();
@@ -94,7 +94,7 @@ public class StaffMemberControllerIT {
         StaffMemberResponseDto response = objectMapper.readValue(json, StaffMemberResponseDto.class);
 
         assertThat(response.getId()).isEqualTo(saved.getId());
-        assertThat(response.getNameStaffMember()).isEqualTo("Matias");
+        assertThat(response.getName()).isEqualTo("Matias");
         assertThat(response.getSpecialty()).isEqualTo("Barber");
         assertThat(response.getLicense()).isEqualTo("123456");
     }
@@ -103,7 +103,7 @@ public class StaffMemberControllerIT {
     void saveStaffMember_whenNameIsBlank_returns400() throws Exception {
         // Given
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
-        dto.setNameStaffMember("");
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(post("/api/staffmembers")
@@ -114,7 +114,7 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.nameStaffMember").value("The name of the staffmember is mandatory."));
+                .andExpect(jsonPath("$.validations.name").value("The name of the staffmember is mandatory."));
 
         assertThat(staffMemberRepository.findAll()).isEmpty();
     }
@@ -134,7 +134,7 @@ public class StaffMemberControllerIT {
         StaffMemberResponseDto response = objectMapper.readValue(json, StaffMemberResponseDto.class);
 
         assertThat(response.getId()).isEqualTo(saved.getId());
-        assertThat(response.getNameStaffMember()).isEqualTo("Matias");
+        assertThat(response.getName()).isEqualTo("Matias");
     }
 
     @Test
@@ -158,7 +158,7 @@ public class StaffMemberControllerIT {
         StaffMember saved = staffMemberRepository.save(staffMember);
 
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
-        dto.setNameStaffMember("Matias Updated");
+        dto.setName("Matias Updated");
         dto.setSpecialty("Barber Updated");
         dto.setLicense("654321");
 
@@ -181,7 +181,7 @@ public class StaffMemberControllerIT {
         StaffMember saved = staffMemberRepository.save(getStaffMember());
 
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
-        dto.setNameStaffMember("");
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(put("/api/staffmembers/{id}", saved.getId())
@@ -192,7 +192,7 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.nameStaffMember").value("The name of the staffmember is mandatory."));
+                .andExpect(jsonPath("$.validations.name").value("The name of the staffmember is mandatory."));
     }
 
     @Test
@@ -217,7 +217,7 @@ public class StaffMemberControllerIT {
         List<StaffMemberResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
 
         assertThat(response)
-                .extracting(StaffMemberResponseDto::getNameStaffMember)
+                .extracting(StaffMemberResponseDto::getName)
                 .containsExactlyInAnyOrder("Matias", "Maria");
 
         assertThat(response)

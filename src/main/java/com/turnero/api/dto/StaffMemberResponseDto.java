@@ -8,7 +8,7 @@ import lombok.Data;
 public class StaffMemberResponseDto {
 
     private Long id;
-    private String nameStaffMember;
+    private String name;
     private String specialty;
     private String license;
 }

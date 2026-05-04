@@ -22,7 +22,6 @@ import static org.mockito.BDDMockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.web.servlet.function.RequestPredicates.contentType;
 
 @WebMvcTest(StaffMemberController.class)
 public class StaffMemberControlTest {
@@ -39,7 +38,7 @@ public class StaffMemberControlTest {
 
     private StaffMemberRequestDto getStaffMemberDTO(Long id){
         return StaffMemberRequestDto.builder()
-                .nameStaffMember("Daniel Leguizamon")
+                .name("Daniel Leguizamon")
                 .specialty("Barber")
                 .license("A12322")
                 .build();
@@ -57,7 +56,7 @@ public class StaffMemberControlTest {
     private StaffMemberResponseDto getStaffMemberResponseDTO(Long id){
         return StaffMemberResponseDto.builder()
                 .id(id)
-                .nameStaffMember("Daniel Leguizamon")
+                .name("Daniel Leguizamon")
                 .specialty("Barber")
                 .license("A12322")
                 .build();
@@ -91,7 +90,7 @@ public class StaffMemberControlTest {
         // Given
         Long id = 1L;
         StaffMemberRequestDto dto = getStaffMemberDTO(id);
-        dto.setNameStaffMember("");
+        dto.setName("");
 
         // When
         mockMvc.perform(post("/api/staffmembers")
@@ -102,7 +101,7 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.nameStaffMember").exists());
+                .andExpect(jsonPath("$.validations.name").exists());
 
         // Then
         then(staffMapper).shouldHaveNoInteractions();
@@ -171,7 +170,7 @@ public class StaffMemberControlTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.nameStaffMember").value("Daniel Leguizamon"))
+                .andExpect(jsonPath("$.name").value("Daniel Leguizamon"))
                 .andExpect(jsonPath("$.specialty").value("Barber"))
                 .andExpect(jsonPath("$.license").value("A12322"));
 
@@ -222,7 +221,7 @@ public class StaffMemberControlTest {
         //Given
         Long id = 1L;
         var dto = getStaffMemberDTO(id);
-        dto.setNameStaffMember("");
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(put("/api/staffmembers/{id}", id)
@@ -233,7 +232,7 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.nameStaffMember").exists());
+                .andExpect(jsonPath("$.validations.name").exists());
 
         then(staffMapper).shouldHaveNoInteractions();
         then(staffService).shouldHaveNoInteractions();
