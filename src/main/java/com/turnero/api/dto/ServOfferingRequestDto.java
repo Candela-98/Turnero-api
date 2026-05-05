@@ -1,8 +1,6 @@
 package com.turnero.api.dto;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.Builder;
 
@@ -10,16 +8,13 @@ import lombok.Builder;
 @Builder
 public class ServOfferingRequestDto {
 
-    private Long Id;
-
-    @NotNull(message = "The service offering duration is required")
     @Min(value = 1, message = "The duration minimum is 1 minute")
     private int durationMinutes;
 
-    @NotNull(message = "The service offering name is required")
+    @NotBlank(message = "The service offering name is required")
+    @Size(max = 100, message = "The service offering name must have at most 100 characters")
     private String name;
 
-    @NotNull(message = "The service offering price is required")
     @Positive(message = "The price must be greater than 0")
     private double price;
 

@@ -3,6 +3,7 @@ package com.turnero.api.integration;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.ServOfferingRequestDto;
+import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.repository.ServOfferingRepository;
@@ -56,7 +57,7 @@ public class ServOfferingControllerIT {
 
     private ServOfferingRequestDto getServOfferingRequestDto() {
         return ServOfferingRequestDto.builder()
-                .name("Haircut and Beard")
+                .name("Corte y barba")
                 .durationMinutes(60)
                 .price(10000.0)
                 .build();
@@ -64,12 +65,11 @@ public class ServOfferingControllerIT {
 
     private ServiceOffering getServiceOffering() {
         return ServiceOffering.builder()
-                .name("Haircut and Beard")
+                .name("Corte y barba")
                 .durationMinutes(60)
                 .price(10000.0)
                 .build();
     }
-
 
     @Test
     void saveServiceOffering_whenRequestIsValid_persistsServiceOffering_andReturns200() throws Exception {
@@ -77,26 +77,36 @@ public class ServOfferingControllerIT {
         ServOfferingRequestDto dto = getServOfferingRequestDto();
 
         // When
-        mockMvc.perform(post("/api/service-offerings")
+        MvcResult result = mockMvc.perform(post("/api/service-offerings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn();
 
         //Then
         List<ServiceOffering> serviceOfferings = servOfferingRepository.findAll();
         assertThat(serviceOfferings).hasSize(1);
+
         ServiceOffering saved = serviceOfferings.get(0);
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo(dto.getName());
         assertThat(saved.getDurationMinutes()).isEqualTo(dto.getDurationMinutes());
         assertThat(saved.getPrice()).isEqualTo(dto.getPrice());
+
+        String json = result.getResponse().getContentAsString();
+        ServOfferingResponseDto response = objectMapper.readValue(json, ServOfferingResponseDto.class);
+
+        assertThat(response.getId()).isEqualTo(saved.getId());
+        assertThat(response.getName()).isEqualTo(dto.getName());
+        assertThat(response.getDurationMinutes()).isEqualTo(dto.getDurationMinutes());
+        assertThat(response.getPrice()).isEqualTo(dto.getPrice());
     }
 
     @Test
     void saveServiceOffering_whenNameIsNull_returns400() throws Exception {
         //Given
         ServOfferingRequestDto dto = getServOfferingRequestDto();
-        dto.setName(null);
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(post("/api/service-offerings")
@@ -123,10 +133,10 @@ public class ServOfferingControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        ServiceOffering response = objectMapper.readValue(json, ServiceOffering.class);
+        ServOfferingResponseDto response = objectMapper.readValue(json, ServOfferingResponseDto.class);
 
         assertThat(response.getId()).isEqualTo(saved.getId());
-        assertThat(saved.getName()).isEqualTo("Haircut and Beard");
+        assertThat(saved.getName()).isEqualTo("Corte y barba");
         assertThat(saved.getDurationMinutes()).isEqualTo(60);
         assertThat(saved.getPrice()).isEqualTo(10000.0);
 
@@ -150,7 +160,7 @@ public class ServOfferingControllerIT {
         ServiceOffering saved = servOfferingRepository.save(getServiceOffering());
 
         ServOfferingRequestDto dto = getServOfferingRequestDto();
-        dto.setName("Haircut");
+        dto.setName("Corte");
         dto.setDurationMinutes(45);
         dto.setPrice(8000.0);
 
@@ -162,7 +172,7 @@ public class ServOfferingControllerIT {
 
         // Then
         ServiceOffering updated = servOfferingRepository.findById(saved.getId()).orElseThrow();
-        assertThat(updated.getName()).isEqualTo("Haircut");
+        assertThat(updated.getName()).isEqualTo("Corte");
         assertThat(updated.getDurationMinutes()).isEqualTo(45);
         assertThat(updated.getPrice()).isEqualTo(8000.0);
     }
@@ -190,7 +200,7 @@ public class ServOfferingControllerIT {
         //Given
         ServiceOffering serviceOffering1 = getServiceOffering();
         ServiceOffering serviceOffering2 = new ServiceOffering();
-        serviceOffering2.setName("Hair Coloring");
+        serviceOffering2.setName("Coloración");
         serviceOffering2.setDurationMinutes(90);
         serviceOffering2.setPrice(15000.0);
 
@@ -205,11 +215,11 @@ public class ServOfferingControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<ServiceOffering> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<ServOfferingResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(response).hasSize(2);
-        assertThat(response).extracting(ServiceOffering::getName).containsExactlyInAnyOrder("Haircut and Beard", "Hair Coloring");
-        assertThat(response).extracting(ServiceOffering::getDurationMinutes).containsExactlyInAnyOrder(60, 90);
-        assertThat(response).extracting(ServiceOffering::getPrice).containsExactlyInAnyOrder(10000.0, 15000.0);
+        assertThat(response).extracting(ServOfferingResponseDto::getName).containsExactlyInAnyOrder("Corte y barba", "Coloración");
+        assertThat(response).extracting(ServOfferingResponseDto::getDurationMinutes).containsExactlyInAnyOrder(60, 90);
+        assertThat(response).extracting(ServOfferingResponseDto::getPrice).containsExactlyInAnyOrder(10000.0, 15000.0);
 
     }
 
@@ -223,7 +233,7 @@ public class ServOfferingControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<ServiceOffering> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<ServOfferingResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(response).isEmpty();
     }
 
@@ -235,8 +245,9 @@ public class ServOfferingControllerIT {
         Long id = saved.getId();
 
         //When
-        mockMvc.perform(delete("/api/service-offerings/{id}", id))
-                .andExpect(status().isNoContent());
+        MvcResult result = mockMvc.perform(delete("/api/service-offerings/{id}", id))
+                .andExpect(status().isNoContent())
+                .andReturn();
 
         //Then
         assertThat(servOfferingRepository.existsById(id)).isFalse();
