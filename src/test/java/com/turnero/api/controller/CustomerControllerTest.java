@@ -12,6 +12,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.CustomerRequestDto;
+import com.turnero.api.dto.CustomerResponseDto;
 import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
 import com.turnero.api.service.CustomerService;
@@ -41,28 +42,38 @@ class CustomerControllerTest {
     void saveCustomer_whenRequestIsValid_returns200() throws Exception {
         // Given
         Long id = 12L;
-        var dto = getCustomerDTO(id);
-        Customer entity = getCustomerEntity(id);
+        var dto = getCustomerDTO();
+        var entity = getCustomerEntity(id);
+        var responseDto = getCustomerResponseDto(id);
 
         given(customerMapper.toEntity(any(CustomerRequestDto.class))).willReturn(entity);
+        given(customerService.saveCustomer(entity)).willReturn(entity);
+        given(customerMapper.toResponseDto(entity)).willReturn(responseDto);
 
         // When
         mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(12))
+                .andExpect(jsonPath("$.name").value("Juan"))
+                .andExpect(jsonPath("$.email").value("juan@mail.com"))
+                .andExpect(jsonPath("$.phone").value("1122334455"))
+                .andExpect(jsonPath("$.createdIn").value("2026-02-24T21:00:00"));
 
         // Assert
         then(customerMapper).should().toEntity(any(CustomerRequestDto.class));
         then(customerService).should().saveCustomer(entity);
+        then(customerMapper).should().toResponseDto(entity);
     }
 
     @Test
-    void saveCustomer_whenNameIsNull_returns400() throws Exception {
+    void saveCustomer_whenNameIsBlank_returns400() throws Exception {
         // Given:
         Long id = 12L;
-        var dto = getCustomerDTO(id);
-        dto.setNameCustomer(null);
+        var dto = getCustomerDTO();
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(post("/api/customers")
@@ -73,7 +84,28 @@ class CustomerControllerTest {
                         .andExpect(jsonPath("$.status").value(400))
                         .andExpect(jsonPath("$.error").value("Bad Request"))
                         .andExpect(jsonPath("$.message").value("Validation error"))
-                        .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
+                        .andExpect(jsonPath("$.validations.name").value("The customer's name is required."));
+
+        then(customerService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void saveCustomer_whenEmailIsInvalid_returns400() throws Exception {
+        // Given
+        Long id = 12L;
+        var dto = getCustomerDTO();
+        dto.setEmail("invalid-email");
+
+        // When + Then
+        mockMvc.perform(post("/api/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.validations.email").value("The customer's email address must be valid."));
 
         then(customerService).shouldHaveNoInteractions();
     }
@@ -83,8 +115,10 @@ class CustomerControllerTest {
         // Given
         Long id = 12L;
         var customer = getCustomerEntity(id);
+        var responseDto = getCustomerResponseDto(id);
 
         given(customerService.findCustomer(id)).willReturn(customer);
+        given(customerMapper.toResponseDto(customer)).willReturn(responseDto);
 
         // When + Assert
         mockMvc.perform(get("/api/customers/{id}", id)
@@ -93,10 +127,11 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.id").value(12))
                 .andExpect(jsonPath("$.name").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
-                .andExpect(jsonPath("$.phoneNumber").value("1122334455"))
+                .andExpect(jsonPath("$.phone").value("1122334455"))
                 .andExpect(jsonPath("$.createdIn").value("2026-02-24T21:00:00"));
 
         then(customerService).should().findCustomer(any());
+        then(customerMapper).should().toResponseDto(customer);
     }
 
     @Test
@@ -121,7 +156,7 @@ class CustomerControllerTest {
     void updateCustomer_whenRequestIsValid_returns200() throws Exception {
         // Given
         Long id = 12L;
-        var dto = getCustomerDTO(id);
+        var dto = getCustomerDTO();
         var entity = getCustomerEntity(id);
 
         given(customerMapper.toEntity(any(CustomerRequestDto.class)))
@@ -139,11 +174,11 @@ class CustomerControllerTest {
     }
 
     @Test
-    void updateCustomer_whenNameIsNull_returns400() throws Exception {
+    void updateCustomer_whenNameIsBlank_returns400() throws Exception {
         // Given
         Long id = 12L;
-        var dto = getCustomerDTO(id);
-        dto.setNameCustomer(null);
+        var dto = getCustomerDTO();
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(put("/api/customers/{id}", 12L)
@@ -154,7 +189,7 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.nameCustomer").value("The customer's name is required."));
+                .andExpect(jsonPath("$.validations.name").value("The customer's name is required."));
 
         then(customerService).shouldHaveNoInteractions();
     }
@@ -166,8 +201,13 @@ class CustomerControllerTest {
         var customer1 = getCustomerEntity(id);
         var customer2 = getCustomerEntity(13L);
 
+        var response1 = getCustomerResponseDto(id);
+        var response2 = getCustomerResponseDto(13L);
+
         given(customerService.findAllCustomer())
                 .willReturn(List.of(customer1, customer2));
+        given(customerMapper.toResponseDtoList(List.of(customer1, customer2)))
+                .willReturn(List.of(response1, response2));
 
         // When + Then
         mockMvc.perform(get("/api/customers")
@@ -181,6 +221,7 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$[1].name").value("Juan"));
 
         then(customerService).should().findAllCustomer();
+        then(customerMapper).should().toResponseDtoList(List.of(customer1, customer2));
     }
 
     @Test
@@ -213,13 +254,21 @@ class CustomerControllerTest {
         then(customerService).should(never()).deleteCustomer(any());
     }
 
-    private CustomerRequestDto getCustomerDTO(Long id) {
+    private CustomerRequestDto getCustomerDTO() {
         return CustomerRequestDto.builder()
-                .customerId(id)
-                .nameCustomer("Juan")
+                .name("Juan")
                 .email("juan@mail.com")
-                .phoneCustomer("1122334455")
-                .creationDate(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .phone("1122334455")
+                .build();
+    }
+
+    private CustomerResponseDto getCustomerResponseDto(Long id) {
+        return CustomerResponseDto.builder()
+                .id(id)
+                .name("Juan")
+                .email("juan@mail.com")
+                .phone("1122334455")
+                .createdIn(LocalDateTime.of(2026, 2, 24, 21, 0))
                 .build();
     }
 
