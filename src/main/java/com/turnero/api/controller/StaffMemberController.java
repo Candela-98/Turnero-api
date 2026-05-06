@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.turnero.api.dto.StaffMemberRequestDto;
+import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.service.StaffMemberService;
@@ -24,16 +25,19 @@ public class StaffMemberController {
     }
 
     @PostMapping
-    public ResponseEntity<StaffMember> saveStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto) {
+    public ResponseEntity<StaffMemberResponseDto> saveStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto) {
         var staff = staffMemberMapper.toEntity(staffDto);
         staffMemberService.saveStaffMember(staff);
-        return ResponseEntity.status(HttpStatus.CREATED).body(staff);
+        var staffResponseDto = staffMemberMapper.toResponseDto(staff);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(staffResponseDto);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<StaffMember> findStaffMember(@PathVariable Long id) {
+    public ResponseEntity<StaffMemberResponseDto> findStaffMember(@PathVariable Long id) {
         var staff = staffMemberService.findStaffMember(id);
-        return ResponseEntity.ok(staff);
+            var staffResponseDto = staffMemberMapper.toResponseDto(staff);
+        return ResponseEntity.ok(staffResponseDto);
     }
 
     @PutMapping("/{id}")
@@ -44,9 +48,10 @@ public class StaffMemberController {
     }
 
     @GetMapping
-    public ResponseEntity<List<StaffMember>> findAllStaffMember() {
+    public ResponseEntity<List<StaffMemberResponseDto>> findAllStaffMember() {
         var staffMembers = staffMemberService.findAllStaffMember();
-        return ResponseEntity.ok(staffMembers);
+        var staffMembersResponseDto = staffMemberMapper.toResponseDtoList(staffMembers);
+        return ResponseEntity.ok(staffMembersResponseDto);
     }
 
     @DeleteMapping("/{id}")

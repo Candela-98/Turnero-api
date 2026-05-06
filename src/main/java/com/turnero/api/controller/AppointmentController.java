@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.turnero.api.dto.AppointmentRequestDto;
+import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.service.AppointmentService;
@@ -23,22 +24,26 @@ public class AppointmentController {
     }
 
     @PostMapping
-    public ResponseEntity<Appointment> saveAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto) {
+    public ResponseEntity<AppointmentResponseDto> saveAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto) {
         var appointment = appointmentMapper.toEntity(appointmentDto);
         appointmentService.saveAppointment(appointment);
-        return ResponseEntity.status(HttpStatus.CREATED).body(appointment);
+        var response = appointmentMapper.toResponseDto(appointment);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
-    public ResponseEntity<List<Appointment>> findAllAppointment() {
+    public ResponseEntity<List<AppointmentResponseDto>> findAllAppointment() {
         var appointments = appointmentService.findAllAppointments();
-        return ResponseEntity.ok(appointments);
+        var response = appointmentMapper.toResponseDtoList(appointments);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Appointment> findAppointment(@PathVariable Long id) {
+    public ResponseEntity<AppointmentResponseDto> findAppointment(@PathVariable Long id) {
         var appointment = appointmentService.findAppointment(id);
-        return ResponseEntity.ok(appointment);
+        var response = appointmentMapper.toResponseDto(appointment);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")

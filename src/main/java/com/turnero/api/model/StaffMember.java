@@ -20,10 +20,13 @@ public class StaffMember {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "name", nullable = false, unique = true, length = 100)
     private String name;
 
+    @Column(name = "specialty", nullable = false, length = 150)
     private String specialty;
 
+    @Column(name = "license", nullable = false, unique = true, length = 30)
     private String license;
 
 }
