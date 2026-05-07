@@ -11,11 +11,12 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface CustomerMapper {
 
+    @Mapping(target = "id", ignore = true)
     @Mapping(source = "name", target = "name")
     @Mapping(source = "phone", target = "phoneNumber")
+    @Mapping(target = "createdAt", ignore = true)
     Customer toEntity(CustomerRequestDto dtoCustomer);
 
-    @Mapping(source = "id", target = "id")
     @Mapping(source = "name", target = "name")
     @Mapping(source = "phoneNumber", target = "phone")
     CustomerResponseDto toResponseDto(Customer customer);

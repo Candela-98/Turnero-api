@@ -10,6 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +31,10 @@ class AppointmentServiceImplTest {
     void saveAppointment() {
         Appointment appointment = new Appointment();
         appointmentService.saveAppointment(appointment);
+
+        assertNotNull(appointment.getCreatedAt());
+        assertNotNull(appointment.getUpdatedAt());
+
         verify(appointmentRepository, times(1)).save(appointment);
     }
 
@@ -80,9 +85,13 @@ class AppointmentServiceImplTest {
     @Test
     void updateAppointment_shouldUpdateAndSave() {
         Long id = 1L;
+        LocalDateTime originalCreatedAt = LocalDateTime.now().minusDays(1);
+        LocalDateTime originalUpdatedAt = LocalDateTime.now().minusDays(1);
 
         Appointment current = new Appointment();
         current.setId(id);
+        current.setCreatedAt(originalCreatedAt);
+        current.setUpdatedAt(originalUpdatedAt);
 
         Appointment updateAppointment = new Appointment();
         updateAppointment.setCustomerId(10L);
@@ -106,6 +115,10 @@ class AppointmentServiceImplTest {
         assertEquals(45, current.getDurationMinutes());
         assertEquals(AppointmentStatus.CONFIRMED, current.getStatus());
         assertEquals("Notes", current.getNotes());
+
+        assertEquals(originalCreatedAt, current.getCreatedAt());
+        assertNotNull(current.getUpdatedAt());
+        assertTrue(current.getUpdatedAt().isAfter(originalUpdatedAt));
     }
 
     @Test

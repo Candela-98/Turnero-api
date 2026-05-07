@@ -18,5 +18,5 @@ public class AppointmentResponseDto {
     private AppointmentStatus status;
     private String notes;
     private LocalDateTime createdAt;
-    private LocalDateTime updateAt;
+    private LocalDateTime updatedAt;
 }

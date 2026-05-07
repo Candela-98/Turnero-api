@@ -76,7 +76,7 @@ class CustomerControllerIT {
         assertThat(saved.getName()).isEqualTo("Juan Perez");
         assertThat(saved.getEmail()).isEqualTo("juan@mail.com");
         assertThat(saved.getPhoneNumber()).isEqualTo("1122334455");
-        assertThat(saved.getCreatedIn()).isNotNull();
+        assertThat(saved.getCreatedAt()).isNotNull();
 
         String json = result.getResponse().getContentAsString();
         CustomerResponseDto response = objectMapper.readValue(json, CustomerResponseDto.class);
@@ -85,7 +85,7 @@ class CustomerControllerIT {
         assertThat(response.getName()).isEqualTo("Juan Perez");
         assertThat(response.getEmail()).isEqualTo("juan@mail.com");
         assertThat(response.getPhone()).isEqualTo("1122334455");
-        assertThat(response.getCreatedIn()).isNotNull();
+        assertThat(response.getCreatedAt()).isNotNull();
     }
 
     @Test
@@ -148,7 +148,7 @@ class CustomerControllerIT {
         assertThat(saved.getName()).isEqualTo("Juan Perez");
         assertThat(saved.getEmail()).isEqualTo("juan@mail.com");
         assertThat(saved.getPhoneNumber()).isEqualTo("1122334455");
-        assertThat(saved.getCreatedIn()).isEqualTo(saved.getCreatedIn());
+        assertThat(saved.getCreatedAt()).isEqualTo(saved.getCreatedAt());
     }
 
     @Test
@@ -214,7 +214,7 @@ class CustomerControllerIT {
         customer2.setName("Maria Gomez");
         customer2.setEmail("maria@mail.com");
         customer2.setPhoneNumber("1199999999");
-        customer2.setCreatedIn(LocalDateTime.of(2026, 2, 25, 10, 30));
+        customer2.setCreatedAt(LocalDateTime.of(2026, 2, 25, 10, 30));
 
         customerRepository.save(customer1);
         customerRepository.save(customer2);
@@ -297,7 +297,7 @@ class CustomerControllerIT {
                 .name("Juan Perez")
                 .email("juan@mail.com")
                 .phoneNumber("1122334455")
-                .createdIn(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .createdAt(LocalDateTime.of(2026, 2, 24, 21, 0))
                 .build();
     }
 

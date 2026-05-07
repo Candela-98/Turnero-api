@@ -13,5 +13,5 @@ public class CustomerResponseDto {
     private String name;
     private String email;
     private String phone;
-    private LocalDateTime createdIn;
+    private LocalDateTime createdAt;
 }

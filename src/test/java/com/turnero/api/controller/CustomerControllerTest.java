@@ -60,7 +60,7 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.name").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
                 .andExpect(jsonPath("$.phone").value("1122334455"))
-                .andExpect(jsonPath("$.createdIn").value("2026-02-24T21:00:00"));
+                .andExpect(jsonPath("$.createdAt").value("2026-02-24T21:00:00"));
 
         // Assert
         then(customerMapper).should().toEntity(any(CustomerRequestDto.class));
@@ -128,7 +128,7 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.name").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
                 .andExpect(jsonPath("$.phone").value("1122334455"))
-                .andExpect(jsonPath("$.createdIn").value("2026-02-24T21:00:00"));
+                .andExpect(jsonPath("$.createdAt").value("2026-02-24T21:00:00"));
 
         then(customerService).should().findCustomer(any());
         then(customerMapper).should().toResponseDto(customer);
@@ -268,7 +268,7 @@ class CustomerControllerTest {
                 .name("Juan")
                 .email("juan@mail.com")
                 .phone("1122334455")
-                .createdIn(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .createdAt(LocalDateTime.of(2026, 2, 24, 21, 0))
                 .build();
     }
 
@@ -278,7 +278,7 @@ class CustomerControllerTest {
                 .name("Juan")
                 .email("juan@mail.com")
                 .phoneNumber("1122334455")
-                .createdIn(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .createdAt(LocalDateTime.of(2026, 2, 24, 21, 0))
                 .build();
 
     }

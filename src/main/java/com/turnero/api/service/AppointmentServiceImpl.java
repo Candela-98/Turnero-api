@@ -6,6 +6,7 @@ import com.turnero.api.repository.AppointmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -16,6 +17,11 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     public void saveAppointment(Appointment appointment) {
+
+        LocalDateTime now = LocalDateTime.now();
+        appointment.setCreatedAt(now);
+        appointment.setUpdatedAt(now);
+
         appointmentRepository.save(appointment);
     }
 
@@ -41,6 +47,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         existAppointment.setDurationMinutes(appointment.getDurationMinutes());
         existAppointment.setStatus(appointment.getStatus());
         existAppointment.setNotes(appointment.getNotes());
+        existAppointment.setUpdatedAt(LocalDateTime.now());
 
         appointmentRepository.save(existAppointment);
         System.out.println("Appointment with ID " + id + " successfully updated.");
