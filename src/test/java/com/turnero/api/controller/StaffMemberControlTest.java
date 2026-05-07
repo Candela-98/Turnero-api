@@ -71,11 +71,8 @@ public class StaffMemberControlTest {
         var responseDto = getStaffMemberResponseDTO(id);
 
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
-<<<<<<< refactor/serviceOffering-api-contract
         given(staffMapper.toResponseDto(any(StaffMember.class))).willReturn(responseDto);
-=======
-            given(staffMapper.toResponseDto(any(StaffMember.class))).willReturn(responseDto);
->>>>>>> refactor/customer-api-contract
+        given(staffMapper.toResponseDto(any(StaffMember.class))).willReturn(responseDto);
 
         // When
         mockMvc.perform(post("/api/staffmembers")
