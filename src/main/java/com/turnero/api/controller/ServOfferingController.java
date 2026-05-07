@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.turnero.api.dto.ServOfferingRequestDto;
+import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.service.ServOfferingService;
@@ -24,16 +25,19 @@ public class ServOfferingController {
     }
 
     @PostMapping
-    public ResponseEntity<ServiceOffering> saveServiceOffering(@Valid @RequestBody ServOfferingRequestDto servOfferingDto) {
+    public ResponseEntity<ServOfferingResponseDto> saveServiceOffering(@Valid @RequestBody ServOfferingRequestDto servOfferingDto) {
         var serviceOffering = serviceOfferingMapper.toEntity(servOfferingDto);
         var serviceOfferingSaved = servOfferingService.saveServiceOffering(serviceOffering);
-        return ResponseEntity.status(HttpStatus.CREATED).body(serviceOfferingSaved);
+        var serviceOfferingResponseDto = serviceOfferingMapper.toResponseDto(serviceOfferingSaved);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(serviceOfferingResponseDto);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ServiceOffering> findServiceOffering(@PathVariable Long id) {
+    public ResponseEntity<ServOfferingResponseDto> findServiceOffering(@PathVariable Long id) {
         var serviceOffering = servOfferingService.findServiceOffering(id);
-        return ResponseEntity.ok(serviceOffering);
+        var serviceOfferingResponseDto = serviceOfferingMapper.toResponseDto(serviceOffering);
+        return ResponseEntity.ok(serviceOfferingResponseDto);
     }
 
     @PutMapping("/{id}")
@@ -44,9 +48,11 @@ public class ServOfferingController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ServiceOffering>> findAllServOffering() {
+    public ResponseEntity<List<ServOfferingResponseDto>> findAllServOffering() {
         var servOfferings = servOfferingService.findAllServOffering();
-        return ResponseEntity.ok(servOfferings);
+        var servOfferingResponseDtos = serviceOfferingMapper.toResponseDtoList(servOfferings);
+
+        return ResponseEntity.ok(servOfferingResponseDtos);
     }
 
     @DeleteMapping("/{id}")

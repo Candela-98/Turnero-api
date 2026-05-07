@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.ServOfferingRequestDto;
+import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
@@ -36,7 +37,6 @@ public class ServiceOfferingControllerTest {
 
     private ServOfferingRequestDto getServiceOfferingDto(Long id) {
         return ServOfferingRequestDto.builder()
-                .Id(id)
                 .name("Corte y barba")
                 .durationMinutes(60)
                 .price(10000.0)
@@ -52,23 +52,42 @@ public class ServiceOfferingControllerTest {
                 .build();
     }
 
+    private ServOfferingResponseDto getServiceOfferingResponseDto(Long id) {
+        return ServOfferingResponseDto.builder()
+                .id(id)
+                .name("Corte y barba")
+                .durationMinutes(60)
+                .price(10000.0)
+                .build();
+    }
+
     @Test
     void saveServOffering_ok_shouldReturn200_andCallService() throws Exception {
         // Given
         Long id = 1L;
         var dto = getServiceOfferingDto(id);
         var entity = getServiceOfferingEntity(id);
+        var responseDto = getServiceOfferingResponseDto(id);
+
         given(sMapper.toEntity(any(ServOfferingRequestDto.class))).willReturn(entity);
+        given(servOfferingService.saveServiceOffering(any(ServiceOffering.class))).willReturn(entity);
+        given(sMapper.toResponseDto(any(ServiceOffering.class))).willReturn(responseDto);
 
         // When
         mockMvc.perform(post("/api/service-offerings")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Corte y barba"))
+                .andExpect(jsonPath("$.durationMinutes").value(60))
+                .andExpect(jsonPath("$.price").value(10000.0));
 
         // Assert
         then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
         then(servOfferingService).should().saveServiceOffering(entity);
+        then(sMapper).should().toResponseDto(entity);
     }
 
     @Test
@@ -76,7 +95,7 @@ public class ServiceOfferingControllerTest {
         //Given
         Long id = 1L;
         var dto = getServiceOfferingDto(id);
-        dto.setName(null);
+        dto.setName("");
 
         // When
         mockMvc.perform(post("/api/service-offerings")
@@ -101,8 +120,11 @@ public class ServiceOfferingControllerTest {
         var servOffering1 = getServiceOfferingEntity(id);
         var servOffering2 = getServiceOfferingEntity(2L);
 
-        given(servOfferingService.findAllServOffering())
-                .willReturn(List.of(servOffering1, servOffering2));
+        var response1 = getServiceOfferingResponseDto(id);
+        var response2 = getServiceOfferingResponseDto(2L);
+
+        given(servOfferingService.findAllServOffering()).willReturn(List.of(servOffering1, servOffering2));
+        given(sMapper.toResponseDtoList(List.of(servOffering1, servOffering2))).willReturn(List.of(response1, response2));
 
         //when + then
         mockMvc.perform(get("/api/service-offerings"))
@@ -113,6 +135,7 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$[1].id").value(2));
 
         then(servOfferingService).should().findAllServOffering();
+        then(sMapper).should().toResponseDtoList(List.of(servOffering1, servOffering2));
     }
 
     @Test
@@ -120,7 +143,10 @@ public class ServiceOfferingControllerTest {
         // Given
         Long id = 1L;
         var servOffering = getServiceOfferingEntity(id);
+        var responseDto = getServiceOfferingResponseDto(id);
+
         given (servOfferingService.findServiceOffering(1L)).willReturn(servOffering);
+        given(sMapper.toResponseDto(servOffering)).willReturn(responseDto);
 
         // When + Then
         mockMvc.perform(get("/api/service-offerings/1"))
@@ -130,7 +156,9 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$.name").value("Corte y barba"))
                 .andExpect(jsonPath("$.durationMinutes").value(60))
                 .andExpect(jsonPath("$.price").value(10000.0));
+
         then(servOfferingService).should().findServiceOffering(1L);
+        then(sMapper).should().toResponseDto(servOffering);
     }
 
     @Test
@@ -147,6 +175,7 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$.message").value("Service offering not found"));
 
         then(servOfferingService).should().findServiceOffering(999L);
+        then(sMapper).shouldHaveNoInteractions();
     }
 
     @Test
@@ -172,7 +201,7 @@ public class ServiceOfferingControllerTest {
         //Given
         Long id = 1L;
         var dto = getServiceOfferingDto(id);
-        dto.setName(null);
+        dto.setName("");
 
         // When + Then
         mockMvc.perform(put("/api/service-offerings/1")
