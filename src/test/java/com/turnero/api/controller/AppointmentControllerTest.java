@@ -16,7 +16,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import javax.swing.text.html.parser.Entity;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -61,7 +60,7 @@ public class AppointmentControllerTest {
                 .status(AppointmentStatus.CONFIRMED)
                 .notes("Notes")
                 .createdAt(LocalDateTime.now())
-                .updateAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
     }
 
@@ -76,7 +75,7 @@ public class AppointmentControllerTest {
                 .status(AppointmentStatus.CONFIRMED)
                 .notes("Notes")
                 .createdAt(LocalDateTime.now())
-                .updateAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
     }
 

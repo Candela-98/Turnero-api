@@ -17,7 +17,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public Customer saveCustomer(Customer customer) {
-        customer.setCreatedIn(LocalDateTime.now());
+        customer.setCreatedAt(LocalDateTime.now());
         return customerRepository.save(customer);
     }
 
@@ -34,7 +34,6 @@ public class CustomerServiceImpl implements CustomerService {
         currentCustomer.setName(customer.getName());
         currentCustomer.setEmail(customer.getEmail());
         currentCustomer.setPhoneNumber(customer.getPhoneNumber());
-        currentCustomer.setCreatedIn(customer.getCreatedIn());
 
         customerRepository.save(currentCustomer);
         System.out.println("Customer with Id " + id + " successfully updated.");

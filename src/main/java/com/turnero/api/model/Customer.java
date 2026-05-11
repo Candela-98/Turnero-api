@@ -32,7 +32,7 @@ public class Customer {
     @Column(name = "phone_number", nullable = false, unique = true, length = 30)
     private String phoneNumber;
 
-    @Column(name = "created_in", nullable = false)
-    private LocalDateTime createdIn;
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 
 }

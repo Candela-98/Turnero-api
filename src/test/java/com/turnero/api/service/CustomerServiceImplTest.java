@@ -83,19 +83,20 @@ public class CustomerServiceImplTest {
     @Test
     void updateCustomer_whenExists_UpdateAndSave() {
         Long id = 1L;
+        LocalDateTime originalCreatedAt = LocalDateTime.now().minusDays(1);
 
         Customer current = new Customer();
         current.setId(id);
         current.setName("Candela");
         current.setEmail("Candela@mail.com");
         current.setPhoneNumber("123");
-        current.setCreatedIn(LocalDateTime.now().minusDays(1));
+        current.setCreatedAt(originalCreatedAt);
 
         Customer updatedCustomer = new Customer();
         updatedCustomer.setName("Candela Agustina");
         updatedCustomer.setEmail("CandelaAgus@mail.com");
         updatedCustomer.setPhoneNumber("456");
-        updatedCustomer.setCreatedIn(LocalDateTime.now());
+        updatedCustomer.setCreatedAt(LocalDateTime.now());
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(current));
 
@@ -105,7 +106,7 @@ public class CustomerServiceImplTest {
         assertEquals("Candela Agustina", current.getName());
         assertEquals("CandelaAgus@mail.com", current.getEmail());
         assertEquals("456", current.getPhoneNumber());
-        assertEquals(updatedCustomer.getCreatedIn(), current.getCreatedIn());
+        assertEquals(originalCreatedAt, current.getCreatedAt());
     }
 
     @Test

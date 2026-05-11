@@ -67,6 +67,7 @@ public class AppointmentControllerIT {
     }
 
     private Appointment getAppointment() {
+        LocalDateTime auditDate = LocalDateTime.now().minusDays(1);
         return Appointment.builder()
                 .customerId(1L)
                 .serviceId(1L)
@@ -74,6 +75,8 @@ public class AppointmentControllerIT {
                 .dateTime(LocalDateTime.now().plusDays(1))
                 .durationMinutes(60)
                 .notes("Test appointment")
+                .createdAt(auditDate)
+                .updatedAt(auditDate)
                 .build();
     }
 
@@ -116,6 +119,8 @@ public class AppointmentControllerIT {
         assertThat(saved.getStaffMemberId()).isEqualTo(1L);
         assertThat(saved.getDurationMinutes()).isEqualTo(60);
         assertThat(saved.getNotes()).isEqualTo("Test appointment");
+        assertThat(saved.getCreatedAt()).isNotNull();
+        assertThat(saved.getUpdatedAt()).isNotNull();
 
         String json = result.getResponse().getContentAsString();
         AppointmentResponseDto response = objectMapper.readValue(json, AppointmentResponseDto.class);
@@ -126,6 +131,8 @@ public class AppointmentControllerIT {
         assertThat(response.getDateTime()).isEqualTo(saved.getDateTime());
         assertThat(response.getDurationMinutes()).isEqualTo(saved.getDurationMinutes());
         assertThat(response.getNotes()).isEqualTo(saved.getNotes());
+        assertThat(response.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+        assertThat(response.getUpdatedAt()).isEqualTo(saved.getUpdatedAt());
     }
 
     @Test
@@ -171,6 +178,8 @@ public class AppointmentControllerIT {
         assertThat(response.getDateTime()).isEqualTo(saved.getDateTime());
         assertThat(response.getDurationMinutes()).isEqualTo(saved.getDurationMinutes());
         assertThat(response.getNotes()).isEqualTo(saved.getNotes());
+        assertThat(response.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+        assertThat(response.getUpdatedAt()).isEqualTo(saved.getUpdatedAt());
 
     }
 
@@ -196,6 +205,9 @@ public class AppointmentControllerIT {
 
         Appointment saved = appointmentRepository.save(appointment);
 
+        LocalDateTime originalCreatedAt = saved.getCreatedAt();
+        LocalDateTime originalUpdatedAt = saved.getUpdatedAt();
+
         AppointmentRequestDto dto = getAppointmentRequestDto();
         dto.setDateTime(LocalDateTime.now().plusDays(2));
         dto.setDurationMinutes(30);
@@ -214,6 +226,9 @@ public class AppointmentControllerIT {
         assertThat(updated.getDateTime()).isEqualTo(dto.getDateTime());
         assertThat(updated.getDurationMinutes()).isEqualTo(30);
         assertThat(updated.getNotes()).isEqualTo("Updated appointment");
+        assertThat(updated.getCreatedAt()).isEqualTo(originalCreatedAt);
+        assertThat(updated.getUpdatedAt()).isNotNull();
+        assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
     }
 
     @Test
