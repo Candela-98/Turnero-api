@@ -132,6 +132,33 @@ public class AppointmentControllerTest {
     }
 
     @Test
+    void saveAppointment_whenCustomerDoesNotExist_shouldReturn404() throws Exception {
+        // Given
+        Long id = 1L;
+        AppointmentRequestDto dto = getAppointmentDto(id);
+        Appointment entity = getAppointmentEntity(id);
+
+        given(appointmentMapper.toEntity(any(AppointmentRequestDto.class)))
+                .willReturn(entity);
+        willThrow(new ResourceNotFoundException("Customer not found."))
+                .given(appointmentService)
+                .saveAppointment(entity);
+
+        // When + Then
+        mockMvc.perform(post("/api/appointments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found."));
+
+        then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
+        then(appointmentService).should().saveAppointment(entity);
+    }
+
+    @Test
     void findAllAppointment_shouldReturn200_andList() throws Exception{
         //Given
         Long id = 1L;
@@ -239,6 +266,33 @@ public class AppointmentControllerTest {
         then(appointmentService).shouldHaveNoInteractions();
         then(appointmentMapper).shouldHaveNoInteractions();
     }
+
+    @Test
+    void updateAppointment_whenCustomerDoesNotExist_shouldReturn404() throws Exception{
+        //Given
+        Long id = 5L;
+        var dto = getAppointmentDto(id);
+        var entity = getAppointmentEntity(id);
+
+        given(appointmentMapper.toEntity(dto)).willReturn(entity);
+                willThrow(new ResourceNotFoundException("Customer not found."))
+                .given(appointmentService)
+                .updateAppointment(entity, id);
+
+        //When + Then
+        mockMvc.perform(put("/api/appointments/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found."));
+
+        then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
+        then(appointmentService).should().updateAppointment(entity, id);
+    }
+
 
     @Test
     void deleteAppointment_ok_shouldReturn200_andCallService() throws Exception{

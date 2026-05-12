@@ -3,6 +3,9 @@ package com.turnero.api.service;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.repository.AppointmentRepository;
+import com.turnero.api.repository.CustomerRepository;
+import com.turnero.api.repository.ServOfferingRepository;
+import com.turnero.api.repository.StaffMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,9 +17,26 @@ import java.util.List;
 public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
+    private final CustomerRepository customerRepository;
+    private final ServOfferingRepository serviceRepository;
+    private final StaffMemberRepository staffMemberRepository;
+
+
+    private void validateReferences(Appointment appointment) {
+        if (!customerRepository.existsById(appointment.getCustomerId())) {
+            throw new ResourceNotFoundException("Customer not found.");
+        }
+        if (!serviceRepository.existsById(appointment.getServiceId())) {
+            throw new ResourceNotFoundException("Service offering not found.");
+        }
+        if (!staffMemberRepository.existsById(appointment.getStaffMemberId())) {
+            throw new ResourceNotFoundException("Staff member not found.");
+        }
+    }
 
     @Override
     public void saveAppointment(Appointment appointment) {
+        validateReferences(appointment);
 
         LocalDateTime now = LocalDateTime.now();
         appointment.setCreatedAt(now);
@@ -39,6 +59,8 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     public void updateAppointment(Appointment appointment, Long id) {
         Appointment existAppointment = findAppointment(id);
+
+        validateReferences(appointment);
 
         existAppointment.setCustomerId(appointment.getCustomerId());
         existAppointment.setServiceId(appointment.getServiceId());

@@ -5,10 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.controller.AppointmentController;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
+import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.mapper.AppointmentMapper;
-import com.turnero.api.model.Appointment;
-import com.turnero.api.model.AppointmentStatus;
+import com.turnero.api.model.*;
 import com.turnero.api.repository.AppointmentRepository;
+import com.turnero.api.repository.CustomerRepository;
+import com.turnero.api.repository.ServOfferingRepository;
+import com.turnero.api.repository.StaffMemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,9 +52,21 @@ public class AppointmentControllerIT {
     @Autowired
     AppointmentRepository appointmentRepository;
 
+    @Autowired
+    ServOfferingRepository servOfferingRepository;
+
+    @Autowired
+    StaffMemberRepository staffMemberRepository;
+
+    @Autowired
+    CustomerRepository customerRepository;
+
     @BeforeEach
     void cleanDb() {
         appointmentRepository.deleteAll();
+        customerRepository.deleteAll();
+        staffMemberRepository.deleteAll();
+        servOfferingRepository.deleteAll();
     }
 
     private AppointmentRequestDto getAppointmentRequestDto() {
@@ -92,12 +107,43 @@ public class AppointmentControllerIT {
                 .build();
     }
 
+    private Customer getCustomerEntity() {
+        return Customer.builder()
+                .name("Juan Olmedo")
+                .email("juan.olmedo@mail.com")
+                .phoneNumber("123456789")
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    private StaffMember getStaffMemberEntity() {
+        return StaffMember.builder()
+                .name("Maria Gomez")
+                .specialty("Corte")
+                .license("87676923")
+                .build();
+    }
+
+    private ServiceOffering getServiceOfferingEntity() {
+        return ServiceOffering.builder()
+                .name("Corte")
+                .durationMinutes(60)
+                .price(15000.0)
+                .build();
+    }
+
     @Test
     void saveAppointment_whenRequestIsValid_persistsAppointment_andReturns201() throws Exception {
         //Given
         AppointmentRequestDto dto = getAppointmentRequestDto();
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
         dto.setDateTime(LocalDateTime.now().plusDays(1));
         dto.setStatus(AppointmentStatus.PENDING);
+        dto.setCustomerId(customer.getId());
+        dto.setServiceId(serviceOffering.getId());
+        dto.setStaffMemberId(staffMember.getId());
 
         // When
         MvcResult result = mockMvc.perform(post("/api/appointments")
@@ -114,9 +160,9 @@ public class AppointmentControllerIT {
         Appointment saved = appointments.get(0);
 
         assertThat(saved.getId()).isNotNull();
-        assertThat(saved.getCustomerId()).isEqualTo(1L);
-        assertThat(saved.getServiceId()).isEqualTo(1L);
-        assertThat(saved.getStaffMemberId()).isEqualTo(1L);
+        assertThat(saved.getCustomerId()).isEqualTo(customer.getId());
+        assertThat(saved.getServiceId()).isEqualTo(serviceOffering.getId());
+        assertThat(saved.getStaffMemberId()).isEqualTo(staffMember.getId());
         assertThat(saved.getDurationMinutes()).isEqualTo(60);
         assertThat(saved.getNotes()).isEqualTo("Test appointment");
         assertThat(saved.getCreatedAt()).isNotNull();
@@ -151,6 +197,27 @@ public class AppointmentControllerIT {
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
                 .andExpect(jsonPath("$.validations.customerId").exists());
+
+        //Then
+        assertThat(appointmentRepository.findAll()).isEmpty();
+    }
+
+    // El mismo test se puede hacer para serviceOffering y staffMember, pero por brevedad solo se muestra para customer
+    @Test
+    void saveAppointment_whenCustomerDoesNotExist_returns404() throws Exception {
+        //Given
+        AppointmentRequestDto dto = getAppointmentRequestDto();
+        dto.setCustomerId(999L);
+
+        //When + Then
+        mockMvc.perform(post("/api/appointments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found."));
 
         //Then
         assertThat(appointmentRepository.findAll()).isEmpty();
@@ -199,7 +266,14 @@ public class AppointmentControllerIT {
     @Test
     void updateAppointment_whenRequestIsValid_updatesAppointment_andReturns204() throws Exception{
         //Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
         Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
         appointment.setDateTime(LocalDateTime.now().plusDays(1));
         appointment.setStatus(AppointmentStatus.PENDING);
 
@@ -209,6 +283,9 @@ public class AppointmentControllerIT {
         LocalDateTime originalUpdatedAt = saved.getUpdatedAt();
 
         AppointmentRequestDto dto = getAppointmentRequestDto();
+        dto.setCustomerId(customer.getId());
+        dto.setServiceId(serviceOffering.getId());
+        dto.setStaffMemberId(staffMember.getId());
         dto.setDateTime(LocalDateTime.now().plusDays(2));
         dto.setDurationMinutes(30);
         dto.setStatus(AppointmentStatus.CONFIRMED); // o el que tengas
@@ -250,6 +327,29 @@ public class AppointmentControllerIT {
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
                 .andExpect(jsonPath("$.validations.customerId").exists());
+
+        assertThat(appointmentRepository.findById(saved.getId())).isPresent();
+    }
+
+    // El mismo test se puede hacer para serviceOffering y staffMember, pero por brevedad solo se muestra para customer
+    @Test
+    void updateAppointment_whenCustomerDoesNotExist_returns404() throws Exception{
+        //Given
+        Appointment appointment = getAppointment();
+        Appointment saved = appointmentRepository.save(appointment);
+
+        AppointmentRequestDto dto = getAppointmentRequestDto();
+        dto.setCustomerId(999L);
+
+        // When + Then
+        mockMvc.perform(put("/api/appointments/{id}", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found."));
 
         assertThat(appointmentRepository.findById(saved.getId())).isPresent();
     }
