@@ -4,6 +4,9 @@ import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.AppointmentStatus;
 import com.turnero.api.repository.AppointmentRepository;
+import com.turnero.api.repository.CustomerRepository;
+import com.turnero.api.repository.ServOfferingRepository;
+import com.turnero.api.repository.StaffMemberRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,9 +30,26 @@ class AppointmentServiceImplTest {
     @InjectMocks
     private AppointmentServiceImpl appointmentService;
 
+    @Mock
+    private CustomerRepository customerRepository;
+
+    @Mock
+    private ServOfferingRepository servOfferingRepository;
+
+    @Mock
+    private StaffMemberRepository staffMemberRepository;
+
     @Test
     void saveAppointment() {
         Appointment appointment = new Appointment();
+        appointment.setCustomerId(1L);
+        appointment.setServiceId(2L);
+        appointment.setStaffMemberId(3L);
+
+        when(customerRepository.existsById(1L)).thenReturn(true);
+        when(servOfferingRepository.existsById(2L)).thenReturn(true);
+        when(staffMemberRepository.existsById(3L)).thenReturn(true);
+
         appointmentService.saveAppointment(appointment);
 
         assertNotNull(appointment.getCreatedAt());
@@ -37,6 +57,77 @@ class AppointmentServiceImplTest {
 
         verify(appointmentRepository, times(1)).save(appointment);
     }
+
+    @Test
+    void saveAppointment_whenRepositoryFails_throwsException() {
+        Appointment appointment = new Appointment();
+        appointment.setCustomerId(1L);
+        appointment.setServiceId(2L);
+        appointment.setStaffMemberId(3L);
+
+        when(customerRepository.existsById(1L)).thenReturn(true);
+        when(servOfferingRepository.existsById(2L)).thenReturn(true);
+        when(staffMemberRepository.existsById(3L)).thenReturn(true);
+
+        doThrow(new RuntimeException("Error saving")).when(appointmentRepository).save(appointment);
+        assertThrows(RuntimeException.class, () -> appointmentService.saveAppointment(appointment));
+    }
+
+    @Test
+    void saveAppointment_whenCustomerNotExist_shouldthrowsException() {
+        Appointment appointment = new Appointment();
+        appointment.setCustomerId(99L);
+        appointment.setServiceId(2L);
+        appointment.setStaffMemberId(3L);
+
+        when(customerRepository.existsById(99L)).thenReturn(false);
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> appointmentService.saveAppointment(appointment)
+        );
+
+        assertEquals("Customer not found.", exception.getMessage());
+    }
+
+    @Test
+    void saveAppointment_whenServiceNotExist_shouldthrowsException() {
+        Appointment appointment = new Appointment();
+        appointment.setCustomerId(1L);
+        appointment.setServiceId(99L);
+        appointment.setStaffMemberId(3L);
+
+        when(customerRepository.existsById(1L)).thenReturn(true);
+        when(servOfferingRepository.existsById(99L)).thenReturn(false);
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> appointmentService.saveAppointment(appointment)
+        );
+
+        assertEquals("Service offering not found.", exception.getMessage());
+        verify(appointmentRepository, never()).save(any());
+    }
+
+     @Test
+    void saveAppointment_whenStaffMemberNotExist_shouldthrowsException() {
+         Appointment appointment = new Appointment();
+         appointment.setCustomerId(1L);
+         appointment.setServiceId(2L);
+         appointment.setStaffMemberId(99L);
+
+         when(customerRepository.existsById(1L)).thenReturn(true);
+         when(servOfferingRepository.existsById(2L)).thenReturn(true);
+         when(staffMemberRepository.existsById(99L)).thenReturn(false);
+
+         ResourceNotFoundException exception = assertThrows(
+                 ResourceNotFoundException.class,
+                 () -> appointmentService.saveAppointment(appointment)
+         );
+
+         assertEquals("Staff member not found.", exception.getMessage());
+         verify(appointmentRepository, never()).save(any());
+     }
 
     @Test
     void findAllAppointments() {
@@ -49,12 +140,7 @@ class AppointmentServiceImplTest {
         assertTrue(appointments.contains(appointment2));
     }
 
-    @Test
-    void saveAppointment_whenRepositoryFails_throwsException() {
-        Appointment appointment = new Appointment();
-        doThrow(new RuntimeException("Error saving")).when(appointmentRepository).save(appointment);
-        assertThrows(RuntimeException.class, () -> appointmentService.saveAppointment(appointment));
-    }
+
 
     @Test
     void findAppointment() {
@@ -103,6 +189,9 @@ class AppointmentServiceImplTest {
         updateAppointment.setNotes("Notes");
 
         when(appointmentRepository.findById(id)).thenReturn(Optional.of(current));
+        when(customerRepository.existsById(10L)).thenReturn(true);
+        when(servOfferingRepository.existsById(20L)).thenReturn(true);
+        when(staffMemberRepository.existsById(30L)).thenReturn(true);
 
         appointmentService.updateAppointment(updateAppointment, id);
 
