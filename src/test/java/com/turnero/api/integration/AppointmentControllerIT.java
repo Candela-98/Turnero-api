@@ -224,6 +224,66 @@ public class AppointmentControllerIT {
     }
 
     @Test
+    void saveAppointment_whenAppointmentsOverlap_shouldReturn409() throws Exception {
+
+        // Given
+        Customer customer1 = customerRepository.save(getCustomerEntity());
+        Customer customer2 = customerRepository.save(
+                Customer.builder()
+                        .name("Pedro Gomez")
+                        .email("pedro.gomez@mail.com")
+                        .phoneNumber("987654321")
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        );
+
+        ServiceOffering service1 = servOfferingRepository.save(getServiceOfferingEntity());
+        ServiceOffering service2 = servOfferingRepository.save(
+                ServiceOffering.builder()
+                        .name("Barba")
+                        .durationMinutes(30)
+                        .price(10000.0)
+                        .build()
+        );
+
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        LocalDateTime start = LocalDateTime.now()
+                .plusDays(1)
+                .withHour(10)
+                .withMinute(0);
+
+        Appointment existingAppointment = Appointment.builder()
+                .customerId(customer1.getId())
+                .serviceId(service1.getId())
+                .staffMemberId(staffMember.getId())
+                .dateTime(start)
+                .durationMinutes(30)
+                .status(AppointmentStatus.PENDING)
+                .build();
+
+        appointmentRepository.save(existingAppointment);
+
+        AppointmentRequestDto dto = AppointmentRequestDto.builder()
+                .customerId(customer2.getId())
+                .serviceId(service2.getId())
+                .staffMemberId(staffMember.getId())
+                .dateTime(start.plusMinutes(15))
+                .durationMinutes(30)
+                .status(AppointmentStatus.PENDING)
+                .build();
+
+        // When + Then
+        mockMvc.perform(post("/api/appointments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message")
+                        .value("Staff member already has an appointment in this time range"));
+    }
+
+    @Test
     void findAppointment_whenAppointmentExists_returns200AndAppointment() throws Exception {
         //Given
         Appointment appointment = getAppointment();

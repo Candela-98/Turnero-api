@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.repository.AppointmentRepository;
@@ -34,9 +35,35 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
     }
 
+    private void validateNoOverlap(Long staffMemberId, LocalDateTime newStart,int durationMinutes,
+                                   Long appointmentIdToExclude) {
+
+        LocalDateTime newEnd = newStart.plusMinutes(durationMinutes);
+        List<Appointment> staffAppointments = appointmentRepository.findByStaffMemberId(staffMemberId);
+        boolean hasOverlap = staffAppointments.stream()
+                .filter(existing -> appointmentIdToExclude == null
+                        || !existing.getId().equals(appointmentIdToExclude))
+                .anyMatch(existing -> {
+                    LocalDateTime existingStart = existing.getDateTime();
+                    LocalDateTime existingEnd = existingStart.plusMinutes(existing.getDurationMinutes());
+                    return newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart);
+                });
+
+        if(hasOverlap) {
+            throw new AppointmentOverlapException("Staff member already has an appointment in this time range");
+        }
+    }
+
     @Override
     public void saveAppointment(Appointment appointment) {
         validateReferences(appointment);
+
+        validateNoOverlap(
+                appointment.getStaffMemberId(),
+                appointment.getDateTime(),
+                appointment.getDurationMinutes(),
+                null
+        );
 
         LocalDateTime now = LocalDateTime.now();
         appointment.setCreatedAt(now);
@@ -61,6 +88,13 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment existAppointment = findAppointment(id);
 
         validateReferences(appointment);
+
+        validateNoOverlap(
+                appointment.getStaffMemberId(),
+                appointment.getDateTime(),
+                appointment.getDurationMinutes(),
+                id
+        );
 
         existAppointment.setCustomerId(appointment.getCustomerId());
         existAppointment.setServiceId(appointment.getServiceId());
