@@ -4,11 +4,13 @@ import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class CustomerServiceImpl implements CustomerService {
@@ -18,7 +20,9 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer saveCustomer(Customer customer) {
         customer.setCreatedAt(LocalDateTime.now());
-        return customerRepository.save(customer);
+        Customer savedCustomer = customerRepository.save(customer);
+        log.info("Customer created with id={}", savedCustomer.getId());
+        return savedCustomer;
     }
 
     @Override
@@ -36,7 +40,7 @@ public class CustomerServiceImpl implements CustomerService {
         currentCustomer.setPhoneNumber(customer.getPhoneNumber());
 
         customerRepository.save(currentCustomer);
-        System.out.println("Customer with Id " + id + " successfully updated.");
+        log.info("Customer with id={} successfully updated", id);
     }
 
     public List<Customer> findAllCustomer() {
@@ -48,7 +52,7 @@ public class CustomerServiceImpl implements CustomerService {
 
         if(customerRepository.existsById(id)) {
             customerRepository.deleteById(id);
-            System.out.println("Customer with Id " + id + " successfully removed.");
+            log.info("Customer with id={} successfully removed", id);
         } else {
             throw new ResourceNotFoundException("Customer not found with ID: " + id);
         }

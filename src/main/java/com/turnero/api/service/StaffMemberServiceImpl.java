@@ -4,10 +4,12 @@ import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.repository.StaffMemberRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class StaffMemberServiceImpl implements StaffMemberService {
@@ -16,7 +18,9 @@ public class StaffMemberServiceImpl implements StaffMemberService {
 
     @Override
     public StaffMember saveStaffMember(StaffMember staffMember) {
-        return staffMemberRepository.save(staffMember);
+        StaffMember savedStaffMember = staffMemberRepository.save(staffMember);
+        log.info("Staff member created");
+        return savedStaffMember;
     }
 
     @Override
@@ -34,7 +38,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         staffMemberExist.setLicense(staffMember.getLicense());
 
         staffMemberRepository.save(staffMemberExist);
-        System.out.println("Staffmember with ID " + id + " successfully updated.");
+        log.info("Staffmember with id={} successfully updated.", id);
     }
 
     public List<StaffMember> findAllStaffMember() {
@@ -45,7 +49,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     public void deleteStaffMember(Long id) {
         if(staffMemberRepository.existsById(id)) {
             staffMemberRepository.deleteById(id);
-            System.out.println("Staffmember with ID " + id + " successfully deleted.");
+            log.info("Staffmember with id={} successfully deleted.", id);
         } else {
             throw new ResourceNotFoundException("Staffmember not found with ID: " + id);
         }
