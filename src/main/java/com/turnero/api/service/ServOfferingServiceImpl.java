@@ -4,10 +4,12 @@ import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.repository.ServOfferingRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class ServOfferingServiceImpl implements ServOfferingService {
@@ -15,7 +17,9 @@ public class ServOfferingServiceImpl implements ServOfferingService {
 
     @Override
     public ServiceOffering saveServiceOffering(ServiceOffering serviceOffering) {
-        return servOfferingRepository.save(serviceOffering);
+        ServiceOffering savedServiceOffering = servOfferingRepository.save(serviceOffering);
+        log.info("Service offering created with id={}", serviceOffering.getId());
+        return savedServiceOffering;
     }
 
     @Override
@@ -37,7 +41,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
         currentServOffering.setPrice(serviceOffering.getPrice());
 
         servOfferingRepository.save(currentServOffering);
-        System.out.println("Service offering with Id " + id + " successfully updated.");
+        log.info("Service offering with id={} successfully updated.", id);
 
     }
 
@@ -45,7 +49,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     public void deleteServOffering(Long id) {
         if(servOfferingRepository.existsById(id)){
             servOfferingRepository.deleteById(id);
-            System.out.println("Service offering with Id: " + id + " successfully deleted.");
+            log.info("Service offering with id={} successfully deleted.", id);
         }else {
             throw new ResourceNotFoundException("Service offering not found with ID: " + id);
         }
