@@ -53,6 +53,7 @@ class AppointmentServiceImplTest {
         when(servOfferingRepository.existsById(2L)).thenReturn(true);
         when(staffMemberRepository.existsById(3L)).thenReturn(true);
         when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
+        when(appointmentRepository.save(appointment)).thenReturn(appointment);
 
         appointmentService.saveAppointment(appointment);
 
@@ -186,6 +187,7 @@ class AppointmentServiceImplTest {
          when(servOfferingRepository.existsById(1L)).thenReturn(true);
          when(staffMemberRepository.existsById(1L)).thenReturn(true);
          when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
+         when(appointmentRepository.save(newAppointment)).thenReturn(newAppointment);
 
          // When
          appointmentService.saveAppointment(newAppointment);
