@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.AppointmentStatus;
@@ -45,10 +46,13 @@ class AppointmentServiceImplTest {
         appointment.setCustomerId(1L);
         appointment.setServiceId(2L);
         appointment.setStaffMemberId(3L);
+        appointment.setDateTime(LocalDateTime.of(2026, 5, 15, 10, 0));
+        appointment.setDurationMinutes(30);
 
         when(customerRepository.existsById(1L)).thenReturn(true);
         when(servOfferingRepository.existsById(2L)).thenReturn(true);
         when(staffMemberRepository.existsById(3L)).thenReturn(true);
+        when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
 
         appointmentService.saveAppointment(appointment);
 
@@ -64,10 +68,13 @@ class AppointmentServiceImplTest {
         appointment.setCustomerId(1L);
         appointment.setServiceId(2L);
         appointment.setStaffMemberId(3L);
+        appointment.setDateTime(LocalDateTime.of(2026, 5, 15, 10, 0));
+        appointment.setDurationMinutes(30);
 
         when(customerRepository.existsById(1L)).thenReturn(true);
         when(servOfferingRepository.existsById(2L)).thenReturn(true);
         when(staffMemberRepository.existsById(3L)).thenReturn(true);
+        when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
 
         doThrow(new RuntimeException("Error saving")).when(appointmentRepository).save(appointment);
         assertThrows(RuntimeException.class, () -> appointmentService.saveAppointment(appointment));
@@ -127,6 +134,64 @@ class AppointmentServiceImplTest {
 
          assertEquals("Staff member not found.", exception.getMessage());
          verify(appointmentRepository, never()).save(any());
+     }
+
+     @Test
+     void saveAppointment_whenAppointmentsOverlap_shouldThrowsException() {
+         Appointment existingAppointment = Appointment.builder()
+                 .id(1L)
+                 .staffMemberId(1L)
+                 .dateTime(LocalDateTime.of(2026, 5, 15, 10, 0))
+                 .durationMinutes(30)
+                 .build();
+
+         Appointment newAppointment = Appointment.builder()
+                 .staffMemberId(1L)
+                 .customerId(1L)
+                 .serviceId(1L)
+                 .dateTime(LocalDateTime.of(2026, 5, 15, 10, 15))
+                 .durationMinutes(30)
+                 .build();
+
+         when(customerRepository.existsById(1L)).thenReturn(true);
+         when(servOfferingRepository.existsById(1L)).thenReturn(true);
+         when(staffMemberRepository.existsById(1L)).thenReturn(true);
+         when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
+
+         // When + Then
+         assertThrows(AppointmentOverlapException.class,
+                 () -> appointmentService.saveAppointment(newAppointment));
+
+         verify(appointmentRepository, never()).save(any());
+     }
+
+     @Test
+     void saveAppointment_whenAppointmentsDoNotOverlap_shouldSave() {
+         Appointment existingAppointment = Appointment.builder()
+                 .id(1L)
+                 .staffMemberId(1L)
+                 .dateTime(LocalDateTime.of(2026, 5, 15, 10, 0))
+                 .durationMinutes(30)
+                 .build();
+
+         Appointment newAppointment = Appointment.builder()
+                 .staffMemberId(1L)
+                 .customerId(1L)
+                 .serviceId(1L)
+                 .dateTime(LocalDateTime.of(2026, 5, 15, 10, 30))
+                 .durationMinutes(30)
+                 .build();
+
+         when(customerRepository.existsById(1L)).thenReturn(true);
+         when(servOfferingRepository.existsById(1L)).thenReturn(true);
+         when(staffMemberRepository.existsById(1L)).thenReturn(true);
+         when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
+
+         // When
+         appointmentService.saveAppointment(newAppointment);
+
+         // Then
+         verify(appointmentRepository, times(1)).save(newAppointment);
      }
 
     @Test
@@ -208,6 +273,89 @@ class AppointmentServiceImplTest {
         assertEquals(originalCreatedAt, current.getCreatedAt());
         assertNotNull(current.getUpdatedAt());
         assertTrue(current.getUpdatedAt().isAfter(originalUpdatedAt));
+    }
+
+    @Test
+    void updateAppointment_whenAppointmentOverlap_throwsException() {
+        Long id = 1L;
+
+        Appointment currentAppointment = Appointment.builder()
+                .id(id)
+                .customerId(10L)
+                .serviceId(20L)
+                .staffMemberId(30L)
+                .dateTime(LocalDateTime.of(2026, 2, 15, 9, 0))
+                .durationMinutes(30)
+                .build();
+
+        Appointment overlappingAppointment = Appointment.builder()
+                .id(2L)
+                .staffMemberId(30L)
+                .dateTime(LocalDateTime.of(2026, 2, 15, 10, 0))
+                .durationMinutes(60)
+                .build();
+
+        Appointment updateAppointment = Appointment.builder()
+                .customerId(10L)
+                .serviceId(20L)
+                .staffMemberId(30L)
+                .dateTime(LocalDateTime.of(2026, 2, 15, 10, 30))
+                .durationMinutes(30)
+                .build();
+
+        when(appointmentRepository.findById(id))
+                .thenReturn(Optional.of(currentAppointment));
+
+        when(customerRepository.existsById(10L)).thenReturn(true);
+        when(servOfferingRepository.existsById(20L)).thenReturn(true);
+        when(staffMemberRepository.existsById(30L)).thenReturn(true);
+
+        when(appointmentRepository.findByStaffMemberId(30L))
+                .thenReturn(List.of(currentAppointment, overlappingAppointment));
+
+        assertThrows(AppointmentOverlapException.class,
+                () -> appointmentService.updateAppointment(updateAppointment, id));
+
+        verify(appointmentRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAppointment_shouldNotDetectOverlapWithSameAppointment() {
+        // Given
+        Long id = 1L;
+
+        Appointment existingAppointment = Appointment.builder()
+                .id(id)
+                .staffMemberId(1L)
+                .customerId(1L)
+                .serviceId(1L)
+                .dateTime(LocalDateTime.of(2026, 5, 15, 10, 0))
+                .durationMinutes(30)
+                .build();
+
+        Appointment appointmentUpdate = Appointment.builder()
+                .staffMemberId(1L)
+                .customerId(1L)
+                .serviceId(1L)
+                .dateTime(LocalDateTime.of(2026, 5, 15, 10, 0))
+                .durationMinutes(30)
+                .build();
+
+        when(appointmentRepository.findById(id))
+                .thenReturn(Optional.of(existingAppointment));
+
+        when(customerRepository.existsById(1L)).thenReturn(true);
+        when(servOfferingRepository.existsById(1L)).thenReturn(true);
+        when(staffMemberRepository.existsById(1L)).thenReturn(true);
+
+        when(appointmentRepository.findByStaffMemberId(1L))
+                .thenReturn(List.of(existingAppointment));
+
+        // When
+        appointmentService.updateAppointment(appointmentUpdate, id);
+
+        // Then
+        verify(appointmentRepository).save(existingAppointment);
     }
 
     @Test
