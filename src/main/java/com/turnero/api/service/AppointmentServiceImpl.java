@@ -71,8 +71,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setCreatedAt(now);
         appointment.setUpdatedAt(now);
 
-        appointmentRepository.save(appointment);
-        log.info("Appointment created");
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+        log.info("Appointment created with id={}", savedAppointment.getId());
     }
 
     @Override

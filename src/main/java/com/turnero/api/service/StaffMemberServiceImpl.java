@@ -19,7 +19,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     @Override
     public StaffMember saveStaffMember(StaffMember staffMember) {
         StaffMember savedStaffMember = staffMemberRepository.save(staffMember);
-        log.info("Staff member created");
+        log.info("Staff member created with id={}", savedStaffMember.getId());
         return savedStaffMember;
     }
 
