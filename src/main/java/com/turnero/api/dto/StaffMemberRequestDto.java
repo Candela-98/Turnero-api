@@ -1,5 +1,6 @@
 package com.turnero.api.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -9,14 +10,17 @@ import lombok.Builder;
 @Builder
 public class StaffMemberRequestDto {
 
+    @Schema(description = "The staffmember's name", example = "Maria Oliveira")
     @NotBlank(message = "The name of the staffmember is mandatory.")
     @Size(max = 100, message = "The staffmember's name must have at most 100 characters.")
     private String name;
 
+    @Schema(description = "The staffmember's specialty", example = "Hairdresser")
     @NotBlank(message = "The staffmember's specialty is mandatory.")
     @Size(max = 150, message = "The staffmember's specialty must have at most 150 characters.")
     private String specialty;
 
+    @Schema(description = "The staffmember's license", example = "123456789")
     @NotBlank(message = "The staffmember's license is mandatory.")
     @Size(max = 30, message = "The staffmember's license must have at most 30 characters.")
     private String license;
