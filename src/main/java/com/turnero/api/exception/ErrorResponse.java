@@ -2,6 +2,8 @@ package com.turnero.api.exception;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,9 +13,18 @@ import lombok.Getter;
 @Builder
 public class ErrorResponse {
 
+    @Schema(description = "The timestamp when the error occurred", example = "2024-12-01T10:00:00")
     private LocalDateTime timestamp;
+
+    @Schema(description = "The HTTP status code of the error", example = "400")
     private int status;
+
+    @Schema(description = "HTTP error type", example = "Bad Request")
     private String error;
+
+    @Schema(description = "Detailed error message", example = "Appointment not found with ID: 1")
     private String message;
+
+    @Schema(description = "Validation errors by field")
     private Map<String, String> validations;
 }

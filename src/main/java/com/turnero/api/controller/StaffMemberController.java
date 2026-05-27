@@ -4,7 +4,12 @@ import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.openapi.*;
 import com.turnero.api.service.StaffMemberService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +17,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Tag(
+        name = "Staff Members",
+        description = "Endpoints para gestionar profesionales"
+)
 @RestController
 @RequestMapping("/api/staffmembers")
 public class StaffMemberController {
@@ -24,6 +33,11 @@ public class StaffMemberController {
         this.staffMemberMapper = staffMemberMapper;
     }
 
+    @Operation(
+            summary = "Crear profesional",
+            description = "Crea un nuevo profesional en el sistema"
+    )
+    @ApiCreateResponses
     @PostMapping
     public ResponseEntity<StaffMemberResponseDto> saveStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto) {
         var staff = staffMemberMapper.toEntity(staffDto);
@@ -33,6 +47,11 @@ public class StaffMemberController {
         return ResponseEntity.status(HttpStatus.CREATED).body(staffResponseDto);
     }
 
+    @Operation(
+            summary = "Obtener profesional por ID",
+            description = "Obtiene los detalles de un profesional específico utilizando su ID"
+    )
+    @ApiFindByIdResponses
     @GetMapping("/{id}")
     public ResponseEntity<StaffMemberResponseDto> findStaffMember(@PathVariable Long id) {
         var staff = staffMemberService.findStaffMember(id);
@@ -40,6 +59,11 @@ public class StaffMemberController {
         return ResponseEntity.ok(staffResponseDto);
     }
 
+    @Operation(
+            summary = "Actualizar profesional",
+            description = "Actualiza los detalles de un profesional existente utilizando su ID"
+    )
+    @ApiUpdateResponses
     @PutMapping("/{id}")
     public ResponseEntity<StaffMember> updateStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto, @PathVariable Long id) {
         var staff = staffMemberMapper.toEntity(staffDto);
@@ -47,6 +71,11 @@ public class StaffMemberController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(
+            summary = "Obtener todos los profesionales",
+            description = "Obtiene una lista de todos los profesionales registrados en el sistema"
+    )
+    @ApiFindAllResponses
     @GetMapping
     public ResponseEntity<List<StaffMemberResponseDto>> findAllStaffMember() {
         var staffMembers = staffMemberService.findAllStaffMember();
@@ -54,6 +83,11 @@ public class StaffMemberController {
         return ResponseEntity.ok(staffMembersResponseDto);
     }
 
+    @Operation(
+            summary = "Eliminar profesional",
+            description = "Elimina un profesional específico utilizando su ID"
+    )
+    @ApiDeleteResponses
     @DeleteMapping("/{id}")
     public ResponseEntity<StaffMember> deleteStaffMember(@PathVariable Long id) {
         staffMemberService.deleteStaffMember(id);
