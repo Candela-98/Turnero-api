@@ -8,11 +8,13 @@ import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
@@ -69,7 +71,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setCreatedAt(now);
         appointment.setUpdatedAt(now);
 
-        appointmentRepository.save(appointment);
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+        log.info("Appointment created with id={}", savedAppointment.getId());
     }
 
     @Override
@@ -106,14 +109,14 @@ public class AppointmentServiceImpl implements AppointmentService {
         existAppointment.setUpdatedAt(LocalDateTime.now());
 
         appointmentRepository.save(existAppointment);
-        System.out.println("Appointment with ID " + id + " successfully updated.");
+        log.info("Appointment with id={} successfully updated.", id);
     }
 
     @Override
     public void deleteAppointment(Long id) {
         if(appointmentRepository.existsById(id)) {
             appointmentRepository.deleteById(id);
-            System.out.println("Appointment with ID " + id + " successfully deleted.");
+            log.info("Appointment with id={} successfully deleted.", id);
         } else {
             throw new ResourceNotFoundException("Appointment not found with ID: " + id);
         }

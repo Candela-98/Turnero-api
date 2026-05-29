@@ -37,9 +37,7 @@ public class StaffMemberServiceImplTest {
         assertNotNull(result);
         assertEquals("Juan", result.getName());
         verify(staffMemberRepository, times(1)).save(staffMember);
-        System.out.println("Staffmember has been saved successfully: " + staffMember.getName() +
-                " with speciality: " + staffMember.getSpecialty() + ". Your license number is: " + staffMember.getLicense());
-    }
+        }
 
     @Test
     void findStaffMember_whenExists_returnsStaffMember() {
@@ -54,7 +52,6 @@ public class StaffMemberServiceImplTest {
         assertNotNull(result);
         assertEquals(1L, result.getId());
         verify(staffMemberRepository, times(1)).findById(id);
-        System.out.println("Barber found with id: " + staffMember.getId() + ", name: " + staffMember.getName());
     }
 
     @Test
@@ -68,7 +65,6 @@ public class StaffMemberServiceImplTest {
         assertEquals("Staffmember not found with ID: " + id, exception.getMessage());
 
         verify(staffMemberRepository, times(1)).findById(id);
-        System.out.println("Staff member not found with: " + id);
     }
 
     @Test
@@ -81,7 +77,6 @@ public class StaffMemberServiceImplTest {
 
         assertEquals(2, list.size());
         verify(staffMemberRepository, times(1)).findAll();
-        System.out.println("The staff members found are: " + list);
     }
 
     @Test
