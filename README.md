@@ -30,6 +30,23 @@ El proyecto sigue una **arquitectura en capas**, separando responsabilidades:
 
 ---
 
+## Documentacion MVP
+
+La documentacion tecnica y funcional vive en `docs/`:
+
+- `docs/README.md` - indice de documentacion backend.
+- `docs/mvp/proximos-pasos-mvp.md` - roadmap y brechas pendientes.
+- `docs/mvp/schema-db-mvp.md` - esquema de base de datos objetivo.
+- `docs/mvp/flujos-funcionales-mvp.md` - flujos funcionales del MVP.
+- `docs/mvp/api-contracts-mvp.md` - contratos HTTP del MVP.
+- `docs/mvp/plan-migracion-backend-mvp.md` - plan incremental de migracion backend.
+- `docs/mvp/auth/google-mvp.md` - implementacion de Google Auth para el MVP.
+- `docs/referencias/guia-historias-tecnicas.md` - referencia para escribir historias tecnicas.
+- `docs/referencias/arquitectura-backend.md` - guia practica de arquitectura backend.
+- `docs/referencias/buenas-practicas-java-spring.md` - guia de buenas practicas Java/Spring Boot.
+
+---
+
 ## Funcionalidades principales
 
 - Crear, modificar y cancelar turnos
