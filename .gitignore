@@ -42,3 +42,4 @@ out/
 *.class
 .DS_Store
 .env
+docs/backlog-jira-mvp.md
