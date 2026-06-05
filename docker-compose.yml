@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: turnero-postgres
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-turnero}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-turnero}
+      POSTGRES_DB: ${DB_NAME:-turnero_dev}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-turnero} -d ${DB_NAME:-turnero_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
