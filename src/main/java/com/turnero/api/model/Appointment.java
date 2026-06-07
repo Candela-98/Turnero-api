@@ -1,5 +1,7 @@
 package com.turnero.api.model;
 
+import com.turnero.api.model.enums.AppointmentSource;
+import com.turnero.api.model.enums.AppointmentStatus;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -23,20 +25,36 @@ public class Appointment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long businessId;
+
     private Long customerId;
 
-    private Long serviceId;
+    private Long serviceOfferingId;
 
     private Long staffMemberId;
 
-    private LocalDateTime dateTime;
+    private LocalDateTime startsAt;
+
+    private LocalDateTime endsAt;
 
     private int durationMinutes;
+
+    private int priceCents;
 
     @Enumerated(EnumType.STRING)
     private AppointmentStatus status;
 
-    private String notes;
+    @Enumerated(EnumType.STRING)
+    private AppointmentSource source;
+
+    @Column(columnDefinition = "TEXT")
+    private String customerNotes;
+
+    @Column(columnDefinition = "TEXT")
+    private String internalNotes;
+
+    @Column(columnDefinition = "TEXT")
+    private String cancellationReason;
 
     private LocalDateTime createdAt;
 

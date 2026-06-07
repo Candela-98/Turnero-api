@@ -1,47 +1,42 @@
 package com.turnero.api.model;
 
-import com.turnero.api.model.enums.CustomerStatus;
+import com.turnero.api.model.enums.BusinessOnboardingStatus;
+import com.turnero.api.model.enums.BusinessStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @Entity
-@Table(name = "customers")
-public class Customer {
-
+@Table(name = "businesses")
+public class Business {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long businessId;
-
-    private Long userId;
-
     private String name;
-
+    private String slug;
+    private String industry;
     private String email;
-
-    private String phoneNumber;
+    private String phone;
+    private String address;
+    private String timezone;
 
     @Enumerated(EnumType.STRING)
-    private CustomerStatus status;
+    private BusinessStatus status;
 
-    @Column(columnDefinition = "TEXT")
-    private String internalNotes;
+    @Enumerated(EnumType.STRING)
+    private BusinessOnboardingStatus onboardingStatus;
 
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
-
 }

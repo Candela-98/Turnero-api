@@ -1,11 +1,11 @@
 package com.turnero.api.model;
 
-import com.turnero.api.model.enums.ServiceOfferingStatus;
+import com.turnero.api.model.enums.AppointmentPublicTokenType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
@@ -16,28 +16,20 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "service_offerings")
-public class ServiceOffering {
-
+@Table(name = "appointment_public_tokens")
+public class AppointmentPublicToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long businessId;
+    private Long appointmentId;
 
-    private String name;
-
-    private String category;
-
-    private int durationMinutes;
-
-    private int priceCents;
+    private String tokenHash;
 
     @Enumerated(EnumType.STRING)
-    private ServiceOfferingStatus status;
+    private AppointmentPublicTokenType type;
 
+    private LocalDateTime expiresAt;
+    private LocalDateTime usedAt;
     private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
 }

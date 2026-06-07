@@ -12,13 +12,10 @@ import java.util.List;
 public interface StaffMemberMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(source = "name", target = "name")
-    @Mapping(source = "specialty", target = "specialty")
-    @Mapping(source = "license", target = "license")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     StaffMember toEntity(StaffMemberRequestDto dtoStaffMember);
 
-    @Mapping(source = "id", target = "id")
-    @Mapping(source = "name", target = "name")
     StaffMemberResponseDto toResponseDto(StaffMember staffMember);
 
     List<StaffMemberResponseDto> toResponseDtoList(List<StaffMember> staffMembers);

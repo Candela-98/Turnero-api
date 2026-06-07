@@ -6,6 +6,7 @@ import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.service.StaffMemberService;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,17 +55,25 @@ public class StaffMemberControllerIT {
 
     private StaffMemberRequestDto getStaffMemberRequestDto() {
         return StaffMemberRequestDto.builder()
+                .businessId(10L)
+                .userId(20L)
                 .name("Matias")
+                .roleLabel("Senior barber")
                 .specialty("Barber")
-                .license("123456")
+                .avatarUrl("https://example.com/avatar.png")
+                .status(StaffMemberStatus.ACTIVE)
                 .build();
     }
 
     private StaffMember getStaffMember() {
          return StaffMember.builder()
+                 .businessId(10L)
+                 .userId(20L)
                  .name("Matias")
+                 .roleLabel("Senior barber")
                  .specialty("Barber")
-                 .license("123456")
+                 .avatarUrl("https://example.com/avatar.png")
+                 .status(StaffMemberStatus.ACTIVE)
                  .build();
     }
 
@@ -86,9 +95,13 @@ public class StaffMemberControllerIT {
         StaffMember saved = staffMembers.get(0);
 
         assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getBusinessId()).isEqualTo(10L);
+        assertThat(saved.getUserId()).isEqualTo(20L);
         assertThat(saved.getName()).isEqualTo("Matias");
+        assertThat(saved.getRoleLabel()).isEqualTo("Senior barber");
         assertThat(saved.getSpecialty()).isEqualTo("Barber");
-        assertThat(saved.getLicense()).isEqualTo("123456");
+        assertThat(saved.getAvatarUrl()).isEqualTo("https://example.com/avatar.png");
+        assertThat(saved.getStatus()).isEqualTo(StaffMemberStatus.ACTIVE);
 
         String json = result.getResponse().getContentAsString();
         StaffMemberResponseDto response = objectMapper.readValue(json, StaffMemberResponseDto.class);
@@ -96,7 +109,6 @@ public class StaffMemberControllerIT {
         assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(response.getName()).isEqualTo("Matias");
         assertThat(response.getSpecialty()).isEqualTo("Barber");
-        assertThat(response.getLicense()).isEqualTo("123456");
     }
 
     @Test
@@ -159,8 +171,9 @@ public class StaffMemberControllerIT {
 
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
         dto.setName("Matias Updated");
+        dto.setRoleLabel("Lead barber");
         dto.setSpecialty("Barber Updated");
-        dto.setLicense("654321");
+        dto.setAvatarUrl("https://example.com/avatar-updated.png");
 
         // When
         mockMvc.perform(put("/api/staffmembers/{id}", saved.getId())
@@ -171,8 +184,9 @@ public class StaffMemberControllerIT {
         // Then
         StaffMember updated = staffMemberRepository.findById(saved.getId()).orElseThrow();
         assertThat(updated.getName()).isEqualTo("Matias Updated");
+        assertThat(updated.getRoleLabel()).isEqualTo("Lead barber");
         assertThat(updated.getSpecialty()).isEqualTo("Barber Updated");
-        assertThat(updated.getLicense()).isEqualTo("654321");
+        assertThat(updated.getAvatarUrl()).isEqualTo("https://example.com/avatar-updated.png");
     }
 
     @Test
@@ -203,7 +217,6 @@ public class StaffMemberControllerIT {
         StaffMember second = new StaffMember();
         second.setName("Maria");
         second.setSpecialty("Colorista");
-        second.setLicense("87443");
 
         staffMemberRepository.save(second);
 
@@ -269,3 +282,5 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.message").value("Staffmember not found with ID: 999"));
     }
 }
+
+

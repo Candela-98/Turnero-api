@@ -36,9 +36,12 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     public void updateServOffering(ServiceOffering serviceOffering, Long id) {
         ServiceOffering currentServOffering = findServiceOffering(id);
 
+        currentServOffering.setBusinessId(serviceOffering.getBusinessId());
         currentServOffering.setName(serviceOffering.getName());
+        currentServOffering.setCategory(serviceOffering.getCategory());
         currentServOffering.setDurationMinutes(serviceOffering.getDurationMinutes());
-        currentServOffering.setPrice(serviceOffering.getPrice());
+        currentServOffering.setPriceCents(serviceOffering.getPriceCents());
+        currentServOffering.setStatus(serviceOffering.getStatus());
 
         servOfferingRepository.save(currentServOffering);
         log.info("Service offering with id={} successfully updated.", id);

@@ -1,11 +1,12 @@
 package com.turnero.api.model;
 
-import com.turnero.api.model.enums.ServiceOfferingStatus;
+import com.turnero.api.model.enums.NotificationStatus;
+import com.turnero.api.model.enums.NotificationType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
@@ -16,28 +17,26 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "service_offerings")
-public class ServiceOffering {
-
+@Table(name = "notifications")
+public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private Long businessId;
-
-    private String name;
-
-    private String category;
-
-    private int durationMinutes;
-
-    private int priceCents;
+    private Long appointmentId;
+    private Long customerId;
 
     @Enumerated(EnumType.STRING)
-    private ServiceOfferingStatus status;
+    private NotificationType type;
+
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String message;
+
+    @Enumerated(EnumType.STRING)
+    private NotificationStatus status;
 
     private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
 }

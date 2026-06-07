@@ -29,7 +29,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (!customerRepository.existsById(appointment.getCustomerId())) {
             throw new ResourceNotFoundException("Customer not found.");
         }
-        if (!serviceRepository.existsById(appointment.getServiceId())) {
+        if (!serviceRepository.existsById(appointment.getServiceOfferingId())) {
             throw new ResourceNotFoundException("Service offering not found.");
         }
         if (!staffMemberRepository.existsById(appointment.getStaffMemberId())) {
@@ -46,7 +46,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .filter(existing -> appointmentIdToExclude == null
                         || !existing.getId().equals(appointmentIdToExclude))
                 .anyMatch(existing -> {
-                    LocalDateTime existingStart = existing.getDateTime();
+                    LocalDateTime existingStart = existing.getStartsAt();
                     LocalDateTime existingEnd = existingStart.plusMinutes(existing.getDurationMinutes());
                     return newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart);
                 });
@@ -62,7 +62,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         validateNoOverlap(
                 appointment.getStaffMemberId(),
-                appointment.getDateTime(),
+                appointment.getStartsAt(),
                 appointment.getDurationMinutes(),
                 null
         );
@@ -94,18 +94,22 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         validateNoOverlap(
                 appointment.getStaffMemberId(),
-                appointment.getDateTime(),
+                appointment.getStartsAt(),
                 appointment.getDurationMinutes(),
                 id
         );
 
         existAppointment.setCustomerId(appointment.getCustomerId());
-        existAppointment.setServiceId(appointment.getServiceId());
+        existAppointment.setServiceOfferingId(appointment.getServiceOfferingId());
         existAppointment.setStaffMemberId(appointment.getStaffMemberId());
-        existAppointment.setDateTime(appointment.getDateTime());
+        existAppointment.setStartsAt(appointment.getStartsAt());
+        existAppointment.setEndsAt(appointment.getEndsAt());
         existAppointment.setDurationMinutes(appointment.getDurationMinutes());
+        existAppointment.setPriceCents(appointment.getPriceCents());
         existAppointment.setStatus(appointment.getStatus());
-        existAppointment.setNotes(appointment.getNotes());
+        existAppointment.setSource(appointment.getSource());
+        existAppointment.setCustomerNotes(appointment.getCustomerNotes());
+        existAppointment.setInternalNotes(appointment.getInternalNotes());
         existAppointment.setUpdatedAt(LocalDateTime.now());
 
         appointmentRepository.save(existAppointment);

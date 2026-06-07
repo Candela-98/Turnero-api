@@ -59,7 +59,7 @@ public class ServOfferingControllerIT {
         return ServOfferingRequestDto.builder()
                 .name("Corte y barba")
                 .durationMinutes(60)
-                .price(10000.0)
+                .priceCents(10000)
                 .build();
     }
 
@@ -67,7 +67,7 @@ public class ServOfferingControllerIT {
         return ServiceOffering.builder()
                 .name("Corte y barba")
                 .durationMinutes(60)
-                .price(10000.0)
+                .priceCents(10000)
                 .build();
     }
 
@@ -91,7 +91,7 @@ public class ServOfferingControllerIT {
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo(dto.getName());
         assertThat(saved.getDurationMinutes()).isEqualTo(dto.getDurationMinutes());
-        assertThat(saved.getPrice()).isEqualTo(dto.getPrice());
+        assertThat(saved.getPriceCents()).isEqualTo(dto.getPriceCents());
 
         String json = result.getResponse().getContentAsString();
         ServOfferingResponseDto response = objectMapper.readValue(json, ServOfferingResponseDto.class);
@@ -99,7 +99,7 @@ public class ServOfferingControllerIT {
         assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(response.getName()).isEqualTo(dto.getName());
         assertThat(response.getDurationMinutes()).isEqualTo(dto.getDurationMinutes());
-        assertThat(response.getPrice()).isEqualTo(dto.getPrice());
+        assertThat(response.getPriceCents()).isEqualTo(dto.getPriceCents());
     }
 
     @Test
@@ -138,7 +138,7 @@ public class ServOfferingControllerIT {
         assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(saved.getName()).isEqualTo("Corte y barba");
         assertThat(saved.getDurationMinutes()).isEqualTo(60);
-        assertThat(saved.getPrice()).isEqualTo(10000.0);
+        assertThat(saved.getPriceCents()).isEqualTo(10000);
 
     }
 
@@ -162,7 +162,7 @@ public class ServOfferingControllerIT {
         ServOfferingRequestDto dto = getServOfferingRequestDto();
         dto.setName("Corte");
         dto.setDurationMinutes(45);
-        dto.setPrice(8000.0);
+        dto.setPriceCents(8000);
 
         // When
         mockMvc.perform(put("/api/service-offerings/{id}", saved.getId())
@@ -174,7 +174,7 @@ public class ServOfferingControllerIT {
         ServiceOffering updated = servOfferingRepository.findById(saved.getId()).orElseThrow();
         assertThat(updated.getName()).isEqualTo("Corte");
         assertThat(updated.getDurationMinutes()).isEqualTo(45);
-        assertThat(updated.getPrice()).isEqualTo(8000.0);
+        assertThat(updated.getPriceCents()).isEqualTo(8000);
     }
 
     @Test
@@ -202,7 +202,7 @@ public class ServOfferingControllerIT {
         ServiceOffering serviceOffering2 = new ServiceOffering();
         serviceOffering2.setName("Coloración");
         serviceOffering2.setDurationMinutes(90);
-        serviceOffering2.setPrice(15000.0);
+        serviceOffering2.setPriceCents(15000);
 
         servOfferingRepository.save(serviceOffering1);
         servOfferingRepository.save(serviceOffering2);
@@ -219,7 +219,7 @@ public class ServOfferingControllerIT {
         assertThat(response).hasSize(2);
         assertThat(response).extracting(ServOfferingResponseDto::getName).containsExactlyInAnyOrder("Corte y barba", "Coloración");
         assertThat(response).extracting(ServOfferingResponseDto::getDurationMinutes).containsExactlyInAnyOrder(60, 90);
-        assertThat(response).extracting(ServOfferingResponseDto::getPrice).containsExactlyInAnyOrder(10000.0, 15000.0);
+        assertThat(response).extracting(ServOfferingResponseDto::getPriceCents).containsExactlyInAnyOrder(10000, 15000);
 
     }
 
@@ -268,3 +268,5 @@ public class ServOfferingControllerIT {
     }
 
 }
+
+

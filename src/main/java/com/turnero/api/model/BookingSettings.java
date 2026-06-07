@@ -1,47 +1,39 @@
 package com.turnero.api.model;
 
-import com.turnero.api.model.enums.CustomerStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @Entity
-@Table(name = "customers")
-public class Customer {
-
+@Table(name = "booking_settings")
+public class BookingSettings {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private Long businessId;
 
-    private Long userId;
+    private boolean publicBookingEnabled;
+    private boolean requiresCustomerLogin;
 
-    private String name;
+    private int bookingWindowDays;
+    private int minNoticeHours;
+    private int cancellationNoticeHours;
+    private int slotIntervalMinutes;
 
-    private String email;
-
-    private String phoneNumber;
-
-    @Enumerated(EnumType.STRING)
-    private CustomerStatus status;
-
-    @Column(columnDefinition = "TEXT")
-    private String internalNotes;
+    private boolean manualConfirmationEnabled;
+    private boolean whatsappRemindersEnabled;
 
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
-
 }

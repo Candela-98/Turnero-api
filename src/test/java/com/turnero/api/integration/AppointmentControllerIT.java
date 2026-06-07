@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.controller.AppointmentController;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
-import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.*;
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
@@ -72,11 +72,11 @@ public class AppointmentControllerIT {
     private AppointmentRequestDto getAppointmentRequestDto() {
         return AppointmentRequestDto.builder()
                 .customerId(1L)
-                .serviceId(1L)
+                .serviceOfferingId(1L)
                 .staffMemberId(1L)
-                .dateTime(LocalDateTime.now().plusDays(1))
+                .startsAt(LocalDateTime.now().plusDays(1))
                 .durationMinutes(60)
-                .notes("Test appointment")
+                .customerNotes("Test appointment")
                 .status(AppointmentStatus.PENDING)
                 .build();
     }
@@ -85,11 +85,11 @@ public class AppointmentControllerIT {
         LocalDateTime auditDate = LocalDateTime.now().minusDays(1);
         return Appointment.builder()
                 .customerId(1L)
-                .serviceId(1L)
+                .serviceOfferingId(1L)
                 .staffMemberId(1L)
-                .dateTime(LocalDateTime.now().plusDays(1))
+                .startsAt(LocalDateTime.now().plusDays(1))
                 .durationMinutes(60)
-                .notes("Test appointment")
+                .customerNotes("Test appointment")
                 .createdAt(auditDate)
                 .updatedAt(auditDate)
                 .build();
@@ -99,11 +99,11 @@ public class AppointmentControllerIT {
         return AppointmentResponseDto.builder()
                 .id(1L)
                 .customerId(1L)
-                .serviceId(1L)
+                .serviceOfferingId(1L)
                 .staffMemberId(1L)
-                .dateTime(LocalDateTime.now().plusDays(1))
+                .startsAt(LocalDateTime.now().plusDays(1))
                 .durationMinutes(60)
-                .notes("Test appointment")
+                .customerNotes("Test appointment")
                 .build();
     }
 
@@ -120,7 +120,6 @@ public class AppointmentControllerIT {
         return StaffMember.builder()
                 .name("Maria Gomez")
                 .specialty("Corte")
-                .license("87676923")
                 .build();
     }
 
@@ -128,7 +127,7 @@ public class AppointmentControllerIT {
         return ServiceOffering.builder()
                 .name("Corte")
                 .durationMinutes(60)
-                .price(15000.0)
+                .priceCents(15000)
                 .build();
     }
 
@@ -139,10 +138,10 @@ public class AppointmentControllerIT {
         Customer customer = customerRepository.save(getCustomerEntity());
         ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
         StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
-        dto.setDateTime(LocalDateTime.now().plusDays(1));
+        dto.setStartsAt(LocalDateTime.now().plusDays(1));
         dto.setStatus(AppointmentStatus.PENDING);
         dto.setCustomerId(customer.getId());
-        dto.setServiceId(serviceOffering.getId());
+        dto.setServiceOfferingId(serviceOffering.getId());
         dto.setStaffMemberId(staffMember.getId());
 
         // When
@@ -161,10 +160,10 @@ public class AppointmentControllerIT {
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getCustomerId()).isEqualTo(customer.getId());
-        assertThat(saved.getServiceId()).isEqualTo(serviceOffering.getId());
+        assertThat(saved.getServiceOfferingId()).isEqualTo(serviceOffering.getId());
         assertThat(saved.getStaffMemberId()).isEqualTo(staffMember.getId());
         assertThat(saved.getDurationMinutes()).isEqualTo(60);
-        assertThat(saved.getNotes()).isEqualTo("Test appointment");
+        assertThat(saved.getCustomerNotes()).isEqualTo("Test appointment");
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getUpdatedAt()).isNotNull();
 
@@ -172,11 +171,11 @@ public class AppointmentControllerIT {
         AppointmentResponseDto response = objectMapper.readValue(json, AppointmentResponseDto.class);
         assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(response.getCustomerId()).isEqualTo(saved.getCustomerId());
-        assertThat(response.getServiceId()).isEqualTo(saved.getServiceId());
+        assertThat(response.getServiceOfferingId()).isEqualTo(saved.getServiceOfferingId());
         assertThat(response.getStaffMemberId()).isEqualTo(saved.getStaffMemberId());
-        assertThat(response.getDateTime()).isEqualTo(saved.getDateTime());
+        assertThat(response.getStartsAt()).isEqualTo(saved.getStartsAt());
         assertThat(response.getDurationMinutes()).isEqualTo(saved.getDurationMinutes());
-        assertThat(response.getNotes()).isEqualTo(saved.getNotes());
+        assertThat(response.getCustomerNotes()).isEqualTo(saved.getCustomerNotes());
         assertThat(response.getCreatedAt()).isEqualTo(saved.getCreatedAt());
         assertThat(response.getUpdatedAt()).isEqualTo(saved.getUpdatedAt());
     }
@@ -242,7 +241,7 @@ public class AppointmentControllerIT {
                 ServiceOffering.builder()
                         .name("Barba")
                         .durationMinutes(30)
-                        .price(10000.0)
+                        .priceCents(10000)
                         .build()
         );
 
@@ -255,9 +254,9 @@ public class AppointmentControllerIT {
 
         Appointment existingAppointment = Appointment.builder()
                 .customerId(customer1.getId())
-                .serviceId(service1.getId())
+                .serviceOfferingId(service1.getId())
                 .staffMemberId(staffMember.getId())
-                .dateTime(start)
+                .startsAt(start)
                 .durationMinutes(30)
                 .status(AppointmentStatus.PENDING)
                 .build();
@@ -266,9 +265,9 @@ public class AppointmentControllerIT {
 
         AppointmentRequestDto dto = AppointmentRequestDto.builder()
                 .customerId(customer2.getId())
-                .serviceId(service2.getId())
+                .serviceOfferingId(service2.getId())
                 .staffMemberId(staffMember.getId())
-                .dateTime(start.plusMinutes(15))
+                .startsAt(start.plusMinutes(15))
                 .durationMinutes(30)
                 .status(AppointmentStatus.PENDING)
                 .build();
@@ -300,11 +299,11 @@ public class AppointmentControllerIT {
 
         assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(response.getCustomerId()).isEqualTo(saved.getCustomerId());
-        assertThat(response.getServiceId()).isEqualTo(saved.getServiceId());
+        assertThat(response.getServiceOfferingId()).isEqualTo(saved.getServiceOfferingId());
         assertThat(response.getStaffMemberId()).isEqualTo(saved.getStaffMemberId());
-        assertThat(response.getDateTime()).isEqualTo(saved.getDateTime());
+        assertThat(response.getStartsAt()).isEqualTo(saved.getStartsAt());
         assertThat(response.getDurationMinutes()).isEqualTo(saved.getDurationMinutes());
-        assertThat(response.getNotes()).isEqualTo(saved.getNotes());
+        assertThat(response.getCustomerNotes()).isEqualTo(saved.getCustomerNotes());
         assertThat(response.getCreatedAt()).isEqualTo(saved.getCreatedAt());
         assertThat(response.getUpdatedAt()).isEqualTo(saved.getUpdatedAt());
 
@@ -332,9 +331,9 @@ public class AppointmentControllerIT {
 
         Appointment appointment = getAppointment();
         appointment.setCustomerId(customer.getId());
-        appointment.setServiceId(serviceOffering.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
         appointment.setStaffMemberId(staffMember.getId());
-        appointment.setDateTime(LocalDateTime.now().plusDays(1));
+        appointment.setStartsAt(LocalDateTime.now().plusDays(1));
         appointment.setStatus(AppointmentStatus.PENDING);
 
         Appointment saved = appointmentRepository.save(appointment);
@@ -344,12 +343,12 @@ public class AppointmentControllerIT {
 
         AppointmentRequestDto dto = getAppointmentRequestDto();
         dto.setCustomerId(customer.getId());
-        dto.setServiceId(serviceOffering.getId());
+        dto.setServiceOfferingId(serviceOffering.getId());
         dto.setStaffMemberId(staffMember.getId());
-        dto.setDateTime(LocalDateTime.now().plusDays(2));
+        dto.setStartsAt(LocalDateTime.now().plusDays(2));
         dto.setDurationMinutes(30);
         dto.setStatus(AppointmentStatus.CONFIRMED); // o el que tengas
-        dto.setNotes("Updated appointment");
+        dto.setCustomerNotes("Updated appointment");
 
         // When
         mockMvc.perform(put("/api/appointments/{id}", saved.getId())
@@ -360,9 +359,9 @@ public class AppointmentControllerIT {
         // Then
         Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
 
-        assertThat(updated.getDateTime()).isEqualTo(dto.getDateTime());
+        assertThat(updated.getStartsAt()).isEqualTo(dto.getStartsAt());
         assertThat(updated.getDurationMinutes()).isEqualTo(30);
-        assertThat(updated.getNotes()).isEqualTo("Updated appointment");
+        assertThat(updated.getCustomerNotes()).isEqualTo("Updated appointment");
         assertThat(updated.getCreatedAt()).isEqualTo(originalCreatedAt);
         assertThat(updated.getUpdatedAt()).isNotNull();
         assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
@@ -420,11 +419,11 @@ public class AppointmentControllerIT {
         Appointment appointment1 = getAppointment();
         Appointment appointment2 = getAppointment();
         appointment2.setCustomerId(2L);
-        appointment2.setServiceId(2L);
+        appointment2.setServiceOfferingId(2L);
         appointment2.setStaffMemberId(2L);
-        appointment2.setDateTime(LocalDateTime.of(2026, 6, 1, 10, 0));
+        appointment2.setStartsAt(LocalDateTime.of(2026, 6, 1, 10, 0));
         appointment2.setDurationMinutes(30);
-        appointment2.setNotes("Second appointment");
+        appointment2.setCustomerNotes("Second appointment");
 
         appointmentRepository.save(appointment1);
         appointmentRepository.save(appointment2);
@@ -441,15 +440,15 @@ public class AppointmentControllerIT {
         assertThat(response).hasSize(2);
         assertThat(response).extracting(AppointmentResponseDto::getCustomerId)
                 .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(response).extracting(AppointmentResponseDto::getServiceId)
+        assertThat(response).extracting(AppointmentResponseDto::getServiceOfferingId)
                 .containsExactlyInAnyOrder(1L, 2L);
         assertThat(response).extracting(AppointmentResponseDto::getStaffMemberId)
                 .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(response).extracting(AppointmentResponseDto::getDateTime)
-                .containsExactlyInAnyOrder(appointment1.getDateTime(), appointment2.getDateTime());
+        assertThat(response).extracting(AppointmentResponseDto::getStartsAt)
+                .containsExactlyInAnyOrder(appointment1.getStartsAt(), appointment2.getStartsAt());
         assertThat(response).extracting(AppointmentResponseDto::getDurationMinutes)
                 .containsExactlyInAnyOrder(60, 30);
-        assertThat(response).extracting(AppointmentResponseDto::getNotes)
+        assertThat(response).extracting(AppointmentResponseDto::getCustomerNotes)
                 .containsExactlyInAnyOrder("Test appointment", "Second appointment");
 
     }
@@ -496,3 +495,4 @@ public class AppointmentControllerIT {
                 .andExpect(jsonPath("$.message").value("Appointment not found with ID: 999"));
     }
 }
+
