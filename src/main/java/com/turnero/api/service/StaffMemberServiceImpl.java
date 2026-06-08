@@ -33,9 +33,13 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     public void updateStaffMember(StaffMember staffMember, Long id) {
         StaffMember staffMemberExist = findStaffMember(id);
 
+        staffMemberExist.setBusinessId(staffMember.getBusinessId());
+        staffMemberExist.setUserId(staffMember.getUserId());
         staffMemberExist.setName(staffMember.getName());
+        staffMemberExist.setRoleLabel(staffMember.getRoleLabel());
         staffMemberExist.setSpecialty(staffMember.getSpecialty());
-        staffMemberExist.setLicense(staffMember.getLicense());
+        staffMemberExist.setAvatarUrl(staffMember.getAvatarUrl());
+        staffMemberExist.setStatus(staffMember.getStatus());
 
         staffMemberRepository.save(staffMemberExist);
         log.info("Staffmember with id={} successfully updated.", id);

@@ -7,6 +7,7 @@ import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.StaffMemberMapper;
 
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.service.StaffMemberService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,27 +39,39 @@ public class StaffMemberControlTest {
 
     private StaffMemberRequestDto getStaffMemberDTO(Long id){
         return StaffMemberRequestDto.builder()
+                .businessId(10L)
+                .userId(20L)
                 .name("Daniel Leguizamon")
+                .roleLabel("Senior barber")
                 .specialty("Barber")
-                .license("A12322")
+                .avatarUrl("https://example.com/avatar.png")
+                .status(StaffMemberStatus.ACTIVE)
                 .build();
     }
 
     private StaffMember getStaffMemberEntity(Long id){
         return  StaffMember.builder()
                 .id(id)
+                .businessId(10L)
+                .userId(20L)
                 .name("Daniel Leguizamon")
+                .roleLabel("Senior barber")
                 .specialty("Barber")
-                .license("A12322")
+                .avatarUrl("https://example.com/avatar.png")
+                .status(StaffMemberStatus.ACTIVE)
                 .build();
     }
 
     private StaffMemberResponseDto getStaffMemberResponseDTO(Long id){
         return StaffMemberResponseDto.builder()
                 .id(id)
+                .businessId(10L)
+                .userId(20L)
                 .name("Daniel Leguizamon")
+                .roleLabel("Senior barber")
                 .specialty("Barber")
-                .license("A12322")
+                .avatarUrl("https://example.com/avatar.png")
+                .status(StaffMemberStatus.ACTIVE)
                 .build();
     }
 
@@ -110,11 +123,11 @@ public class StaffMemberControlTest {
     }
 
     @Test
-    void saveStaffMember_whenLicenseIsBlank_shouldReturn400() throws Exception {
+    void saveStaffMember_whenSpecialtyIsBlank_shouldReturn400() throws Exception {
         // Given
         Long id = 1L;
         StaffMemberRequestDto dto = getStaffMemberDTO(id);
-        dto.setLicense("");
+        dto.setSpecialty("");
 
         // When
         mockMvc.perform(post("/api/staffmembers")
@@ -125,7 +138,7 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.license").exists());
+                .andExpect(jsonPath("$.validations.specialty").exists());
 
         // Then
         then(staffMapper).shouldHaveNoInteractions();
@@ -173,7 +186,8 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Daniel Leguizamon"))
                 .andExpect(jsonPath("$.specialty").value("Barber"))
-                .andExpect(jsonPath("$.license").value("A12322"));
+                .andExpect(jsonPath("$.roleLabel").value("Senior barber"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
 
         then(staffService).should().findStaffMember(1L);
         then(staffMapper).should().toResponseDto(staffMember);
@@ -266,4 +280,6 @@ public class StaffMemberControlTest {
         then(staffService).should().deleteStaffMember(999L);
     }
 }
+
+
 

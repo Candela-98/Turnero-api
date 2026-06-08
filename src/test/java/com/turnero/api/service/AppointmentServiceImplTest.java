@@ -3,7 +3,7 @@ package com.turnero.api.service;
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Appointment;
-import com.turnero.api.model.AppointmentStatus;
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
@@ -43,10 +43,11 @@ class AppointmentServiceImplTest {
     @Test
     void saveAppointment() {
         Appointment appointment = new Appointment();
+        appointment.setId(1L);
         appointment.setCustomerId(1L);
-        appointment.setServiceId(2L);
+        appointment.setServiceOfferingId(2L);
         appointment.setStaffMemberId(3L);
-        appointment.setDateTime(LocalDateTime.of(2026, 5, 15, 10, 0));
+        appointment.setStartsAt(LocalDateTime.of(2026, 5, 15, 10, 0));
         appointment.setDurationMinutes(30);
 
         when(customerRepository.existsById(1L)).thenReturn(true);
@@ -67,9 +68,9 @@ class AppointmentServiceImplTest {
     void saveAppointment_whenRepositoryFails_throwsException() {
         Appointment appointment = new Appointment();
         appointment.setCustomerId(1L);
-        appointment.setServiceId(2L);
+        appointment.setServiceOfferingId(2L);
         appointment.setStaffMemberId(3L);
-        appointment.setDateTime(LocalDateTime.of(2026, 5, 15, 10, 0));
+        appointment.setStartsAt(LocalDateTime.of(2026, 5, 15, 10, 0));
         appointment.setDurationMinutes(30);
 
         when(customerRepository.existsById(1L)).thenReturn(true);
@@ -85,7 +86,7 @@ class AppointmentServiceImplTest {
     void saveAppointment_whenCustomerNotExist_shouldthrowsException() {
         Appointment appointment = new Appointment();
         appointment.setCustomerId(99L);
-        appointment.setServiceId(2L);
+        appointment.setServiceOfferingId(2L);
         appointment.setStaffMemberId(3L);
 
         when(customerRepository.existsById(99L)).thenReturn(false);
@@ -102,7 +103,7 @@ class AppointmentServiceImplTest {
     void saveAppointment_whenServiceNotExist_shouldthrowsException() {
         Appointment appointment = new Appointment();
         appointment.setCustomerId(1L);
-        appointment.setServiceId(99L);
+        appointment.setServiceOfferingId(99L);
         appointment.setStaffMemberId(3L);
 
         when(customerRepository.existsById(1L)).thenReturn(true);
@@ -121,7 +122,7 @@ class AppointmentServiceImplTest {
     void saveAppointment_whenStaffMemberNotExist_shouldthrowsException() {
          Appointment appointment = new Appointment();
          appointment.setCustomerId(1L);
-         appointment.setServiceId(2L);
+         appointment.setServiceOfferingId(2L);
          appointment.setStaffMemberId(99L);
 
          when(customerRepository.existsById(1L)).thenReturn(true);
@@ -142,15 +143,15 @@ class AppointmentServiceImplTest {
          Appointment existingAppointment = Appointment.builder()
                  .id(1L)
                  .staffMemberId(1L)
-                 .dateTime(LocalDateTime.of(2026, 5, 15, 10, 0))
+                 .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
                  .durationMinutes(30)
                  .build();
 
          Appointment newAppointment = Appointment.builder()
                  .staffMemberId(1L)
                  .customerId(1L)
-                 .serviceId(1L)
-                 .dateTime(LocalDateTime.of(2026, 5, 15, 10, 15))
+                 .serviceOfferingId(1L)
+                 .startsAt(LocalDateTime.of(2026, 5, 15, 10, 15))
                  .durationMinutes(30)
                  .build();
 
@@ -171,15 +172,15 @@ class AppointmentServiceImplTest {
          Appointment existingAppointment = Appointment.builder()
                  .id(1L)
                  .staffMemberId(1L)
-                 .dateTime(LocalDateTime.of(2026, 5, 15, 10, 0))
+                 .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
                  .durationMinutes(30)
                  .build();
 
          Appointment newAppointment = Appointment.builder()
                  .staffMemberId(1L)
                  .customerId(1L)
-                 .serviceId(1L)
-                 .dateTime(LocalDateTime.of(2026, 5, 15, 10, 30))
+                 .serviceOfferingId(1L)
+                 .startsAt(LocalDateTime.of(2026, 5, 15, 10, 30))
                  .durationMinutes(30)
                  .build();
 
@@ -248,12 +249,12 @@ class AppointmentServiceImplTest {
 
         Appointment updateAppointment = new Appointment();
         updateAppointment.setCustomerId(10L);
-        updateAppointment.setServiceId(20L);
+        updateAppointment.setServiceOfferingId(20L);
         updateAppointment.setStaffMemberId(30L);
-        updateAppointment.setDateTime(java.time.LocalDateTime.of(2026, 2, 15, 10, 0));
+        updateAppointment.setStartsAt(java.time.LocalDateTime.of(2026, 2, 15, 10, 0));
         updateAppointment.setDurationMinutes(45);
         updateAppointment.setStatus(AppointmentStatus.CONFIRMED);
-        updateAppointment.setNotes("Notes");
+        updateAppointment.setCustomerNotes("Notes");
 
         when(appointmentRepository.findById(id)).thenReturn(Optional.of(current));
         when(customerRepository.existsById(10L)).thenReturn(true);
@@ -265,12 +266,12 @@ class AppointmentServiceImplTest {
         verify(appointmentRepository, times(1)).save(current);
 
         assertEquals(10L, current.getCustomerId());
-        assertEquals(20L, current.getServiceId());
+        assertEquals(20L, current.getServiceOfferingId());
         assertEquals(30L, current.getStaffMemberId());
-        assertEquals(java.time.LocalDateTime.of(2026, 2, 15, 10, 0), current.getDateTime());
+        assertEquals(java.time.LocalDateTime.of(2026, 2, 15, 10, 0), current.getStartsAt());
         assertEquals(45, current.getDurationMinutes());
         assertEquals(AppointmentStatus.CONFIRMED, current.getStatus());
-        assertEquals("Notes", current.getNotes());
+        assertEquals("Notes", current.getCustomerNotes());
 
         assertEquals(originalCreatedAt, current.getCreatedAt());
         assertNotNull(current.getUpdatedAt());
@@ -284,24 +285,24 @@ class AppointmentServiceImplTest {
         Appointment currentAppointment = Appointment.builder()
                 .id(id)
                 .customerId(10L)
-                .serviceId(20L)
+                .serviceOfferingId(20L)
                 .staffMemberId(30L)
-                .dateTime(LocalDateTime.of(2026, 2, 15, 9, 0))
+                .startsAt(LocalDateTime.of(2026, 2, 15, 9, 0))
                 .durationMinutes(30)
                 .build();
 
         Appointment overlappingAppointment = Appointment.builder()
                 .id(2L)
                 .staffMemberId(30L)
-                .dateTime(LocalDateTime.of(2026, 2, 15, 10, 0))
+                .startsAt(LocalDateTime.of(2026, 2, 15, 10, 0))
                 .durationMinutes(60)
                 .build();
 
         Appointment updateAppointment = Appointment.builder()
                 .customerId(10L)
-                .serviceId(20L)
+                .serviceOfferingId(20L)
                 .staffMemberId(30L)
-                .dateTime(LocalDateTime.of(2026, 2, 15, 10, 30))
+                .startsAt(LocalDateTime.of(2026, 2, 15, 10, 30))
                 .durationMinutes(30)
                 .build();
 
@@ -330,16 +331,16 @@ class AppointmentServiceImplTest {
                 .id(id)
                 .staffMemberId(1L)
                 .customerId(1L)
-                .serviceId(1L)
-                .dateTime(LocalDateTime.of(2026, 5, 15, 10, 0))
+                .serviceOfferingId(1L)
+                .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
                 .durationMinutes(30)
                 .build();
 
         Appointment appointmentUpdate = Appointment.builder()
                 .staffMemberId(1L)
                 .customerId(1L)
-                .serviceId(1L)
-                .dateTime(LocalDateTime.of(2026, 5, 15, 10, 0))
+                .serviceOfferingId(1L)
+                .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
                 .durationMinutes(30)
                 .build();
 
@@ -385,4 +386,6 @@ class AppointmentServiceImplTest {
         verify(appointmentRepository, never()).deleteById(anyLong());
     }
 }
+
+
 

@@ -1,5 +1,6 @@
 package com.turnero.api.model;
 
+import com.turnero.api.model.enums.StaffMemberStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -7,26 +8,38 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.Builder;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "staffMember")
+@Table(name = "staff_members")
 public class StaffMember {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", nullable = false, unique = true, length = 100)
+    private Long businessId;
+
+    private Long userId;
+
     private String name;
 
-    @Column(name = "specialty", nullable = false, length = 150)
+    private String roleLabel;
+
     private String specialty;
 
-    @Column(name = "license", nullable = false, unique = true, length = 30)
-    private String license;
+    private String avatarUrl;
+
+    @Enumerated(EnumType.STRING)
+    private StaffMemberStatus status;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
 
 }

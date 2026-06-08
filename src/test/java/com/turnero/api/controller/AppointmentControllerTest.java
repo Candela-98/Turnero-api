@@ -6,7 +6,7 @@ import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
-import com.turnero.api.model.AppointmentStatus;
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.service.AppointmentService;
 import org.junit.jupiter.api.Test;
@@ -40,12 +40,12 @@ public class AppointmentControllerTest {
     private AppointmentRequestDto getAppointmentDto(Long id) {
         return AppointmentRequestDto.builder()
                 .customerId(id)
-                .serviceId(2L)
+                .serviceOfferingId(2L)
                 .staffMemberId(3L)
-                .dateTime(LocalDateTime.now().plusDays(1))
+                .startsAt(LocalDateTime.now().plusDays(1))
                 .durationMinutes(30)
                 .status(AppointmentStatus.CONFIRMED)
-                .notes("Notes")
+                .customerNotes("Notes")
                 .build();
     }
 
@@ -53,12 +53,12 @@ public class AppointmentControllerTest {
         return  Appointment.builder()
                 .id(id)
                 .customerId(id)
-                .serviceId(2L)
+                .serviceOfferingId(2L)
                 .staffMemberId(3L)
-                .dateTime(LocalDateTime.now().plusDays(1))
+                .startsAt(LocalDateTime.now().plusDays(1))
                 .durationMinutes(30)
                 .status(AppointmentStatus.CONFIRMED)
-                .notes("Notes")
+                .customerNotes("Notes")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -68,12 +68,12 @@ public class AppointmentControllerTest {
         return AppointmentResponseDto.builder()
                 .id(id)
                 .customerId(id)
-                .serviceId(2L)
+                .serviceOfferingId(2L)
                 .staffMemberId(3L)
-                .dateTime(LocalDateTime.now().plusDays(1))
+                .startsAt(LocalDateTime.now().plusDays(1))
                 .durationMinutes(30)
                 .status(AppointmentStatus.CONFIRMED)
-                .notes("Notes")
+                .customerNotes("Notes")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -99,7 +99,7 @@ public class AppointmentControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.customerId").value(1))
-                .andExpect(jsonPath("$.serviceId").value(2))
+                .andExpect(jsonPath("$.serviceOfferingId").value(2))
                 .andExpect(jsonPath("$.staffMemberId").value(3))
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
@@ -200,7 +200,7 @@ public class AppointmentControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.customerId").value(1))
-                .andExpect(jsonPath("$.serviceId").value(2))
+                .andExpect(jsonPath("$.serviceOfferingId").value(2))
                 .andExpect(jsonPath("$.staffMemberId").value(3))
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
@@ -250,7 +250,7 @@ public class AppointmentControllerTest {
         //Given
         Long id = 5L;
         var dto = getAppointmentDto(id);
-        dto.setDateTime(LocalDateTime.now().minusDays(1));
+        dto.setStartsAt(LocalDateTime.now().minusDays(1));
 
         //When + Then
         mockMvc.perform(put("/api/appointments/5")
@@ -261,7 +261,7 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.dateTime").exists());
+                .andExpect(jsonPath("$.validations.startsAt").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
         then(appointmentMapper).shouldHaveNoInteractions();
@@ -326,3 +326,5 @@ public class AppointmentControllerTest {
     }
 
 }
+
+

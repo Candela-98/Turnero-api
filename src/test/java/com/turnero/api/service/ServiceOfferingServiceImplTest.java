@@ -27,7 +27,7 @@ public class ServiceOfferingServiceImplTest {
         ServiceOffering serviceOffering = new ServiceOffering();
         serviceOffering.setName("Corte");
         serviceOffering.setDurationMinutes(30);
-        serviceOffering.setPrice(2500);
+        serviceOffering.setPriceCents(2500);
 
         when(servOfferingRepository.save(serviceOffering)).thenReturn(serviceOffering);
 
@@ -86,12 +86,12 @@ public class ServiceOfferingServiceImplTest {
         currentServiceOffering.setId(id);
         currentServiceOffering.setName("Corte");
         currentServiceOffering.setDurationMinutes(20);
-        currentServiceOffering.setPrice(1000);
+        currentServiceOffering.setPriceCents(1000);
 
         ServiceOffering updatedServiceOffering = new ServiceOffering();
         updatedServiceOffering.setName("Corte + barba");
         updatedServiceOffering.setDurationMinutes(45);
-        updatedServiceOffering.setPrice(3000);
+        updatedServiceOffering.setPriceCents(3000);
 
         when(servOfferingRepository.findById(id)).thenReturn(Optional.of(currentServiceOffering));
 
@@ -100,7 +100,7 @@ public class ServiceOfferingServiceImplTest {
         verify(servOfferingRepository, times(1)).save(currentServiceOffering);
         assertEquals("Corte + barba", currentServiceOffering.getName());
         assertEquals(45, currentServiceOffering.getDurationMinutes());
-        assertEquals(3000, currentServiceOffering.getPrice());
+        assertEquals(3000, currentServiceOffering.getPriceCents());
     }
 
     @Test
@@ -142,3 +142,5 @@ public class ServiceOfferingServiceImplTest {
         verify(servOfferingRepository, never()).deleteById(anyLong());
     }
 }
+
+

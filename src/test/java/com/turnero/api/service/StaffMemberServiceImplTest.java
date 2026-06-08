@@ -28,7 +28,6 @@ public class StaffMemberServiceImplTest {
         StaffMember staffMember = new StaffMember();
         staffMember.setName("Juan");
         staffMember.setSpecialty("Barber");
-        staffMember.setLicense("MAT-123");
 
         when(staffMemberRepository.save(staffMember)).thenReturn(staffMember);
 
@@ -87,12 +86,10 @@ public class StaffMemberServiceImplTest {
         current.setId(id);
         current.setName("Carlos");
         current.setSpecialty("Barber");
-        current.setLicense("MAT-788");
 
         StaffMember updatedStaff = new StaffMember();
         updatedStaff.setName("Juan Carlos");
         updatedStaff.setSpecialty("Barber plus");
-        updatedStaff.setLicense("MAT-778");
 
         when(staffMemberRepository.findById(id)).thenReturn(Optional.of(current));
 
@@ -101,7 +98,6 @@ public class StaffMemberServiceImplTest {
         verify(staffMemberRepository, times(1)).save(current);
         assertEquals("Juan Carlos", current.getName());
         assertEquals("Barber plus", current.getSpecialty());
-        assertEquals("MAT-778", current.getLicense());
     }
 
     @Test
@@ -143,3 +139,5 @@ public class StaffMemberServiceImplTest {
         verify(staffMemberRepository, never()).deleteById(anyLong());
     }
 }
+
+

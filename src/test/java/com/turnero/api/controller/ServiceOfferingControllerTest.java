@@ -39,7 +39,7 @@ public class ServiceOfferingControllerTest {
         return ServOfferingRequestDto.builder()
                 .name("Corte y barba")
                 .durationMinutes(60)
-                .price(10000.0)
+                .priceCents(10000)
                 .build();
     }
 
@@ -48,7 +48,7 @@ public class ServiceOfferingControllerTest {
                 .id(id)
                 .name("Corte y barba")
                 .durationMinutes(60)
-                .price(10000.0)
+                .priceCents(10000)
                 .build();
     }
 
@@ -57,7 +57,7 @@ public class ServiceOfferingControllerTest {
                 .id(id)
                 .name("Corte y barba")
                 .durationMinutes(60)
-                .price(10000.0)
+                .priceCents(10000)
                 .build();
     }
 
@@ -82,7 +82,7 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Corte y barba"))
                 .andExpect(jsonPath("$.durationMinutes").value(60))
-                .andExpect(jsonPath("$.price").value(10000.0));
+                .andExpect(jsonPath("$.priceCents").value(10000));
 
         // Assert
         then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
@@ -155,7 +155,7 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Corte y barba"))
                 .andExpect(jsonPath("$.durationMinutes").value(60))
-                .andExpect(jsonPath("$.price").value(10000.0));
+                .andExpect(jsonPath("$.priceCents").value(10000));
 
         then(servOfferingService).should().findServiceOffering(1L);
         then(sMapper).should().toResponseDto(servOffering);
@@ -243,3 +243,5 @@ public class ServiceOfferingControllerTest {
         then(servOfferingService).should().deleteServOffering(999L);
     }
 }
+
+
