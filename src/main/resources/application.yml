@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: Turnero API
+
+  jpa:
+    open-in-view: false
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
