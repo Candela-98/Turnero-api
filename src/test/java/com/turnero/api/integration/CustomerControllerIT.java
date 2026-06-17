@@ -102,8 +102,11 @@ class CustomerControllerIT {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.validations.name").value("The customer's name is required."));
-
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/customers"))
+                .andExpect(jsonPath("$.timestamp").exists());
         // Then
         assertThat(customerRepository.findAll()).isEmpty();
     }
@@ -122,7 +125,11 @@ class CustomerControllerIT {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.validations.email").value("The customer's email address must be valid."));
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("email"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/customers"))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(customerRepository.findAll()).isEmpty();
     }
@@ -202,7 +209,11 @@ class CustomerControllerIT {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.validations.name").value("The customer's name is required."));
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/customers/" + saved.getId()))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test

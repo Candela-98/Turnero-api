@@ -116,7 +116,11 @@ public class ServOfferingControllerIT {
                         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                         .andExpect(jsonPath("$.status").value(400))
                         .andExpect(jsonPath("$.error").value("Bad Request"))
-                        .andExpect(jsonPath("$.validations.name").value("The service offering name is required"));
+                        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                        .andExpect(jsonPath("$.details[0].field").value("name"))
+                        .andExpect(jsonPath("$.details[0].message").exists())
+                        .andExpect(jsonPath("$.path").value("/api/service-offerings"))
+                        .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(servOfferingRepository.findAll()).isEmpty();
     }
@@ -191,8 +195,11 @@ public class ServOfferingControllerIT {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.validations.name").value("The service offering name is required"));
-
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/service-offerings/1"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test

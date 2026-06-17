@@ -125,7 +125,11 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.customerId").exists());
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("customerId"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/appointments"))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
         then(appointmentMapper).shouldHaveNoInteractions();
@@ -261,7 +265,11 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.startsAt").exists());
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("startsAt"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/appointments/5"))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
         then(appointmentMapper).shouldHaveNoInteractions();
