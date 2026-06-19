@@ -65,6 +65,7 @@ public class ServOfferingControllerIT {
 
     private ServiceOffering getServiceOffering() {
         return ServiceOffering.builder()
+                .businessId(1L)
                 .name("Corte y barba")
                 .durationMinutes(60)
                 .priceCents(10000)
@@ -200,6 +201,7 @@ public class ServOfferingControllerIT {
         //Given
         ServiceOffering serviceOffering1 = getServiceOffering();
         ServiceOffering serviceOffering2 = new ServiceOffering();
+        serviceOffering2.setBusinessId(1L);
         serviceOffering2.setName("Coloración");
         serviceOffering2.setDurationMinutes(90);
         serviceOffering2.setPriceCents(15000);
