@@ -115,8 +115,11 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.name").exists());
-
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/staffmembers"))
+                .andExpect(jsonPath("$.timestamp").exists());
         // Then
         then(staffMapper).shouldHaveNoInteractions();
         then(staffService).shouldHaveNoInteractions();
@@ -138,7 +141,11 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.specialty").exists());
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("specialty"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/staffmembers"))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         // Then
         then(staffMapper).shouldHaveNoInteractions();
@@ -247,7 +254,11 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.name").exists());
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/staffmembers/1"))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         then(staffMapper).shouldHaveNoInteractions();
         then(staffService).shouldHaveNoInteractions();

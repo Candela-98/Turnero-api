@@ -126,7 +126,11 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.name").value("The name of the staffmember is mandatory."));
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/staffmembers"))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(staffMemberRepository.findAll()).isEmpty();
     }
@@ -206,7 +210,11 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.name").value("The name of the staffmember is mandatory."));
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/staffmembers/" + saved.getId()))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test

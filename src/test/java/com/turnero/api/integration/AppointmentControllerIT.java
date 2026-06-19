@@ -195,8 +195,11 @@ public class AppointmentControllerIT {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.customerId").exists());
-
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("customerId"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/appointments"))
+                .andExpect(jsonPath("$.timestamp").exists());
         //Then
         assertThat(appointmentRepository.findAll()).isEmpty();
     }
@@ -385,7 +388,11 @@ public class AppointmentControllerIT {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.validations.customerId").exists());
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("customerId"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value("/api/appointments/" + saved.getId()))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(appointmentRepository.findById(saved.getId())).isPresent();
     }
