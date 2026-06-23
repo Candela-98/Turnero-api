@@ -15,3 +15,12 @@ spring:
     locations:
         - classpath:db/migration
         - classpath:db/seed/local
+
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health
+    endpoint:
+      health:
+        show-details: never
