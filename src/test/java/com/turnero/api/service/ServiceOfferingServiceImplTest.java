@@ -2,6 +2,7 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.ServiceOffering;
+import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.repository.ServOfferingRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,7 @@ public class ServiceOfferingServiceImplTest {
         assertNotNull(result);
         assertEquals("Corte", result.getName());
         assertEquals(businessId, result.getBusinessId());
+        assertEquals(ServiceOfferingStatus.ACTIVE, result.getStatus());
 
         verify(servOfferingRepository, times(1)).save(serviceOffering);
         verify(currentBusinessContext, times(1)).getCurrentBusinessId();

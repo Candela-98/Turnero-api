@@ -3,6 +3,7 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.ServiceOffering;
+import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.repository.ServOfferingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,10 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     public ServiceOffering saveServiceOffering(ServiceOffering serviceOffering) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
         serviceOffering.setBusinessId(businessId);
+
+        if (serviceOffering.getStatus() == null) {
+            serviceOffering.setStatus(ServiceOfferingStatus.ACTIVE);
+        }
 
         ServiceOffering savedServiceOffering = servOfferingRepository.save(serviceOffering);
         log.info("Service offering created with id={} for businessId={}", savedServiceOffering.getId(), businessId);

@@ -35,6 +35,8 @@ public class ServiceOfferingControllerTest {
     @MockitoBean
     private ServiceOfferingMapper sMapper;
 
+    private static final String BASE_URL = "/api/v1/service-offerings";
+
     private ServOfferingRequestDto getServiceOfferingDto(Long id) {
         return ServOfferingRequestDto.builder()
                 .name("Corte y barba")
@@ -74,15 +76,15 @@ public class ServiceOfferingControllerTest {
         given(sMapper.toResponseDto(any(ServiceOffering.class))).willReturn(responseDto);
 
         // When
-        mockMvc.perform(post("/api/service-offerings")
+        mockMvc.perform(post(BASE_URL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Corte y barba"))
-                .andExpect(jsonPath("$.durationMinutes").value(60))
-                .andExpect(jsonPath("$.priceCents").value(10000));
+                .andExpect(jsonPath("$.duration_minutes").value(60))
+                .andExpect(jsonPath("$.price_cents").value(10000));
 
         // Assert
         then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
@@ -98,7 +100,7 @@ public class ServiceOfferingControllerTest {
         dto.setName("");
 
         // When
-        mockMvc.perform(post("/api/service-offerings")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -109,9 +111,43 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/service-offerings"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
         // Assert
+        then(sMapper).shouldHaveNoInteractions();
+        then(servOfferingService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void saveServOffering_whenDurationIsZero_shouldReturn400() throws Exception {
+        var dto = getServiceOfferingDto(1L);
+        dto.setDurationMinutes(0);
+
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("durationMinutes"))
+                .andExpect(jsonPath("$.details[0].message").exists());
+
+        then(sMapper).shouldHaveNoInteractions();
+        then(servOfferingService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void saveServOffering_whenPriceIsNegative_shouldReturn400() throws Exception {
+        var dto = getServiceOfferingDto(1L);
+        dto.setPriceCents(-1);
+
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("priceCents"))
+                .andExpect(jsonPath("$.details[0].message").exists());
+
         then(sMapper).shouldHaveNoInteractions();
         then(servOfferingService).shouldHaveNoInteractions();
     }
@@ -130,7 +166,7 @@ public class ServiceOfferingControllerTest {
         given(sMapper.toResponseDtoList(List.of(servOffering1, servOffering2))).willReturn(List.of(response1, response2));
 
         //when + then
-        mockMvc.perform(get("/api/service-offerings"))
+        mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.length()").value(2))
@@ -152,13 +188,13 @@ public class ServiceOfferingControllerTest {
         given(sMapper.toResponseDto(servOffering)).willReturn(responseDto);
 
         // When + Then
-        mockMvc.perform(get("/api/service-offerings/1"))
+        mockMvc.perform(get(BASE_URL + "/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Corte y barba"))
-                .andExpect(jsonPath("$.durationMinutes").value(60))
-                .andExpect(jsonPath("$.priceCents").value(10000));
+                .andExpect(jsonPath("$.duration_minutes").value(60))
+                .andExpect(jsonPath("$.price_cents").value(10000));
 
         then(servOfferingService).should().findServiceOffering(1L);
         then(sMapper).should().toResponseDto(servOffering);
@@ -171,7 +207,7 @@ public class ServiceOfferingControllerTest {
                 .willThrow(new ResourceNotFoundException("Service offering not found"));
 
         // When + Then
-        mockMvc.perform(get("/api/service-offerings/999"))
+        mockMvc.perform(get(BASE_URL + "/999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
@@ -190,7 +226,7 @@ public class ServiceOfferingControllerTest {
         given(sMapper.toEntity(any(ServOfferingRequestDto.class))).willReturn(entity);
 
         // When + Then
-        mockMvc.perform(put("/api/service-offerings/1")
+        mockMvc.perform(put(BASE_URL + "/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNoContent());
@@ -207,7 +243,7 @@ public class ServiceOfferingControllerTest {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(put("/api/service-offerings/1")
+        mockMvc.perform(put(BASE_URL+ "/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -218,7 +254,7 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/service-offerings/1"))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/1"))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(sMapper).shouldHaveNoInteractions();
@@ -228,7 +264,7 @@ public class ServiceOfferingControllerTest {
     @Test
     void deleteServOffering_ok_shouldReturn200_andCallService() throws Exception {
         //When + Then
-        mockMvc.perform(delete("/api/service-offerings/1"))
+        mockMvc.perform(delete(BASE_URL + "/1"))
                 .andExpect(status().isNoContent());
 
         then(servOfferingService).should().deleteServOffering(1L);
@@ -241,7 +277,7 @@ public class ServiceOfferingControllerTest {
                 .given(servOfferingService).deleteServOffering(999L);
 
         // When + Then
-        mockMvc.perform(delete("/api/service-offerings/999"))
+        mockMvc.perform(delete(BASE_URL + "/999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
