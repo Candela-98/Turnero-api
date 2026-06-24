@@ -50,6 +50,8 @@ public class ServOfferingControllerIT {
     @Autowired
     ServOfferingRepository servOfferingRepository;
 
+    private static final String BASE_URL = "/api/v1/service-offerings";
+
     @BeforeEach
     void cleanDb() {
         servOfferingRepository.deleteAll();
@@ -78,7 +80,7 @@ public class ServOfferingControllerIT {
         ServOfferingRequestDto dto = getServOfferingRequestDto();
 
         // When
-        MvcResult result = mockMvc.perform(post("/api/service-offerings")
+        MvcResult result = mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -110,7 +112,7 @@ public class ServOfferingControllerIT {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(post("/api/service-offerings")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                         .andExpect(status().isBadRequest())
@@ -120,7 +122,7 @@ public class ServOfferingControllerIT {
                         .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                         .andExpect(jsonPath("$.details[0].field").value("name"))
                         .andExpect(jsonPath("$.details[0].message").exists())
-                        .andExpect(jsonPath("$.path").value("/api/service-offerings"))
+                        .andExpect(jsonPath("$.path").value(BASE_URL))
                         .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(servOfferingRepository.findAll()).isEmpty();
@@ -132,7 +134,7 @@ public class ServOfferingControllerIT {
         ServiceOffering saved = servOfferingRepository.save(getServiceOffering());
 
         // When
-        MvcResult result = mockMvc.perform(get("/api/service-offerings/{id}", saved.getId()))
+        MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", saved.getId()))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -151,7 +153,7 @@ public class ServOfferingControllerIT {
     void findServiceOffering_whenServiceOfferingDoesNotExist_returns404() throws Exception {
         Long id = 999L;
 
-        mockMvc.perform(get("/api/service-offerings/{id}", id))
+        mockMvc.perform(get(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
@@ -170,7 +172,7 @@ public class ServOfferingControllerIT {
         dto.setPriceCents(8000);
 
         // When
-        mockMvc.perform(put("/api/service-offerings/{id}", saved.getId())
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNoContent());
@@ -189,7 +191,7 @@ public class ServOfferingControllerIT {
         dto.setName(null);
 
         // When + Then
-        mockMvc.perform(put("/api/service-offerings/{id}", 1L)
+        mockMvc.perform(put(BASE_URL + "/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -199,7 +201,7 @@ public class ServOfferingControllerIT {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/service-offerings/1"))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/1"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
@@ -217,7 +219,7 @@ public class ServOfferingControllerIT {
         servOfferingRepository.save(serviceOffering2);
 
         // When
-        MvcResult result = mockMvc.perform(get("/api/service-offerings")
+        MvcResult result = mockMvc.perform(get(BASE_URL)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -235,7 +237,7 @@ public class ServOfferingControllerIT {
     @Test
     void listServiceOffering_whenNoServiceOfferingsExist_returns200AndEmptyList() throws Exception {
         // When
-        MvcResult result = mockMvc.perform(get("/api/service-offerings")
+        MvcResult result = mockMvc.perform(get(BASE_URL)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -254,7 +256,7 @@ public class ServOfferingControllerIT {
         Long id = saved.getId();
 
         //When
-        MvcResult result = mockMvc.perform(delete("/api/service-offerings/{id}", id))
+        MvcResult result = mockMvc.perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNoContent())
                 .andReturn();
 
@@ -268,7 +270,7 @@ public class ServOfferingControllerIT {
         Long id = 999L;
 
         // When + Then
-        mockMvc.perform(delete("/api/service-offerings/{id}", id))
+        mockMvc.perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))

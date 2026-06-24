@@ -20,7 +20,7 @@ import java.util.List;
         description = "Endpoints para gestionar servicios ofrecidos"
 )
 @RestController
-@RequestMapping("/api/service-offerings")
+@RequestMapping("/api/v1/service-offerings")
 public class ServOfferingController {
 
     private final ServOfferingService servOfferingService;

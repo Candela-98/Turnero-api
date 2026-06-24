@@ -12,6 +12,7 @@ import java.util.List;
 public interface ServiceOfferingMapper {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "businessId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     ServiceOffering toEntity(ServOfferingRequestDto dto);
