@@ -1,14 +1,22 @@
 package com.turnero.api.service;
 
+import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.enums.DayOfWeek;
+import com.turnero.api.model.enums.StaffMemberStatus;
+import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
+import com.turnero.api.repository.StaffWorkingHoursRepository;
+import com.turnero.api.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,20 +31,71 @@ public class StaffMemberServiceImplTest {
     @InjectMocks
     private StaffMemberServiceImpl staffMemberService;
 
+    @Mock
+    private CurrentBusinessContext currentBusinessContext;
+
+    @Mock
+    private BusinessHoursRepository businessHoursRepository;
+
+    @Mock
+    private StaffWorkingHoursRepository staffWorkingHoursRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
     @Test
     void saveStaffMember_shouldSaveAndReturnStaffMember() {
         StaffMember staffMember = new StaffMember();
         staffMember.setName("Juan");
         staffMember.setSpecialty("Barber");
+        staffMember.setUserId(20L);
 
+        BusinessHours businessHours = BusinessHours.builder()
+                .businessId(1L)
+                .dayOfWeek(DayOfWeek.MONDAY)
+                .opensAt(LocalTime.of(9, 0))
+                .closesAt(LocalTime.of(18, 0))
+                .isClosed(false)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
+        when(businessHoursRepository.findAllByBusinessId(1L)).thenReturn(List.of(businessHours));
         when(staffMemberRepository.save(staffMember)).thenReturn(staffMember);
+        when(userRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(true);
 
         StaffMember result = staffMemberService.saveStaffMember(staffMember);
 
         assertNotNull(result);
         assertEquals("Juan", result.getName());
+        assertEquals(1L, result.getBusinessId());
+        assertEquals(StaffMemberStatus.ACTIVE, result.getStatus());
+        assertNotNull(result.getCreatedAt());
+        assertNotNull(result.getUpdatedAt());
+
         verify(staffMemberRepository, times(1)).save(staffMember);
-        }
+        verify(staffWorkingHoursRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    void saveStaffMember_whenUserDoesNotBelongToCurrentBusiness_throwsException() {
+        StaffMember staffMember = new StaffMember();
+        staffMember.setUserId(20L);
+        staffMember.setName("Juan");
+        staffMember.setSpecialty("Barber");
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
+        when(userRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(false);
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> staffMemberService.saveStaffMember(staffMember)
+        );
+
+        assertEquals("User not found for current business", exception.getMessage());
+
+        verify(staffMemberRepository, never()).save(any());
+        verify(staffWorkingHoursRepository, never()).saveAll(anyList());
+    }
 
     @Test
     void findStaffMember_whenExists_returnsStaffMember() {
@@ -69,13 +128,20 @@ public class StaffMemberServiceImplTest {
     @Test
     void listStaffMembers_shouldReturnList() {
         StaffMember p1 = new StaffMember();
+        p1.setBusinessId(1L);
+
         StaffMember p2 = new StaffMember();
-        when(staffMemberRepository.findAll()).thenReturn(List.of(p1, p2));
+        p2.setBusinessId(1L);
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
+        when(staffMemberRepository.findAllByBusinessId(1L)).thenReturn(List.of(p1, p2));
 
         List<StaffMember> list = staffMemberService.findAllStaffMember();
 
         assertEquals(2, list.size());
-        verify(staffMemberRepository, times(1)).findAll();
+
+        verify(staffMemberRepository, times(1)).findAllByBusinessId(1L);
+        verify(staffMemberRepository, never()).findAll();
     }
 
     @Test

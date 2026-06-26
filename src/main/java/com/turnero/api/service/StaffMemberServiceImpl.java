@@ -1,12 +1,20 @@
 package com.turnero.api.service;
 
+import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.StaffWorkingHours;
+import com.turnero.api.model.enums.StaffMemberStatus;
+import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
+import com.turnero.api.repository.StaffWorkingHoursRepository;
+import com.turnero.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -14,12 +22,54 @@ import java.util.List;
 @Service
 public class StaffMemberServiceImpl implements StaffMemberService {
 
+    private final CurrentBusinessContext currentBusinessContext;
+    private final BusinessHoursRepository businessHoursRepository;
+    private final StaffWorkingHoursRepository staffWorkingHoursRepository;
     private final StaffMemberRepository staffMemberRepository;
+    private final UserRepository userRepository;
 
     @Override
     public StaffMember saveStaffMember(StaffMember staffMember) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        if (staffMember.getUserId() != null &&
+                !userRepository.existsByIdAndBusinessId(staffMember.getUserId(), businessId)) {
+            throw new ResourceNotFoundException("User not found for current business");
+        }
+
+        List<BusinessHours> businessHours = businessHoursRepository.findAllByBusinessId(businessId);
+
+        if (businessHours.isEmpty()) {
+            throw new ResourceNotFoundException("Business hours not found for current business");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        staffMember.setBusinessId(businessId);
+        staffMember.setStatus(StaffMemberStatus.ACTIVE);
+        staffMember.setCreatedAt(now);
+        staffMember.setUpdatedAt(now);
+
         StaffMember savedStaffMember = staffMemberRepository.save(staffMember);
-        log.info("Staff member created with id={}", savedStaffMember.getId());
+
+        List<StaffWorkingHours> staffWorkingHours = businessHours.stream()
+                .map(hour -> StaffWorkingHours.builder()
+                        .staffMemberId(savedStaffMember.getId())
+                        .dayOfWeek(hour.getDayOfWeek())
+                        .startsAt(hour.getOpensAt())
+                        .endsAt(hour.getClosesAt())
+                        .isAvailable(!hour.isClosed())
+                        .build())
+                .toList();
+
+        staffWorkingHoursRepository.saveAll(staffWorkingHours);
+
+        log.info(
+                "Staff member created with id={} for businessId={}",
+                savedStaffMember.getId(),
+                businessId
+        );
+
         return savedStaffMember;
     }
 
@@ -46,7 +96,9 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     }
 
     public List<StaffMember> findAllStaffMember() {
-        return staffMemberRepository.findAll();
+
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        return staffMemberRepository.findAllByBusinessId(businessId);
     }
 
     @Override

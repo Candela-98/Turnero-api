@@ -22,7 +22,7 @@ import java.util.List;
         description = "Endpoints para gestionar profesionales"
 )
 @RestController
-@RequestMapping("/api/staffmembers")
+@RequestMapping("/api/v1/staff-members")
 public class StaffMemberController {
 
     private final StaffMemberService staffMemberService;

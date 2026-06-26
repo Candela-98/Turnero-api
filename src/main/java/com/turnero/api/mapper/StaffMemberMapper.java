@@ -12,6 +12,8 @@ import java.util.List;
 public interface StaffMemberMapper {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "businessId", ignore = true)
+    @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     StaffMember toEntity(StaffMemberRequestDto dtoStaffMember);

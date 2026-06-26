@@ -1,5 +1,7 @@
 package com.turnero.api.dto;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.turnero.api.model.enums.StaffMemberStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -9,10 +11,8 @@ import lombok.Builder;
 
 @Data
 @Builder
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class StaffMemberRequestDto {
-
-    @Schema(description = "Business ID", example = "1")
-    private Long businessId;
 
     @Schema(description = "User ID", example = "1")
     private Long userId;
@@ -34,8 +34,4 @@ public class StaffMemberRequestDto {
     @Schema(description = "The staffmember's avatar URL", example = "https://example.com/avatar.png")
     @Size(max = 255, message = "The staffmember's avatar URL must have at most 255 characters.")
     private String avatarUrl;
-
-    @Schema(description = "The staffmember's status", example = "ACTIVE")
-    private StaffMemberStatus status;
-
 }
