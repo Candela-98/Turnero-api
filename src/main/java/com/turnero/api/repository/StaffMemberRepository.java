@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface StaffMemberRepository extends JpaRepository<StaffMember, Long> {
     List<StaffMember> findAllByBusinessId(Long businessId);
+
+    boolean existsByIdAndBusinessId(Long id, Long businessId);
 }

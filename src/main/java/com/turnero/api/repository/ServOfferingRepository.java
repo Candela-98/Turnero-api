@@ -12,4 +12,6 @@ public interface ServOfferingRepository extends JpaRepository<ServiceOffering, L
     Optional<ServiceOffering> findByIdAndBusinessId(Long id, Long businessId);
 
     boolean existsByIdAndBusinessId(Long id, Long businessId);
+
+    List<ServiceOffering> findAllByIdInAndBusinessId(List<Long> ids, Long businessId);
 }
