@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
@@ -17,10 +18,18 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
 
+    private final CurrentBusinessContext currentBusinessContext;
+
     @Override
     public Customer saveCustomer(Customer customer) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        customer.setBusinessId(businessId);
         customer.setCreatedAt(LocalDateTime.now());
+        customer.setUpdatedAt(LocalDateTime.now());
+
         Customer savedCustomer = customerRepository.save(customer);
+
         log.info("Customer created with id={}", savedCustomer.getId());
         return savedCustomer;
     }
@@ -38,13 +47,15 @@ public class CustomerServiceImpl implements CustomerService {
         currentCustomer.setName(customer.getName());
         currentCustomer.setEmail(customer.getEmail());
         currentCustomer.setPhoneNumber(customer.getPhoneNumber());
+        currentCustomer.setUpdatedAt(LocalDateTime.now());
 
         customerRepository.save(currentCustomer);
         log.info("Customer with id={} successfully updated", id);
     }
 
     public List<Customer> findAllCustomer() {
-        return customerRepository.findAll();
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        return customerRepository.findAllByBusinessId(businessId);
     }
 
     @Override

@@ -38,6 +38,8 @@ class CustomerControllerTest {
     @MockitoBean
     private CustomerService customerService;
 
+    private static final String BASE_URL = "/api/v1/customers";
+
     @Test
     void saveCustomer_whenRequestIsValid_returns200() throws Exception {
         // Given
@@ -51,7 +53,7 @@ class CustomerControllerTest {
         given(customerMapper.toResponseDto(entity)).willReturn(responseDto);
 
         // When
-        mockMvc.perform(post("/api/customers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -76,7 +78,7 @@ class CustomerControllerTest {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(post("/api/customers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                         .andExpect(status().isBadRequest())
@@ -87,7 +89,7 @@ class CustomerControllerTest {
                         .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                         .andExpect(jsonPath("$.details[0].field").value("name"))
                         .andExpect(jsonPath("$.details[0].message").exists())
-                        .andExpect(jsonPath("$.path").value("/api/customers"))
+                        .andExpect(jsonPath("$.path").value(BASE_URL))
                         .andExpect(jsonPath("$.timestamp").exists());
 
         then(customerService).shouldHaveNoInteractions();
@@ -101,7 +103,7 @@ class CustomerControllerTest {
         dto.setEmail("invalid-email");
 
         // When + Then
-        mockMvc.perform(post("/api/customers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -112,7 +114,7 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("email"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/customers"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(customerService).shouldHaveNoInteractions();
@@ -129,7 +131,7 @@ class CustomerControllerTest {
         given(customerMapper.toResponseDto(customer)).willReturn(responseDto);
 
         // When + Assert
-        mockMvc.perform(get("/api/customers/{id}", id)
+        mockMvc.perform(get(BASE_URL + "/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(12))
@@ -148,7 +150,7 @@ class CustomerControllerTest {
         var id = "invalidId";
 
         // When
-        mockMvc.perform(get("/api/customers/{id}", id)
+        mockMvc.perform(get(BASE_URL  + "/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -171,7 +173,7 @@ class CustomerControllerTest {
                 .willReturn(entity);
 
         // When + Then
-        mockMvc.perform(put("/api/customers/{id}", id)
+        mockMvc.perform(put(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNoContent());
@@ -189,7 +191,7 @@ class CustomerControllerTest {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(put("/api/customers/{id}", 12L)
+        mockMvc.perform(put(BASE_URL + "/{id}", 12L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -200,7 +202,7 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/customers/12"))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/12"))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(customerService).shouldHaveNoInteractions();
@@ -222,7 +224,7 @@ class CustomerControllerTest {
                 .willReturn(List.of(response1, response2));
 
         // When + Then
-        mockMvc.perform(get("/api/customers")
+        mockMvc.perform(get(BASE_URL)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -241,7 +243,7 @@ class CustomerControllerTest {
         Long id = 12L;
 
         // When + Then
-        mockMvc.perform(delete("/api/customers/{id}", id))
+        mockMvc.perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNoContent());
 
         then(customerService).should().deleteCustomer(id);
@@ -254,7 +256,7 @@ class CustomerControllerTest {
         var id = "invalidId";
 
         // When
-        mockMvc.perform(delete("/api/customers/{id}", id)
+        mockMvc.perform(delete(BASE_URL + "/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))

@@ -20,7 +20,7 @@ import java.util.List;
         description = "Endpoints para gestionar clientes"
 )
 @RestController
-@RequestMapping("/api/customers")
+@RequestMapping("/api/v1/customers")
 public class CustomerController {
 
     private final CustomerService customerService;
