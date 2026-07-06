@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Customer;
 import com.turnero.api.repository.CustomerRepository;
@@ -25,6 +26,9 @@ public class CustomerServiceImplTest {
     @InjectMocks
     private CustomerServiceImpl customerService;
 
+    @Mock
+    private CurrentBusinessContext currentBusinessContext;
+
     @Test
     void saveCustomer_shouldSaveAndReturnCustomer() {
         Customer customer = new Customer();
@@ -32,11 +36,17 @@ public class CustomerServiceImplTest {
         customer.setEmail("candela@mail.com");
 
         when(customerRepository.save(customer)).thenReturn(customer);
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
 
         Customer result = customerService.saveCustomer(customer);
 
         assertNotNull(result);
         assertEquals("Candela", result.getName());
+        assertEquals(1L, result.getBusinessId());
+        assertNotNull(result.getCreatedAt());
+        assertNotNull(result.getUpdatedAt());
+
+        verify(currentBusinessContext, times(1)).getCurrentBusinessId();
         verify(customerRepository, times(1)).save(customer);
     }
 
@@ -70,14 +80,21 @@ public class CustomerServiceImplTest {
 
     @Test
     void findAllCustomer_shouldReturnList() {
+        Long businessId = 1L;
+
         Customer c1 = new Customer();
         Customer c2 = new Customer();
-        when(customerRepository.findAll()).thenReturn(List.of(c1, c2));
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(customerRepository.findAllByBusinessId(businessId)).thenReturn(List.of(c1, c2));
 
         List<Customer> list = customerService.findAllCustomer();
 
         assertEquals(2, list.size());
-        verify(customerRepository, times(1)).findAll();
+
+        verify(currentBusinessContext, times(1)).getCurrentBusinessId();
+        verify(customerRepository, times(1)).findAllByBusinessId(businessId);
+        verify(customerRepository, times(1)).findAllByBusinessId(1L);
     }
 
     @Test

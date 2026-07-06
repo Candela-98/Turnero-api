@@ -47,6 +47,8 @@ class CustomerControllerIT {
     @Autowired
     CustomerRepository customerRepository;
 
+    private final static String BASE_URL = "/api/v1/customers";
+
     @BeforeEach
     void cleanDb() {
         customerRepository.deleteAll();
@@ -60,7 +62,7 @@ class CustomerControllerIT {
 
 
         // When
-        MvcResult result = mockMvc.perform(post("/api/customers")
+        MvcResult result = mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -68,7 +70,7 @@ class CustomerControllerIT {
                 .andReturn();
 
         // Then
-        List<Customer> customers = customerRepository.findAll();
+        List<Customer> customers = customerRepository.findAllByBusinessId(1L);
 
         assertThat(customers).hasSize(1);
         Customer saved = customers.get(0);
@@ -95,7 +97,7 @@ class CustomerControllerIT {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(post("/api/customers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -105,7 +107,7 @@ class CustomerControllerIT {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/customers"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
         // Then
         assertThat(customerRepository.findAll()).isEmpty();
@@ -118,7 +120,7 @@ class CustomerControllerIT {
         dto.setEmail("invalid-email");
 
         // When + Then
-        mockMvc.perform(post("/api/customers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -128,7 +130,7 @@ class CustomerControllerIT {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("email"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/customers"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(customerRepository.findAll()).isEmpty();
@@ -142,7 +144,7 @@ class CustomerControllerIT {
         Customer saved = customerRepository.save(customer);
 
         // When
-        MvcResult result = mockMvc.perform(get("/api/customers/{id}", saved.getId()))
+        MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", saved.getId()))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -162,7 +164,7 @@ class CustomerControllerIT {
     void findCustomer_whenCustomerDoesNotExist_returns404() throws Exception {
         Long id = 999L;
 
-        mockMvc.perform(get("/api/customers/{id}", id))
+        mockMvc.perform(get(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
@@ -182,7 +184,7 @@ class CustomerControllerIT {
         dto.setEmail("new@mail.com");
 
         // When
-        mockMvc.perform(put("/api/customers/{id}", saved.getId())
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNoContent());
@@ -202,7 +204,7 @@ class CustomerControllerIT {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(put("/api/customers/{id}", saved.getId())
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -212,7 +214,7 @@ class CustomerControllerIT {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/customers/" + saved.getId()))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/" + saved.getId()))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
@@ -220,8 +222,10 @@ class CustomerControllerIT {
     void listCustomer_whenCustomersExist_returns200AndCustomerList() throws Exception {
         // Given
         Customer customer1 = getCustomer();
+        customer1.setBusinessId(1L);
 
         Customer customer2 = new Customer();
+        customer2.setBusinessId(1L);
         customer2.setName("Maria Gomez");
         customer2.setEmail("maria@mail.com");
         customer2.setPhoneNumber("1199999999");
@@ -231,7 +235,7 @@ class CustomerControllerIT {
         customerRepository.save(customer2);
 
         // When
-        MvcResult result = mockMvc.perform(get("/api/customers")
+        MvcResult result = mockMvc.perform(get(BASE_URL)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -253,7 +257,7 @@ class CustomerControllerIT {
     @Test
     void listCustomer_whenNoCustomersExist_returns200AndEmptyList() throws Exception {
         // When
-        MvcResult result = mockMvc.perform(get("/api/customers")
+        MvcResult result = mockMvc.perform(get(BASE_URL)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -275,7 +279,7 @@ class CustomerControllerIT {
         Long id = saved.getId();
 
         // When + Then
-        mockMvc.perform(delete("/api/customers/{id}", id))
+        mockMvc.perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNoContent());
 
         assertThat(customerRepository.existsById(id)).isFalse();
@@ -287,7 +291,7 @@ class CustomerControllerIT {
         Long id = 999L;
 
         // When + Then
-        mockMvc.perform(delete("/api/customers/{id}", id))
+        mockMvc.perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
