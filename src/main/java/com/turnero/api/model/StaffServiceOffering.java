@@ -20,7 +20,9 @@ public class StaffServiceOffering {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "staff_member_id", nullable = false)
     private Long staffMemberId;
 
+    @Column(name = "service_offering_id", nullable = false)
     private Long serviceOfferingId;
 }
