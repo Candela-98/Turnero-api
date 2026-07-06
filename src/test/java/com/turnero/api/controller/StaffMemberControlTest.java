@@ -37,15 +37,15 @@ public class StaffMemberControlTest {
     @MockitoBean
     private StaffMemberMapper staffMapper;
 
+    private static final String BASE_URL = "/api/v1/staff-members";
+
     private StaffMemberRequestDto getStaffMemberDTO(Long id){
         return StaffMemberRequestDto.builder()
-                .businessId(10L)
                 .userId(20L)
                 .name("Daniel Leguizamon")
                 .roleLabel("Senior barber")
                 .specialty("Barber")
                 .avatarUrl("https://example.com/avatar.png")
-                .status(StaffMemberStatus.ACTIVE)
                 .build();
     }
 
@@ -85,10 +85,9 @@ public class StaffMemberControlTest {
 
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
         given(staffMapper.toResponseDto(any(StaffMember.class))).willReturn(responseDto);
-        given(staffMapper.toResponseDto(any(StaffMember.class))).willReturn(responseDto);
 
         // When
-        mockMvc.perform(post("/api/staffmembers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated());
@@ -107,7 +106,7 @@ public class StaffMemberControlTest {
         dto.setName("");
 
         // When
-        mockMvc.perform(post("/api/staffmembers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -118,7 +117,7 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/staffmembers"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
         // Then
         then(staffMapper).shouldHaveNoInteractions();
@@ -133,7 +132,7 @@ public class StaffMemberControlTest {
         dto.setSpecialty("");
 
         // When
-        mockMvc.perform(post("/api/staffmembers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -144,7 +143,7 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("specialty"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/staffmembers"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         // Then
@@ -165,7 +164,7 @@ public class StaffMemberControlTest {
                 .willReturn(List.of(getStaffMemberResponseDTO(id), getStaffMemberResponseDTO(2L)));
 
         //When + Then
-        mockMvc.perform(get("/api/staffmembers"))
+        mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.length()").value(2))
@@ -187,13 +186,13 @@ public class StaffMemberControlTest {
         given(staffMapper.toResponseDto(staffMember)).willReturn(responseDto);
 
         // When + Then
-        mockMvc.perform(get("/api/staffmembers/1"))
+        mockMvc.perform(get(BASE_URL + "/1"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Daniel Leguizamon"))
                 .andExpect(jsonPath("$.specialty").value("Barber"))
-                .andExpect(jsonPath("$.roleLabel").value("Senior barber"))
+                .andExpect(jsonPath("$.role_label").value("Senior barber"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
         then(staffService).should().findStaffMember(1L);
@@ -206,7 +205,7 @@ public class StaffMemberControlTest {
         given(staffService.findStaffMember(999L)).willThrow(new ResourceNotFoundException("Staff member not found"));
 
         // When + Then
-        mockMvc.perform(get("/api/staffmembers/999")
+        mockMvc.perform(get(BASE_URL + "/999")
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -228,7 +227,7 @@ public class StaffMemberControlTest {
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
 
         // When
-        mockMvc.perform(put("/api/staffmembers/1")
+        mockMvc.perform(put(BASE_URL + "/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNoContent());
@@ -246,7 +245,7 @@ public class StaffMemberControlTest {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(put("/api/staffmembers/{id}", id)
+        mockMvc.perform(put(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -257,7 +256,7 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/staffmembers/1"))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/1"))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(staffMapper).shouldHaveNoInteractions();
@@ -267,7 +266,7 @@ public class StaffMemberControlTest {
     @Test
     void deleteStaffMember_ok_shouldReturn200_andCallService() throws Exception {
         //When + Then
-        mockMvc.perform(delete("/api/staffmembers/1"))
+        mockMvc.perform(delete(BASE_URL + "/1"))
                 .andExpect(status().isNoContent());
 
         then(staffService).should().deleteStaffMember(1L);
@@ -282,7 +281,7 @@ public class StaffMemberControlTest {
                 .given(staffService).deleteStaffMember(id);
 
         // When + Then
-        mockMvc.perform(delete("/api/staffmembers/999"))
+        mockMvc.perform(delete(BASE_URL + "/999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))

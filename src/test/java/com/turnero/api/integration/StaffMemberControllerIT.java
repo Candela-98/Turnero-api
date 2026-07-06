@@ -5,9 +5,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.mapper.StaffMemberMapper;
+import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.User;
+import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.model.enums.StaffMemberStatus;
+import com.turnero.api.model.enums.UserRole;
+import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
+import com.turnero.api.repository.UserRepository;
 import com.turnero.api.service.StaffMemberService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +27,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 
+import java.time.LocalTime;
 import java.util.List;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -48,6 +55,14 @@ public class StaffMemberControllerIT {
     @Autowired
     StaffMemberRepository staffMemberRepository;
 
+    @Autowired
+    BusinessHoursRepository businessHoursRepository;
+
+    @Autowired
+    UserRepository userRepository;
+
+    private static final String BASE_URL = "/api/v1/staff-members";
+
     @BeforeEach
     void cleanDb() {
         staffMemberRepository.deleteAll();
@@ -55,19 +70,17 @@ public class StaffMemberControllerIT {
 
     private StaffMemberRequestDto getStaffMemberRequestDto() {
         return StaffMemberRequestDto.builder()
-                .businessId(10L)
                 .userId(20L)
                 .name("Matias")
                 .roleLabel("Senior barber")
                 .specialty("Barber")
                 .avatarUrl("https://example.com/avatar.png")
-                .status(StaffMemberStatus.ACTIVE)
                 .build();
     }
 
     private StaffMember getStaffMember() {
          return StaffMember.builder()
-                 .businessId(10L)
+                 .businessId(1L)
                  .userId(20L)
                  .name("Matias")
                  .roleLabel("Senior barber")
@@ -77,13 +90,36 @@ public class StaffMemberControllerIT {
                  .build();
     }
 
+    private void createBusinessHours(Long businessId) {
+        businessHoursRepository.save(BusinessHours.builder()
+                .businessId(businessId)
+                .dayOfWeek(DayOfWeek.MONDAY)
+                .opensAt(LocalTime.of(9, 0))
+                .closesAt(LocalTime.of(18, 0))
+                .isClosed(false)
+                .build());
+    }
+
+    private User createUser(Long businessId) {
+        return userRepository.save(User.builder()
+                .businessId(businessId)
+                .name("Test User")
+                .email("matias@mail.com")
+                .role(UserRole.STAFF)
+                .build());
+    }
+
     @Test
     void saveStaffMember_whenRequestIsValid_persistsStaffMember_andReturns201() throws Exception {
         //Given
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
+        createBusinessHours(1L);
+
+        User savedUser = createUser(1L);
+        dto.setUserId(savedUser.getId());
 
         //When
-        MvcResult result = mockMvc.perform(post("/api/staffmembers")
+        MvcResult result = mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -95,8 +131,8 @@ public class StaffMemberControllerIT {
         StaffMember saved = staffMembers.get(0);
 
         assertThat(saved.getId()).isNotNull();
-        assertThat(saved.getBusinessId()).isEqualTo(10L);
-        assertThat(saved.getUserId()).isEqualTo(20L);
+        assertThat(saved.getBusinessId()).isEqualTo(1L);
+        assertThat(saved.getUserId()).isEqualTo(savedUser.getId());
         assertThat(saved.getName()).isEqualTo("Matias");
         assertThat(saved.getRoleLabel()).isEqualTo("Senior barber");
         assertThat(saved.getSpecialty()).isEqualTo("Barber");
@@ -118,7 +154,7 @@ public class StaffMemberControllerIT {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(post("/api/staffmembers")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -129,7 +165,7 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/staffmembers"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(staffMemberRepository.findAll()).isEmpty();
@@ -141,7 +177,7 @@ public class StaffMemberControllerIT {
         StaffMember saved = staffMemberRepository.save(getStaffMember());
 
         // When
-        MvcResult result = mockMvc.perform(get("/api/staffmembers/{id}", saved.getId()))
+        MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", saved.getId()))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -159,7 +195,7 @@ public class StaffMemberControllerIT {
         Long id = 999L;
 
         // When + Then
-        mockMvc.perform(get("/api/staffmembers/{id}", id))
+        mockMvc.perform(get(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
@@ -180,7 +216,7 @@ public class StaffMemberControllerIT {
         dto.setAvatarUrl("https://example.com/avatar-updated.png");
 
         // When
-        mockMvc.perform(put("/api/staffmembers/{id}", saved.getId())
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNoContent());
@@ -202,7 +238,7 @@ public class StaffMemberControllerIT {
         dto.setName("");
 
         // When + Then
-        mockMvc.perform(put("/api/staffmembers/{id}", saved.getId())
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -213,7 +249,7 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/staffmembers/" + saved.getId()))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/" + saved.getId()))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
@@ -223,13 +259,14 @@ public class StaffMemberControllerIT {
         staffMemberRepository.save(getStaffMember());
 
         StaffMember second = new StaffMember();
+        second.setBusinessId(1L);
         second.setName("Maria");
         second.setSpecialty("Colorista");
 
         staffMemberRepository.save(second);
 
         // When
-        MvcResult result = mockMvc.perform(get("/api/staffmembers"))
+        MvcResult result = mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -247,9 +284,9 @@ public class StaffMemberControllerIT {
     }
 
     @Test
-    void listStaffMembers_whenNoCustomersExist_returns200AndEmptyList() throws Exception {
+    void listStaffMembers_whenNoStaffMembersExist_returns200AndEmptyList() throws Exception {
         // When
-        MvcResult result = mockMvc.perform(get("/api/staffmembers")
+        MvcResult result = mockMvc.perform(get(BASE_URL)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -269,7 +306,7 @@ public class StaffMemberControllerIT {
         Long id = saved.getId();
 
         // When
-        mockMvc.perform(delete("/api/staffmembers/{id}", id))
+        mockMvc.perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNoContent());
 
         // Then
@@ -282,7 +319,7 @@ public class StaffMemberControllerIT {
         Long id = 999L;
 
         // When + Then
-        mockMvc.perform(delete("/api/staffmembers/{id}", id))
+        mockMvc.perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
