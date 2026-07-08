@@ -1,8 +1,13 @@
 package com.turnero.api.service;
 
+import com.turnero.api.context.CurrentBusinessContext;
+import com.turnero.api.dto.AppointmentRequestDto;
+import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
+import com.turnero.api.model.Customer;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
@@ -23,16 +28,34 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final CustomerRepository customerRepository;
     private final ServOfferingRepository serviceRepository;
     private final StaffMemberRepository staffMemberRepository;
+    private final CurrentBusinessContext currentBusinessContext;
+    private final AppointmentMapper appointmentMapper;
 
 
-    private void validateReferences(Appointment appointment) {
-        if (!customerRepository.existsById(appointment.getCustomerId())) {
+    private Long resolveCustomerId(AppointmentRequestDto request, Long businessId) {
+        if (request.getCustomerId() != null) {
+            return request.getCustomerId();
+        }
+
+        Customer customer = Customer.builder()
+                .businessId(businessId)
+                .name(request.getCustomerName())
+                .email(request.getCustomerEmail())
+                .build();
+
+        Customer savedCustomer = customerRepository.save(customer);
+
+        return savedCustomer.getId();
+    }
+
+    private void validateReferences(Appointment appointment, Long businessId) {
+        if (!customerRepository.existsByIdAndBusinessId(appointment.getCustomerId(), businessId)) {
             throw new ResourceNotFoundException("Customer not found.");
         }
-        if (!serviceRepository.existsById(appointment.getServiceOfferingId())) {
+        if (!serviceRepository.existsByIdAndBusinessId(appointment.getServiceOfferingId(), businessId)) {
             throw new ResourceNotFoundException("Service offering not found.");
         }
-        if (!staffMemberRepository.existsById(appointment.getStaffMemberId())) {
+        if (!staffMemberRepository.existsByIdAndBusinessId(appointment.getStaffMemberId(), businessId)) {
             throw new ResourceNotFoundException("Staff member not found.");
         }
     }
@@ -57,8 +80,16 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
-    public void saveAppointment(Appointment appointment) {
-        validateReferences(appointment);
+    public AppointmentResponseDto saveAppointment(AppointmentRequestDto request) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        Long customerId = resolveCustomerId(request, businessId);
+
+        Appointment appointment = appointmentMapper.toEntity(request);
+        appointment.setBusinessId(businessId);
+        appointment.setCustomerId(customerId);
+
+        validateReferences(appointment, businessId);
 
         validateNoOverlap(
                 appointment.getStaffMemberId(),
@@ -72,25 +103,34 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setUpdatedAt(now);
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
-        log.info("Appointment created with id={}", savedAppointment.getId());
+
+        log.info("Appointment created with id={} businessId={}", savedAppointment.getId(), businessId);
+
+        return appointmentMapper.toResponseDto(savedAppointment);
     }
 
     @Override
     public List<Appointment> findAllAppointments() {
-        return appointmentRepository.findAll();
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        return appointmentRepository.findAllByBusinessId(businessId);
     }
 
     @Override
     public Appointment findAppointment(Long id) {
-        return appointmentRepository.findById(id)
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        return appointmentRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
     }
 
     @Override
     public void updateAppointment(Appointment appointment, Long id) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
         Appointment existAppointment = findAppointment(id);
 
-        validateReferences(appointment);
+        appointment.setBusinessId(businessId);
+
+        validateReferences(appointment, businessId);
 
         validateNoOverlap(
                 appointment.getStaffMemberId(),
@@ -118,11 +158,13 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     public void deleteAppointment(Long id) {
-        if(appointmentRepository.existsById(id)) {
-            appointmentRepository.deleteById(id);
-            log.info("Appointment with id={} successfully deleted.", id);
-        } else {
-            throw new ResourceNotFoundException("Appointment not found with ID: " + id);
-        }
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        Appointment appointment = appointmentRepository.findByIdAndBusinessId(id, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
+
+        appointmentRepository.delete(appointment);
+
+        log.info("Appointment with id={} businessId={} successfully deleted.", id, businessId);
     }
 }

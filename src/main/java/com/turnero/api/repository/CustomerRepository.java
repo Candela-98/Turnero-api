@@ -9,4 +9,5 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     List<Customer> findAllByBusinessId(Long businessId);
 
+    boolean existsByIdAndBusinessId(Long customerId, Long businessId);
 }

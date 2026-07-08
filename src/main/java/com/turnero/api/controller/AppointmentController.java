@@ -19,7 +19,7 @@ import java.util.List;
         description = "Endpoints para gestionar turnos"
 )
 @RestController
-@RequestMapping("/api/appointments")
+@RequestMapping("/api/v1/appointments")
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
@@ -36,11 +36,8 @@ public class AppointmentController {
     )
     @ApiCreateResponses
     @PostMapping
-    public ResponseEntity<AppointmentResponseDto> saveAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto) {
-        var appointment = appointmentMapper.toEntity(appointmentDto);
-        appointmentService.saveAppointment(appointment);
-        var response = appointmentMapper.toResponseDto(appointment);
-
+    public ResponseEntity<AppointmentResponseDto> saveAppointment(@Valid @RequestBody AppointmentRequestDto request) {
+        AppointmentResponseDto response = appointmentService.saveAppointment(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

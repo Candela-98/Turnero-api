@@ -61,6 +61,8 @@ public class AppointmentControllerIT {
     @Autowired
     CustomerRepository customerRepository;
 
+    private final static String BASE_URL = "/api/v1/appointments";
+
     @BeforeEach
     void cleanDb() {
         appointmentRepository.deleteAll();
@@ -84,6 +86,7 @@ public class AppointmentControllerIT {
     private Appointment getAppointment() {
         LocalDateTime auditDate = LocalDateTime.now().minusDays(1);
         return Appointment.builder()
+                .businessId(1L)
                 .customerId(1L)
                 .serviceOfferingId(1L)
                 .staffMemberId(1L)
@@ -109,6 +112,7 @@ public class AppointmentControllerIT {
 
     private Customer getCustomerEntity() {
         return Customer.builder()
+                .businessId(1L)
                 .name("Juan Olmedo")
                 .email("juan.olmedo@mail.com")
                 .phoneNumber("123456789")
@@ -118,6 +122,7 @@ public class AppointmentControllerIT {
 
     private StaffMember getStaffMemberEntity() {
         return StaffMember.builder()
+                .businessId(1L)
                 .name("Maria Gomez")
                 .specialty("Corte")
                 .build();
@@ -125,6 +130,7 @@ public class AppointmentControllerIT {
 
     private ServiceOffering getServiceOfferingEntity() {
         return ServiceOffering.builder()
+                .businessId(1L)
                 .name("Corte")
                 .durationMinutes(60)
                 .priceCents(15000)
@@ -145,7 +151,7 @@ public class AppointmentControllerIT {
         dto.setStaffMemberId(staffMember.getId());
 
         // When
-        MvcResult result = mockMvc.perform(post("/api/appointments")
+        MvcResult result = mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -181,13 +187,15 @@ public class AppointmentControllerIT {
     }
 
     @Test
-    void saveAppointment_whenCustomerIdIsNull_returns400() throws Exception {
+    void saveAppointment_whenCustomerInformationIsMissing_returns400() throws Exception {
         //Given
         AppointmentRequestDto dto = getAppointmentRequestDto();
         dto.setCustomerId(null);
+        dto.setCustomerName(null);
+        dto.setCustomerEmail(null);
 
         //When + Then
-        mockMvc.perform(post("/api/appointments")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -198,7 +206,7 @@ public class AppointmentControllerIT {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("customerId"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/appointments"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
         //Then
         assertThat(appointmentRepository.findAll()).isEmpty();
@@ -212,7 +220,7 @@ public class AppointmentControllerIT {
         dto.setCustomerId(999L);
 
         //When + Then
-        mockMvc.perform(post("/api/appointments")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound())
@@ -232,6 +240,7 @@ public class AppointmentControllerIT {
         Customer customer1 = customerRepository.save(getCustomerEntity());
         Customer customer2 = customerRepository.save(
                 Customer.builder()
+                        .businessId(1L)
                         .name("Pedro Gomez")
                         .email("pedro.gomez@mail.com")
                         .phoneNumber("987654321")
@@ -242,6 +251,7 @@ public class AppointmentControllerIT {
         ServiceOffering service1 = servOfferingRepository.save(getServiceOfferingEntity());
         ServiceOffering service2 = servOfferingRepository.save(
                 ServiceOffering.builder()
+                        .businessId(1L)
                         .name("Barba")
                         .durationMinutes(30)
                         .priceCents(10000)
@@ -256,6 +266,7 @@ public class AppointmentControllerIT {
                 .withMinute(0);
 
         Appointment existingAppointment = Appointment.builder()
+                .businessId(1L)
                 .customerId(customer1.getId())
                 .serviceOfferingId(service1.getId())
                 .staffMemberId(staffMember.getId())
@@ -276,7 +287,7 @@ public class AppointmentControllerIT {
                 .build();
 
         // When + Then
-        mockMvc.perform(post("/api/appointments")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isConflict())
@@ -292,7 +303,7 @@ public class AppointmentControllerIT {
         Appointment saved = appointmentRepository.save(appointment);
 
         // When
-        MvcResult result = mockMvc.perform(get("/api/appointments/{id}", saved.getId()))
+        MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", saved.getId()))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -317,7 +328,7 @@ public class AppointmentControllerIT {
         //Given
         Long id = 999L;
 
-        mockMvc.perform(get("/api/appointments/{id}", id))
+        mockMvc.perform(get(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
@@ -354,7 +365,7 @@ public class AppointmentControllerIT {
         dto.setCustomerNotes("Updated appointment");
 
         // When
-        mockMvc.perform(put("/api/appointments/{id}", saved.getId())
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNoContent());
@@ -371,16 +382,19 @@ public class AppointmentControllerIT {
     }
 
     @Test
-    void udpateAppointment_whenCustomerIdIsNull_returns400() throws Exception{
+    void uPDateAppointment_whenCustomerInformationIsMissing_returns400() throws Exception{
         //Given
         Appointment appointment = getAppointment();
         Appointment saved = appointmentRepository.save(appointment);
 
         AppointmentRequestDto dto = getAppointmentRequestDto();
         dto.setCustomerId(null);
+        dto.setCustomerName(null);
+        dto.setCustomerEmail(null);
+
 
         // When + Then
-        mockMvc.perform(put("/api/appointments/{id}", saved.getId())
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -391,7 +405,7 @@ public class AppointmentControllerIT {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("customerId"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/appointments/" + saved.getId()))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/" + saved.getId()))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(appointmentRepository.findById(saved.getId())).isPresent();
@@ -408,7 +422,7 @@ public class AppointmentControllerIT {
         dto.setCustomerId(999L);
 
         // When + Then
-        mockMvc.perform(put("/api/appointments/{id}", saved.getId())
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound())
@@ -436,7 +450,7 @@ public class AppointmentControllerIT {
         appointmentRepository.save(appointment2);
 
         // When
-        MvcResult result = mockMvc.perform(get("/api/appointments")
+        MvcResult result = mockMvc.perform(get(BASE_URL)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -463,7 +477,7 @@ public class AppointmentControllerIT {
     @Test
     void listAppointments_whenNoAppointmentsExist_returns200AndEmptyList() throws Exception {
         // When
-        MvcResult result = mockMvc.perform(get("/api/appointments")
+        MvcResult result = mockMvc.perform(get(BASE_URL)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -481,7 +495,7 @@ public class AppointmentControllerIT {
         Appointment saved = appointmentRepository.save(appointment);
 
         //When
-        mockMvc.perform(delete("/api/appointments/{id}", saved.getId()))
+        mockMvc.perform(delete(BASE_URL + "/{id}", saved.getId()))
                 .andExpect(status().isNoContent());
 
         //Then
@@ -494,7 +508,7 @@ public class AppointmentControllerIT {
         Long id = 999L;
 
         // When + Then
-        mockMvc .perform(delete("/api/appointments/{id}", id))
+        mockMvc .perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))

@@ -3,6 +3,7 @@ package com.turnero.api.dto;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.AppointmentSource;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,13 @@ public class AppointmentRequestDto {
     @Schema(description = "ID of the customer requesting the appointment", example = "1")
     @NotNull(message = "Customer ID is required")
     private Long customerId;
+
+    @Schema(description = "Customer name when the customer is not registered", example = "Juan Pérez")
+    private String customerName;
+
+    @Schema(description = "Customer email when the customer is not registered", example = "juan@email.com")
+    @Email(message = "Customer email must be valid")
+    private String customerEmail;
 
     @Schema(description = "ID of the service offering for the appointment", example = "1")
     @NotNull(message = "Service offering ID is required")
