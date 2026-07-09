@@ -1,7 +1,11 @@
 package com.turnero.api.service;
 
+import com.turnero.api.context.CurrentBusinessContext;
+import com.turnero.api.dto.AppointmentRequestDto;
+import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.repository.AppointmentRepository;
@@ -32,6 +36,12 @@ class AppointmentServiceImplTest {
     private AppointmentServiceImpl appointmentService;
 
     @Mock
+    private AppointmentMapper appointmentMapper;
+
+    @Mock
+    private CurrentBusinessContext currentBusinessContext;
+
+    @Mock
     private CustomerRepository customerRepository;
 
     @Mock
@@ -40,8 +50,24 @@ class AppointmentServiceImplTest {
     @Mock
     private StaffMemberRepository staffMemberRepository;
 
+    private AppointmentRequestDto getRequestDto() {
+        return AppointmentRequestDto.builder()
+                .customerId(1L)
+                .serviceOfferingId(2L)
+                .staffMemberId(3L)
+                .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
+                .durationMinutes(30)
+                .status(AppointmentStatus.CONFIRMED)
+                .customerNotes("Notes")
+                .build();
+    }
+
     @Test
     void saveAppointment() {
+        Long businessId = 1L;
+
+        AppointmentRequestDto request = getRequestDto();
+
         Appointment appointment = new Appointment();
         appointment.setId(1L);
         appointment.setCustomerId(1L);
@@ -50,22 +76,42 @@ class AppointmentServiceImplTest {
         appointment.setStartsAt(LocalDateTime.of(2026, 5, 15, 10, 0));
         appointment.setDurationMinutes(30);
 
-        when(customerRepository.existsById(1L)).thenReturn(true);
-        when(servOfferingRepository.existsById(2L)).thenReturn(true);
-        when(staffMemberRepository.existsById(3L)).thenReturn(true);
+        AppointmentResponseDto responseDto = AppointmentResponseDto.builder()
+                .id(1L)
+                .customerId(1L)
+                .serviceOfferingId(2L)
+                .staffMemberId(3L)
+                .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
+                .durationMinutes(30)
+                .status(AppointmentStatus.CONFIRMED)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentMapper.toEntity(request)).thenReturn(appointment);
+
+        when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(2L, businessId)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(3L, businessId)).thenReturn(true);
+
         when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
         when(appointmentRepository.save(appointment)).thenReturn(appointment);
+        when(appointmentMapper.toResponseDto(appointment)).thenReturn(responseDto);
 
-        appointmentService.saveAppointment(appointment);
+        AppointmentResponseDto result = appointmentService.saveAppointment(request);
 
+        assertNotNull(result);
         assertNotNull(appointment.getCreatedAt());
         assertNotNull(appointment.getUpdatedAt());
+        assertEquals(businessId, appointment.getBusinessId());
 
         verify(appointmentRepository, times(1)).save(appointment);
     }
 
     @Test
     void saveAppointment_whenRepositoryFails_throwsException() {
+        Long businessId = 1L;
+        AppointmentRequestDto request = getRequestDto();
+
         Appointment appointment = new Appointment();
         appointment.setCustomerId(1L);
         appointment.setServiceOfferingId(2L);
@@ -73,65 +119,90 @@ class AppointmentServiceImplTest {
         appointment.setStartsAt(LocalDateTime.of(2026, 5, 15, 10, 0));
         appointment.setDurationMinutes(30);
 
-        when(customerRepository.existsById(1L)).thenReturn(true);
-        when(servOfferingRepository.existsById(2L)).thenReturn(true);
-        when(staffMemberRepository.existsById(3L)).thenReturn(true);
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+
+        when(appointmentMapper.toEntity(request)).thenReturn(appointment);
+
+        when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(2L, businessId)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(3L, businessId)).thenReturn(true);
+
         when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
 
         doThrow(new RuntimeException("Error saving")).when(appointmentRepository).save(appointment);
-        assertThrows(RuntimeException.class, () -> appointmentService.saveAppointment(appointment));
+        assertThrows(RuntimeException.class, () -> appointmentService.saveAppointment(request));
     }
 
     @Test
     void saveAppointment_whenCustomerNotExist_shouldthrowsException() {
+        Long businessId = 1L;
+        AppointmentRequestDto request = getRequestDto();
+        request.setCustomerId(99L);
+
         Appointment appointment = new Appointment();
         appointment.setCustomerId(99L);
         appointment.setServiceOfferingId(2L);
         appointment.setStaffMemberId(3L);
 
-        when(customerRepository.existsById(99L)).thenReturn(false);
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentMapper.toEntity(request)).thenReturn(appointment);
+        when(customerRepository.existsByIdAndBusinessId(99L, businessId)).thenReturn(false);
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> appointmentService.saveAppointment(appointment)
+                () -> appointmentService.saveAppointment(request)
         );
 
         assertEquals("Customer not found.", exception.getMessage());
+
     }
 
     @Test
     void saveAppointment_whenServiceNotExist_shouldthrowsException() {
+        Long businessId = 1L;
+        AppointmentRequestDto request = getRequestDto();
+        request.setServiceOfferingId(99L);
+
         Appointment appointment = new Appointment();
         appointment.setCustomerId(1L);
         appointment.setServiceOfferingId(99L);
         appointment.setStaffMemberId(3L);
 
-        when(customerRepository.existsById(1L)).thenReturn(true);
-        when(servOfferingRepository.existsById(99L)).thenReturn(false);
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(99L, businessId)).thenReturn(false);
+        when(appointmentMapper.toEntity(request)).thenReturn(appointment);
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> appointmentService.saveAppointment(appointment)
+                () -> appointmentService.saveAppointment(request)
         );
 
         assertEquals("Service offering not found.", exception.getMessage());
         verify(appointmentRepository, never()).save(any());
+        verify(staffMemberRepository, never()).existsByIdAndBusinessId(anyLong(), anyLong());
     }
 
      @Test
     void saveAppointment_whenStaffMemberNotExist_shouldthrowsException() {
+        Long businessId = 1L;
+        AppointmentRequestDto request = getRequestDto();
+        request.setStaffMemberId(99L);
+
          Appointment appointment = new Appointment();
          appointment.setCustomerId(1L);
          appointment.setServiceOfferingId(2L);
          appointment.setStaffMemberId(99L);
 
-         when(customerRepository.existsById(1L)).thenReturn(true);
-         when(servOfferingRepository.existsById(2L)).thenReturn(true);
-         when(staffMemberRepository.existsById(99L)).thenReturn(false);
+         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+         when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+         when(servOfferingRepository.existsByIdAndBusinessId(2L, businessId)).thenReturn(true);
+         when(staffMemberRepository.existsByIdAndBusinessId(99L, businessId)).thenReturn(false);
+         when(appointmentMapper.toEntity(request)).thenReturn(appointment);
 
          ResourceNotFoundException exception = assertThrows(
                  ResourceNotFoundException.class,
-                 () -> appointmentService.saveAppointment(appointment)
+                 () -> appointmentService.saveAppointment(request)
          );
 
          assertEquals("Staff member not found.", exception.getMessage());
@@ -140,6 +211,13 @@ class AppointmentServiceImplTest {
 
      @Test
      void saveAppointment_whenAppointmentsOverlap_shouldThrowsException() {
+         Long businessId = 1L;
+         AppointmentRequestDto request = getRequestDto();
+         request.setCustomerId(1L);
+         request.setServiceOfferingId(1L);
+         request.setStaffMemberId(1L);
+         request.setStartsAt(LocalDateTime.of(2026, 5, 15, 10, 15));
+
          Appointment existingAppointment = Appointment.builder()
                  .id(1L)
                  .staffMemberId(1L)
@@ -155,20 +233,26 @@ class AppointmentServiceImplTest {
                  .durationMinutes(30)
                  .build();
 
-         when(customerRepository.existsById(1L)).thenReturn(true);
-         when(servOfferingRepository.existsById(1L)).thenReturn(true);
-         when(staffMemberRepository.existsById(1L)).thenReturn(true);
+         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+         when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+         when(servOfferingRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+         when(staffMemberRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
+         when(appointmentMapper.toEntity(request)).thenReturn(newAppointment);
 
          // When + Then
          assertThrows(AppointmentOverlapException.class,
-                 () -> appointmentService.saveAppointment(newAppointment));
+                 () -> appointmentService.saveAppointment(request));
 
          verify(appointmentRepository, never()).save(any());
      }
 
      @Test
      void saveAppointment_whenAppointmentsDoNotOverlap_shouldSave() {
+
+         Long businessId = 1L;
+         AppointmentRequestDto request = getRequestDto();
+
          Appointment existingAppointment = Appointment.builder()
                  .id(1L)
                  .staffMemberId(1L)
@@ -184,28 +268,43 @@ class AppointmentServiceImplTest {
                  .durationMinutes(30)
                  .build();
 
-         when(customerRepository.existsById(1L)).thenReturn(true);
-         when(servOfferingRepository.existsById(1L)).thenReturn(true);
-         when(staffMemberRepository.existsById(1L)).thenReturn(true);
+         request.setCustomerId(1L);
+         request.setServiceOfferingId(1L);
+         request.setStaffMemberId(1L);
+         request.setStartsAt(LocalDateTime.of(2026, 5, 15, 10, 30));
+
+         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+         when(appointmentMapper.toEntity(request)).thenReturn(newAppointment);
+         when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+         when(servOfferingRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+         when(staffMemberRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
          when(appointmentRepository.save(newAppointment)).thenReturn(newAppointment);
+         when(appointmentMapper.toResponseDto(newAppointment)).thenReturn(AppointmentResponseDto.builder().id(1L).build());
 
-         // When
-         appointmentService.saveAppointment(newAppointment);
+         appointmentService.saveAppointment(request);
 
-         // Then
          verify(appointmentRepository, times(1)).save(newAppointment);
      }
 
     @Test
     void findAllAppointments() {
+        Long businessId = 1L;
+
         Appointment appointment1 = new Appointment();
         Appointment appointment2 = new Appointment();
-        when(appointmentRepository.findAll()).thenReturn(Arrays.asList(appointment1, appointment2));
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findAllByBusinessId(businessId))
+                .thenReturn(Arrays.asList(appointment1, appointment2));
+
         List<Appointment> appointments = appointmentService.findAllAppointments();
+
         assertEquals(2, appointments.size());
         assertTrue(appointments.contains(appointment1));
         assertTrue(appointments.contains(appointment2));
+
+        verify(appointmentRepository).findAllByBusinessId(businessId);
     }
 
 
@@ -214,19 +313,29 @@ class AppointmentServiceImplTest {
     void findAppointment() {
         Long id = 1L;
         Appointment appointment = new Appointment();
-        when(appointmentRepository.findById(id)).thenReturn(Optional.of(appointment));
+        Long businessId = 1L;
+
+        when(currentBusinessContext.getCurrentBusinessId())
+                .thenReturn(businessId);
+
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId))
+                .thenReturn(Optional.of(appointment));
+
 
         Appointment result = appointmentService.findAppointment(id);
 
         assertNotNull(result);
         assertEquals(appointment, result);
-        verify(appointmentRepository, times(1)).findById(id);
+        verify(appointmentRepository).findByIdAndBusinessId(id, businessId);
     }
 
     @Test
     void findAppointment_whenNotExist_throwsException() {
+        Long businessId = 1L;
         Long id = 99L;
-        when(appointmentRepository.findById(id)).thenReturn(Optional.empty());
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
@@ -234,11 +343,14 @@ class AppointmentServiceImplTest {
         );
 
         assertEquals("Appointment not found with ID: 99", exception.getMessage());
+        verify(appointmentRepository).findByIdAndBusinessId(id, businessId);
     }
 
     @Test
     void updateAppointment_shouldUpdateAndSave() {
         Long id = 1L;
+        Long businessId = 1L;
+
         LocalDateTime originalCreatedAt = LocalDateTime.now().minusDays(1);
         LocalDateTime originalUpdatedAt = LocalDateTime.now().minusDays(1);
 
@@ -256,10 +368,11 @@ class AppointmentServiceImplTest {
         updateAppointment.setStatus(AppointmentStatus.CONFIRMED);
         updateAppointment.setCustomerNotes("Notes");
 
-        when(appointmentRepository.findById(id)).thenReturn(Optional.of(current));
-        when(customerRepository.existsById(10L)).thenReturn(true);
-        when(servOfferingRepository.existsById(20L)).thenReturn(true);
-        when(staffMemberRepository.existsById(30L)).thenReturn(true);
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
+        when(customerRepository.existsByIdAndBusinessId(10L, 1L)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(30L, 1L)).thenReturn(true);
 
         appointmentService.updateAppointment(updateAppointment, id);
 
@@ -281,6 +394,7 @@ class AppointmentServiceImplTest {
     @Test
     void updateAppointment_whenAppointmentOverlap_throwsException() {
         Long id = 1L;
+        Long businessId = 1L;
 
         Appointment currentAppointment = Appointment.builder()
                 .id(id)
@@ -306,12 +420,13 @@ class AppointmentServiceImplTest {
                 .durationMinutes(30)
                 .build();
 
-        when(appointmentRepository.findById(id))
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId))
                 .thenReturn(Optional.of(currentAppointment));
 
-        when(customerRepository.existsById(10L)).thenReturn(true);
-        when(servOfferingRepository.existsById(20L)).thenReturn(true);
-        when(staffMemberRepository.existsById(30L)).thenReturn(true);
+        when(customerRepository.existsByIdAndBusinessId(10L, 1L)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(30L, 1L)).thenReturn(true);
 
         when(appointmentRepository.findByStaffMemberId(30L))
                 .thenReturn(List.of(currentAppointment, overlappingAppointment));
@@ -326,6 +441,7 @@ class AppointmentServiceImplTest {
     void updateAppointment_shouldNotDetectOverlapWithSameAppointment() {
         // Given
         Long id = 1L;
+        Long businessId = 1L;
 
         Appointment existingAppointment = Appointment.builder()
                 .id(id)
@@ -344,12 +460,13 @@ class AppointmentServiceImplTest {
                 .durationMinutes(30)
                 .build();
 
-        when(appointmentRepository.findById(id))
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId))
                 .thenReturn(Optional.of(existingAppointment));
 
-        when(customerRepository.existsById(1L)).thenReturn(true);
-        when(servOfferingRepository.existsById(1L)).thenReturn(true);
-        when(staffMemberRepository.existsById(1L)).thenReturn(true);
+        when(customerRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
 
         when(appointmentRepository.findByStaffMemberId(1L))
                 .thenReturn(List.of(existingAppointment));
@@ -364,17 +481,26 @@ class AppointmentServiceImplTest {
     @Test
     void deleteAppointment_whenExists_shouldDelete() {
         Long id = 1L;
-        when(appointmentRepository.existsById(id)).thenReturn(true);
+        Long businessId = 1L;
+
+        Appointment appointment = new Appointment();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(appointment));
 
         appointmentService.deleteAppointment(id);
 
-        verify(appointmentRepository, times(1)).deleteById(id);
+        verify(appointmentRepository).delete(appointment);
     }
 
     @Test
     void deleteAppointment_whenDoesNotExist_shouldNotDelete() {
         Long id = 99L;
-        when(appointmentRepository.existsById(id)).thenReturn(false);
+        Long businessId = 1L;
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
@@ -383,8 +509,7 @@ class AppointmentServiceImplTest {
 
         assertEquals("Appointment not found with ID: 99", exception.getMessage());
 
-        verify(appointmentRepository, never()).deleteById(anyLong());
-    }
+        verify(appointmentRepository, never()).delete(any(Appointment.class));    }
 }
 
 

@@ -37,6 +37,8 @@ public class AppointmentControllerTest {
     @MockitoBean
     private AppointmentMapper appointmentMapper;
 
+    private final static String BASE_URL = "/api/v1/appointments";
+
     private AppointmentRequestDto getAppointmentDto(Long id) {
         return AppointmentRequestDto.builder()
                 .customerId(id)
@@ -85,14 +87,12 @@ public class AppointmentControllerTest {
         Long id = 1L;
         var dto = getAppointmentDto(id);
         var responseDto = getAppointmentResponseDto(id);
-        Appointment entity = getAppointmentEntity(id);
 
-        given(appointmentMapper.toEntity(any(AppointmentRequestDto.class)))
-                .willReturn(entity);
-        given(appointmentMapper.toResponseDto(entity)).willReturn(responseDto);
+        given(appointmentService.saveAppointment(any(AppointmentRequestDto.class)))
+                .willReturn(responseDto);
 
         // When
-        mockMvc.perform(post("/api/appointments")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -104,9 +104,8 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
         // Assert
-        then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
-        then(appointmentService).should().saveAppointment(entity);
-        then(appointmentMapper).should().toResponseDto(entity);
+        then(appointmentService).should().saveAppointment(any(AppointmentRequestDto.class));
+        then(appointmentMapper).shouldHaveNoInteractions();
     }
 
     @Test
@@ -117,7 +116,7 @@ public class AppointmentControllerTest {
         dto.setCustomerId(null);
 
         // When + Then
-        mockMvc.perform(post("/api/appointments")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -128,7 +127,7 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("customerId"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/appointments"))
+                .andExpect(jsonPath("$.path").value(BASE_URL))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
@@ -146,10 +145,10 @@ public class AppointmentControllerTest {
                 .willReturn(entity);
         willThrow(new ResourceNotFoundException("Customer not found."))
                 .given(appointmentService)
-                .saveAppointment(entity);
+                .saveAppointment(any(AppointmentRequestDto.class));
 
         // When + Then
-        mockMvc.perform(post("/api/appointments")
+        mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound())
@@ -158,8 +157,8 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Customer not found."));
 
-        then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
-        then(appointmentService).should().saveAppointment(entity);
+        then(appointmentService).should().saveAppointment(any(AppointmentRequestDto.class));
+        then(appointmentMapper).shouldHaveNoInteractions();
     }
 
     @Test
@@ -177,7 +176,7 @@ public class AppointmentControllerTest {
                 .willReturn(List.of(responseDto1, responseDto2));
 
         //When + Then
-        mockMvc.perform(get("/api/appointments"))
+        mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.length()").value(2))
@@ -199,7 +198,7 @@ public class AppointmentControllerTest {
         given(appointmentMapper.toResponseDto(appointment)).willReturn(responseDto);
 
         //When + Then
-        mockMvc.perform(get("/api/appointments/{id}", id))
+        mockMvc.perform(get(BASE_URL + "/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
@@ -220,7 +219,7 @@ public class AppointmentControllerTest {
                 .willThrow(new ResourceNotFoundException("Appointment not found"));
 
         //When + Then
-        mockMvc.perform(get("/api/appointments/{id}", id))
+        mockMvc.perform(get(BASE_URL + "/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
@@ -240,7 +239,7 @@ public class AppointmentControllerTest {
         given(appointmentMapper.toEntity(any(AppointmentRequestDto.class))).willReturn(entity);
 
         //When + Then
-            mockMvc.perform(put("/api/appointments/5")
+            mockMvc.perform(put(BASE_URL + "/5")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isNoContent());
@@ -257,7 +256,7 @@ public class AppointmentControllerTest {
         dto.setStartsAt(LocalDateTime.now().minusDays(1));
 
         //When + Then
-        mockMvc.perform(put("/api/appointments/5")
+        mockMvc.perform(put(BASE_URL + "/5")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -268,7 +267,7 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("startsAt"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value("/api/appointments/5"))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/5"))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
@@ -288,7 +287,7 @@ public class AppointmentControllerTest {
                 .updateAppointment(entity, id);
 
         //When + Then
-        mockMvc.perform(put("/api/appointments/{id}", id)
+        mockMvc.perform(put(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound())
@@ -308,7 +307,7 @@ public class AppointmentControllerTest {
         Long id = 7L;
 
         //When + Then
-        mockMvc.perform(delete("/api/appointments/7"))
+        mockMvc.perform(delete(BASE_URL + "/7"))
                 .andExpect(status().isNoContent());
         then(appointmentService).should().deleteAppointment(7L);
     }
@@ -322,7 +321,7 @@ public class AppointmentControllerTest {
                 .deleteAppointment(id);
 
         //When + Then
-        mockMvc.perform(delete("/api/appointments/{id}", id)
+        mockMvc.perform(delete(BASE_URL + "/{id}", id)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
