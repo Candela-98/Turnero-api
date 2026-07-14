@@ -3,13 +3,19 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
+<<<<<<< HEAD
 import com.turnero.api.dto.AppointmentUpdateRequestDto;
+=======
+>>>>>>> develop
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.Customer;
+<<<<<<< HEAD
 import com.turnero.api.model.ServiceOffering;
+=======
+>>>>>>> develop
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
@@ -128,11 +134,22 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+<<<<<<< HEAD
     public AppointmentResponseDto updateAppointment(Long id, AppointmentUpdateRequestDto request) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
         Appointment existingAppointment = appointmentRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
+=======
+    public void updateAppointment(Appointment appointment, Long id) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        Appointment existAppointment = findAppointment(id);
+
+        appointment.setBusinessId(businessId);
+
+        validateReferences(appointment, businessId);
+>>>>>>> develop
 
         if (request.getCustomerId() != null) {
             if (!customerRepository.existsByIdAndBusinessId(request.getCustomerId(), businessId)) {

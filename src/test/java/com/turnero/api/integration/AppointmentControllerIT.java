@@ -375,7 +375,11 @@ public class AppointmentControllerIT {
         dto.setCustomerNotes("Updated appointment");
 
         // When
+<<<<<<< HEAD
         mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
+=======
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+>>>>>>> develop
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
@@ -391,6 +395,38 @@ public class AppointmentControllerIT {
         assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
     }
 
+<<<<<<< HEAD
+=======
+    @Test
+    void uPDateAppointment_whenCustomerInformationIsMissing_returns400() throws Exception{
+        //Given
+        Appointment appointment = getAppointment();
+        Appointment saved = appointmentRepository.save(appointment);
+
+        AppointmentRequestDto dto = getAppointmentRequestDto();
+        dto.setCustomerId(null);
+        dto.setCustomerName(null);
+        dto.setCustomerEmail(null);
+
+
+        // When + Then
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Validation error"))
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field").value("customerId"))
+                .andExpect(jsonPath("$.details[0].message").exists())
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/" + saved.getId()))
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        assertThat(appointmentRepository.findById(saved.getId())).isPresent();
+    }
+>>>>>>> develop
 
     // El mismo test se puede hacer para serviceOffering y staffMember, pero por brevedad solo se muestra para customer
     @Test
@@ -403,7 +439,11 @@ public class AppointmentControllerIT {
         dto.setCustomerId(999L);
 
         // When + Then
+<<<<<<< HEAD
         mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
+=======
+        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+>>>>>>> develop
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound())

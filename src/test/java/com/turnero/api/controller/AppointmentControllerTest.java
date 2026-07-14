@@ -251,6 +251,7 @@ public class AppointmentControllerTest {
         given(appointmentService.updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class)))
                 .willReturn(response);
 
+<<<<<<< HEAD
         // When + Then
         mockMvc.perform(patch(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -264,6 +265,15 @@ public class AppointmentControllerTest {
 
         then(appointmentService).should().updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class));
         then(appointmentMapper).shouldHaveNoInteractions();
+=======
+        //When + Then
+            mockMvc.perform(put(BASE_URL + "/5")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(dto)))
+                    .andExpect(status().isNoContent());
+            then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
+            then(appointmentService).should().updateAppointment(entity,id);
+>>>>>>> develop
 
     }
 
@@ -274,10 +284,17 @@ public class AppointmentControllerTest {
         AppointmentUpdateRequestDto request = getAppointmentUpdateRequestDto(id);
         request.setStartsAt(LocalDateTime.now().minusDays(1));
 
+<<<<<<< HEAD
         // When + Then
         mockMvc.perform(patch(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+=======
+        //When + Then
+        mockMvc.perform(put(BASE_URL + "/5")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(dto)))
+>>>>>>> develop
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
@@ -286,7 +303,11 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("startsAt"))
                 .andExpect(jsonPath("$.details[0].message").exists())
+<<<<<<< HEAD
                 .andExpect(jsonPath("$.path").value(BASE_URL + "/" + id))
+=======
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/5"))
+>>>>>>> develop
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
@@ -302,8 +323,13 @@ public class AppointmentControllerTest {
         given(appointmentService.updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class))).
                 willThrow(new ResourceNotFoundException("Customer not found."));
 
+<<<<<<< HEAD
         // When + Then
         mockMvc.perform(patch(BASE_URL + "/{id}", id)
+=======
+        //When + Then
+        mockMvc.perform(put(BASE_URL + "/{id}", id)
+>>>>>>> develop
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())

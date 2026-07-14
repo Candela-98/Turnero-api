@@ -3,7 +3,10 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
+<<<<<<< HEAD
 import com.turnero.api.dto.AppointmentUpdateRequestDto;
+=======
+>>>>>>> develop
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
@@ -64,6 +67,7 @@ class AppointmentServiceImplTest {
                 .build();
     }
 
+<<<<<<< HEAD
     private AppointmentUpdateRequestDto getUpdateRequestDto(){
         return AppointmentUpdateRequestDto.builder()
                 .customerId(1L)
@@ -75,6 +79,8 @@ class AppointmentServiceImplTest {
                 .build();
     }
 
+=======
+>>>>>>> develop
     @Test
     void saveAppointment() {
         Long businessId = 1L;
@@ -106,7 +112,11 @@ class AppointmentServiceImplTest {
         when(servOfferingRepository.existsByIdAndBusinessId(2L, businessId)).thenReturn(true);
         when(staffMemberRepository.existsByIdAndBusinessId(3L, businessId)).thenReturn(true);
 
+<<<<<<< HEAD
         when(appointmentRepository.findByStaffMemberIdAndBusinessId(3L, businessId)).thenReturn(List.of());
+=======
+        when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
+>>>>>>> develop
         when(appointmentRepository.save(appointment)).thenReturn(appointment);
         when(appointmentMapper.toResponseDto(appointment)).thenReturn(responseDto);
 
@@ -140,7 +150,11 @@ class AppointmentServiceImplTest {
         when(servOfferingRepository.existsByIdAndBusinessId(2L, businessId)).thenReturn(true);
         when(staffMemberRepository.existsByIdAndBusinessId(3L, businessId)).thenReturn(true);
 
+<<<<<<< HEAD
         when(appointmentRepository.findByStaffMemberIdAndBusinessId(3L, businessId)).thenReturn(List.of());
+=======
+        when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
+>>>>>>> develop
 
         doThrow(new RuntimeException("Error saving")).when(appointmentRepository).save(appointment);
         assertThrows(RuntimeException.class, () -> appointmentService.saveAppointment(request));
@@ -250,7 +264,11 @@ class AppointmentServiceImplTest {
          when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(servOfferingRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(staffMemberRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+<<<<<<< HEAD
          when(appointmentRepository.findByStaffMemberIdAndBusinessId(1L, businessId)).thenReturn(List.of(existingAppointment));
+=======
+         when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
+>>>>>>> develop
          when(appointmentMapper.toEntity(request)).thenReturn(newAppointment);
 
          // When + Then
@@ -291,7 +309,11 @@ class AppointmentServiceImplTest {
          when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(servOfferingRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(staffMemberRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+<<<<<<< HEAD
          when(appointmentRepository.findByStaffMemberIdAndBusinessId(1L, businessId)).thenReturn(List.of(existingAppointment));
+=======
+         when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
+>>>>>>> develop
          when(appointmentRepository.save(newAppointment)).thenReturn(newAppointment);
          when(appointmentMapper.toResponseDto(newAppointment)).thenReturn(AppointmentResponseDto.builder().id(1L).build());
 
@@ -385,9 +407,17 @@ class AppointmentServiceImplTest {
         request.setStaffMemberId(30L);
         request.setStartsAt(LocalDateTime.of(2026, 2, 15, 10, 0));
 
+<<<<<<< HEAD
         AppointmentResponseDto response = AppointmentResponseDto.builder()
                 .id(id)
                 .build();
+=======
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
+        when(customerRepository.existsByIdAndBusinessId(10L, 1L)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(30L, 1L)).thenReturn(true);
+>>>>>>> develop
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
         when(appointmentRepository.findByIdAndBusinessId(id, businessId))
@@ -433,6 +463,7 @@ class AppointmentServiceImplTest {
                 .durationMinutes(60)
                 .build();
 
+<<<<<<< HEAD
         AppointmentUpdateRequestDto request = getUpdateRequestDto();
         request.setStartsAt(LocalDateTime.of(2026, 2, 15, 10, 30));
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
@@ -441,6 +472,29 @@ class AppointmentServiceImplTest {
         when(staffMemberRepository.existsByIdAndBusinessId(3L, businessId)).thenReturn(true);
         when(appointmentRepository.findByStaffMemberIdAndBusinessId(3L, businessId)).thenReturn(List.of(currentAppointment, overlappingAppointment));
         assertThrows(AppointmentOverlapException.class, () -> appointmentService.updateAppointment(id, request));
+=======
+        Appointment updateAppointment = Appointment.builder()
+                .customerId(10L)
+                .serviceOfferingId(20L)
+                .staffMemberId(30L)
+                .startsAt(LocalDateTime.of(2026, 2, 15, 10, 30))
+                .durationMinutes(30)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId))
+                .thenReturn(Optional.of(currentAppointment));
+
+        when(customerRepository.existsByIdAndBusinessId(10L, 1L)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(30L, 1L)).thenReturn(true);
+
+        when(appointmentRepository.findByStaffMemberId(30L))
+                .thenReturn(List.of(currentAppointment, overlappingAppointment));
+
+        assertThrows(AppointmentOverlapException.class,
+                () -> appointmentService.updateAppointment(updateAppointment, id));
+>>>>>>> develop
 
         verify(appointmentRepository, never()).save(any());
     }
@@ -504,6 +558,7 @@ class AppointmentServiceImplTest {
                 .updatedAt(originalUpdatedAt)
                 .build();
 
+<<<<<<< HEAD
         AppointmentUpdateRequestDto request = AppointmentUpdateRequestDto.builder()
                 .serviceOfferingId(20L)
                 .build();
@@ -514,6 +569,15 @@ class AppointmentServiceImplTest {
                 .durationMinutes(60)
                 .priceCents(25000)
                 .build();
+=======
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId))
+                .thenReturn(Optional.of(existingAppointment));
+
+        when(customerRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
+        when(servOfferingRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
+>>>>>>> develop
 
         AppointmentResponseDto responseDto = AppointmentResponseDto.builder()
                 .id(id)
