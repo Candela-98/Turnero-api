@@ -4,6 +4,7 @@ package com.turnero.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
+import com.turnero.api.dto.AppointmentUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.enums.AppointmentStatus;
@@ -78,6 +79,17 @@ public class AppointmentControllerTest {
                 .customerNotes("Notes")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    private AppointmentUpdateRequestDto getAppointmentUpdateRequestDto(Long id){
+        return AppointmentUpdateRequestDto.builder()
+                .customerId(id)
+                .staffMemberId(3L)
+                .serviceOfferingId(2L)
+                .startsAt(LocalDateTime.now().plusDays(1))
+                .customerNotes("Notes")
+                .internalNotes("VIP Customer")
                 .build();
     }
 
@@ -233,18 +245,25 @@ public class AppointmentControllerTest {
     void updateAppointment_ok_shouldReturn200_andCallService() throws Exception{
         //Given
         Long id = 5L;
-        var dto = getAppointmentDto(id);
-        var entity = getAppointmentEntity(id);
+        AppointmentUpdateRequestDto request = getAppointmentUpdateRequestDto(id);
+        AppointmentResponseDto response = getAppointmentResponseDto(id);
 
-        given(appointmentMapper.toEntity(any(AppointmentRequestDto.class))).willReturn(entity);
+        given(appointmentService.updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class)))
+                .willReturn(response);
 
-        //When + Then
-            mockMvc.perform(put(BASE_URL + "/5")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isNoContent());
-            then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
-            then(appointmentService).should().updateAppointment(entity,id);
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(5))
+                .andExpect(jsonPath("$.customerId").value(5))
+                .andExpect(jsonPath("$.serviceOfferingId").value(2))
+                .andExpect(jsonPath("$.staffMemberId").value(3));
+
+        then(appointmentService).should().updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class));
+        then(appointmentMapper).shouldHaveNoInteractions();
 
     }
 
@@ -252,13 +271,13 @@ public class AppointmentControllerTest {
     void updateAppointment_withInvalidDto_shouldReturn400() throws Exception{
         //Given
         Long id = 5L;
-        var dto = getAppointmentDto(id);
-        dto.setStartsAt(LocalDateTime.now().minusDays(1));
+        AppointmentUpdateRequestDto request = getAppointmentUpdateRequestDto(id);
+        request.setStartsAt(LocalDateTime.now().minusDays(1));
 
-        //When + Then
-        mockMvc.perform(put(BASE_URL + "/5")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dto)))
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
@@ -267,7 +286,7 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("startsAt"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value(BASE_URL + "/5"))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/" + id))
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
@@ -278,26 +297,23 @@ public class AppointmentControllerTest {
     void updateAppointment_whenCustomerDoesNotExist_shouldReturn404() throws Exception{
         //Given
         Long id = 5L;
-        var dto = getAppointmentDto(id);
-        var entity = getAppointmentEntity(id);
+        AppointmentUpdateRequestDto request = getAppointmentUpdateRequestDto(id);
 
-        given(appointmentMapper.toEntity(dto)).willReturn(entity);
-                willThrow(new ResourceNotFoundException("Customer not found."))
-                .given(appointmentService)
-                .updateAppointment(entity, id);
+        given(appointmentService.updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class))).
+                willThrow(new ResourceNotFoundException("Customer not found."));
 
-        //When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", id)
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Customer not found."));
 
-        then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
-        then(appointmentService).should().updateAppointment(entity, id);
+        then(appointmentService).should().updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class));
+        then(appointmentMapper).shouldHaveNoInteractions();
     }
 
 
