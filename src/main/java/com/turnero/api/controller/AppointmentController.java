@@ -1,5 +1,6 @@
 package com.turnero.api.controller;
 
+import com.turnero.api.dto.AppointmentCancelRequestDto;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.dto.AppointmentUpdateRequestDto;
@@ -72,12 +73,22 @@ public class AppointmentController {
     )
     @ApiUpdateResponses
     @PatchMapping("/{id}")
-    public ResponseEntity<AppointmentResponseDto> updateAppointment(
-            @PathVariable Long id, @Valid @RequestBody AppointmentUpdateRequestDto request) {
-
+    public ResponseEntity<AppointmentResponseDto> updateAppointment(@PathVariable Long id, @Valid @RequestBody AppointmentUpdateRequestDto request) {
         AppointmentResponseDto response =
                 appointmentService.updateAppointment(id, request);
 
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/confirm")
+    public ResponseEntity<AppointmentResponseDto> confirmAppointment(@PathVariable Long id) {
+        AppointmentResponseDto response = appointmentService.confirmAppointment(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<AppointmentResponseDto> cancelAppointment(@PathVariable Long id, @RequestBody AppointmentCancelRequestDto request) {
+        AppointmentResponseDto response = appointmentService.cancelAppointment(id, request);
         return ResponseEntity.ok(response);
     }
 

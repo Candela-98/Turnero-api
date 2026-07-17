@@ -1,21 +1,19 @@
 package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
+import com.turnero.api.dto.AppointmentCancelRequestDto;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
-<<<<<<< HEAD
 import com.turnero.api.dto.AppointmentUpdateRequestDto;
-=======
->>>>>>> develop
 import com.turnero.api.exception.AppointmentOverlapException;
+import com.turnero.api.exception.InvalidStateTransitionException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.Customer;
-<<<<<<< HEAD
 import com.turnero.api.model.ServiceOffering;
-=======
->>>>>>> develop
+
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
@@ -134,22 +132,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
-<<<<<<< HEAD
-    public AppointmentResponseDto updateAppointment(Long id, AppointmentUpdateRequestDto request) {
+    public AppointmentResponseDto updateAppointment(
+            Long id,
+            AppointmentUpdateRequestDto request) {
+
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
-        Appointment existingAppointment = appointmentRepository.findByIdAndBusinessId(id, businessId)
-                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
-=======
-    public void updateAppointment(Appointment appointment, Long id) {
-        Long businessId = currentBusinessContext.getCurrentBusinessId();
-
-        Appointment existAppointment = findAppointment(id);
-
-        appointment.setBusinessId(businessId);
-
-        validateReferences(appointment, businessId);
->>>>>>> develop
+        Appointment existingAppointment =
+                appointmentRepository.findByIdAndBusinessId(id, businessId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
 
         if (request.getCustomerId() != null) {
             if (!customerRepository.existsByIdAndBusinessId(request.getCustomerId(), businessId)) {
@@ -159,22 +150,31 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         if (request.getStaffMemberId() != null) {
-            if (!staffMemberRepository.existsByIdAndBusinessId(request.getStaffMemberId(), businessId)) {
+            if (!staffMemberRepository.existsByIdAndBusinessId(
+                    request.getStaffMemberId(),
+                    businessId
+            )) {
                 throw new ResourceNotFoundException("Staff member not found.");
             }
+
             existingAppointment.setStaffMemberId(request.getStaffMemberId());
         }
 
         boolean serviceChanged = request.getServiceOfferingId() != null && !request.getServiceOfferingId()
-                .equals(existingAppointment.getServiceOfferingId());
+                        .equals(existingAppointment.getServiceOfferingId());
 
         if (serviceChanged) {
-            ServiceOffering serviceOffering = serviceRepository.findByIdAndBusinessId(request.getServiceOfferingId(), businessId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Service offering not found."));
+            ServiceOffering serviceOffering =
+                    serviceRepository.findByIdAndBusinessId(request.getServiceOfferingId(), businessId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Service offering not found."));
 
             existingAppointment.setServiceOfferingId(serviceOffering.getId());
-            existingAppointment.setDurationMinutes(serviceOffering.getDurationMinutes());
-            existingAppointment.setPriceCents(serviceOffering.getPriceCents());
+            existingAppointment.setDurationMinutes(
+                    serviceOffering.getDurationMinutes()
+            );
+            existingAppointment.setPriceCents(
+                    serviceOffering.getPriceCents()
+            );
         }
 
         if (request.getStartsAt() != null) {
@@ -182,8 +182,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         if (serviceChanged || request.getStartsAt() != null) {
-            existingAppointment.setEndsAt(existingAppointment.getStartsAt().plusMinutes(
-                            existingAppointment.getDurationMinutes()));
+            existingAppointment.setEndsAt(existingAppointment.getStartsAt()
+                            .plusMinutes(existingAppointment.getDurationMinutes())
+            );
         }
 
         if (request.getCustomerNotes() != null) {
@@ -194,7 +195,8 @@ public class AppointmentServiceImpl implements AppointmentService {
             existingAppointment.setInternalNotes(request.getInternalNotes());
         }
 
-        validateNoOverlap(existingAppointment.getStaffMemberId(),
+        validateNoOverlap(
+                existingAppointment.getStaffMemberId(),
                 existingAppointment.getStartsAt(),
                 existingAppointment.getDurationMinutes(),
                 id,
@@ -202,8 +204,61 @@ public class AppointmentServiceImpl implements AppointmentService {
         );
 
         existingAppointment.setUpdatedAt(LocalDateTime.now());
+
         Appointment updatedAppointment = appointmentRepository.save(existingAppointment);
         log.info("Appointment with id={} businessId={} successfully updated.", id, businessId);
+
+        return appointmentMapper.toResponseDto(updatedAppointment);
+    }
+
+    private void validateStatusTransition(AppointmentStatus currentStatus, AppointmentStatus targetStatus) {
+        boolean validTransition = (currentStatus == AppointmentStatus.PENDING && targetStatus == AppointmentStatus.CONFIRMED) ||
+                        (currentStatus == AppointmentStatus.PENDING && targetStatus == AppointmentStatus.CANCELLED) ||
+                        (currentStatus == AppointmentStatus.CONFIRMED && targetStatus == AppointmentStatus.CANCELLED);
+
+        if (!validTransition) {
+            throw new InvalidStateTransitionException("Cannot transition appointment from " + currentStatus
+                            + " to " + targetStatus);
+        }
+    }
+
+    @Override
+    public AppointmentResponseDto confirmAppointment(Long appointmentId) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        Appointment appointment = appointmentRepository.findByIdAndBusinessId(appointmentId, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
+
+        validateStatusTransition(appointment.getStatus(), AppointmentStatus.CONFIRMED);
+
+        appointment.setStatus(AppointmentStatus.CONFIRMED);
+        appointment.setUpdatedAt(LocalDateTime.now());
+
+        Appointment updatedAppointment = appointmentRepository.save(appointment);
+
+        log.info("Appointment with id={} businessId={} successfully confirmed.", appointmentId, businessId);
+
+        return appointmentMapper.toResponseDto(updatedAppointment);
+    }
+
+    @Override
+    public AppointmentResponseDto cancelAppointment(Long appointmentId, AppointmentCancelRequestDto request) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        Appointment appointment = appointmentRepository.findByIdAndBusinessId(appointmentId, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
+
+        validateStatusTransition(appointment.getStatus(), AppointmentStatus.CANCELLED);
+
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+
+        if (request.getCancellationReason() != null) {
+            appointment.setCancellationReason(request.getCancellationReason());
+        }
+
+        appointment.setUpdatedAt(LocalDateTime.now());
+        Appointment updatedAppointment = appointmentRepository.save(appointment);
+        log.info("Appointment with id={} businessId={} successfully cancelled.", appointmentId, businessId);
 
         return appointmentMapper.toResponseDto(updatedAppointment);
     }
