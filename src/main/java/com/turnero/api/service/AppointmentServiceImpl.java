@@ -18,6 +18,7 @@ import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.repository.StaffMemberRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -214,7 +215,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     private void validateStatusTransition(AppointmentStatus currentStatus, AppointmentStatus targetStatus) {
         boolean validTransition = (currentStatus == AppointmentStatus.PENDING && targetStatus == AppointmentStatus.CONFIRMED) ||
                         (currentStatus == AppointmentStatus.PENDING && targetStatus == AppointmentStatus.CANCELLED) ||
-                        (currentStatus == AppointmentStatus.CONFIRMED && targetStatus == AppointmentStatus.CANCELLED);
+                        (currentStatus == AppointmentStatus.CONFIRMED && targetStatus == AppointmentStatus.CANCELLED)||
+                        (currentStatus == AppointmentStatus.CONFIRMED && targetStatus == AppointmentStatus.COMPLETED) ||
+                        (currentStatus == AppointmentStatus.CONFIRMED && targetStatus == AppointmentStatus.NO_SHOW);
 
         if (!validTransition) {
             throw new InvalidStateTransitionException("Cannot transition appointment from " + currentStatus
@@ -259,6 +262,43 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setUpdatedAt(LocalDateTime.now());
         Appointment updatedAppointment = appointmentRepository.save(appointment);
         log.info("Appointment with id={} businessId={} successfully cancelled.", appointmentId, businessId);
+
+        return appointmentMapper.toResponseDto(updatedAppointment);
+    }
+
+    @Override
+    @Transactional
+    public AppointmentResponseDto completeAppointment(Long appointmentId) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        Appointment appointment = appointmentRepository.findByIdAndBusinessId(appointmentId, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
+
+        validateStatusTransition(appointment.getStatus(), AppointmentStatus.COMPLETED);
+
+        appointment.setStatus(AppointmentStatus.COMPLETED);
+        appointment.setUpdatedAt(LocalDateTime.now());
+
+        Appointment updatedAppointment = appointmentRepository.save(appointment);
+        log.info("Appointment with id={} businessId={} successfully completed.", appointmentId, businessId);
+
+        return appointmentMapper.toResponseDto(updatedAppointment);
+    }
+
+    @Override
+    @Transactional
+    public AppointmentResponseDto markAppointmentAsNoShow(Long appointmentId) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        Appointment appointment = appointmentRepository.findByIdAndBusinessId(appointmentId, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
+
+        validateStatusTransition(appointment.getStatus(), AppointmentStatus.NO_SHOW);
+        appointment.setStatus(AppointmentStatus.NO_SHOW);
+        appointment.setUpdatedAt(LocalDateTime.now());
+
+        Appointment updatedAppointment = appointmentRepository.save(appointment);
+        log.info("Appointment with id={} businessId={} marked as no-show.", appointmentId, businessId);
 
         return appointmentMapper.toResponseDto(updatedAppointment);
     }

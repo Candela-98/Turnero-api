@@ -14,6 +14,7 @@ import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.repository.StaffMemberRepository;
+import net.bytebuddy.asm.Advice;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -506,6 +507,116 @@ public class AppointmentControllerIT {
                 .andExpect(jsonPath("$.error").value("Conflict"))
                 .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"))
                 .andExpect(jsonPath("$.message").value("Cannot transition appointment from CONFIRMED to CONFIRMED"));
+    }
+
+    @Test
+    void completeAppointment_shouldReturn200ok() throws Exception{
+        //Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.CONFIRMED);
+
+        Appointment saved = appointmentRepository.save(appointment);
+        LocalDateTime originalUpdatedAt = saved.getUpdatedAt();
+
+        mockMvc.perform(post(BASE_URL + "/{id}/complete", saved.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        // Then
+        Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(AppointmentStatus.COMPLETED);
+        assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
+    }
+
+    @Test
+    void completeAppointment_whenCancelled_shouldReturnConflict() throws Exception{
+        // Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        // When + Then
+        mockMvc.perform(post(BASE_URL + "/{id}/complete", saved.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"))
+                .andExpect(jsonPath("$.message").value("Cannot transition appointment from CANCELLED to COMPLETED"));
+
+    }
+
+    @Test
+    void markAppointmentAsNoShow_shouldReturn200Ok() throws Exception{
+        //Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.CONFIRMED);
+
+        Appointment saved = appointmentRepository.save(appointment);
+        LocalDateTime originalUpdatedAt = saved.getUpdatedAt();
+
+        mockMvc.perform(post(BASE_URL + "/{id}/no-show", saved.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.status").value("NO_SHOW"));
+
+        // Then
+        Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(AppointmentStatus.NO_SHOW);
+        assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
+    }
+
+    @Test
+    void markAppointmentAsNoShow_whenCancelled_shouldReturnConflict() throws Exception{
+        // Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        // When + Then
+        mockMvc.perform(post(BASE_URL + "/{id}/no-show", saved.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"))
+                .andExpect(jsonPath("$.message").value("Cannot transition appointment from CANCELLED to NO_SHOW"));
+
     }
 
     @Test

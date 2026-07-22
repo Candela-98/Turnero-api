@@ -24,5 +24,9 @@ public interface AppointmentService {
 
     AppointmentResponseDto cancelAppointment(Long appointmentId, AppointmentCancelRequestDto request);
 
+    AppointmentResponseDto completeAppointment(Long appointmentId);
+
+    AppointmentResponseDto markAppointmentAsNoShow(Long appointmentId);
+
 
 }
