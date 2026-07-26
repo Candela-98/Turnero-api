@@ -3,10 +3,15 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
+<<<<<<< HEAD
+import com.turnero.api.dto.AppointmentUpdateRequestDto;
+=======
+>>>>>>> develop
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
+import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
@@ -62,6 +67,20 @@ class AppointmentServiceImplTest {
                 .build();
     }
 
+<<<<<<< HEAD
+    private AppointmentUpdateRequestDto getUpdateRequestDto(){
+        return AppointmentUpdateRequestDto.builder()
+                .customerId(1L)
+                .serviceOfferingId(2L)
+                .staffMemberId(3L)
+                .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
+                .customerNotes("Notes")
+                .internalNotes("VIP customer")
+                .build();
+    }
+
+=======
+>>>>>>> develop
     @Test
     void saveAppointment() {
         Long businessId = 1L;
@@ -93,7 +112,11 @@ class AppointmentServiceImplTest {
         when(servOfferingRepository.existsByIdAndBusinessId(2L, businessId)).thenReturn(true);
         when(staffMemberRepository.existsByIdAndBusinessId(3L, businessId)).thenReturn(true);
 
+<<<<<<< HEAD
+        when(appointmentRepository.findByStaffMemberIdAndBusinessId(3L, businessId)).thenReturn(List.of());
+=======
         when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
+>>>>>>> develop
         when(appointmentRepository.save(appointment)).thenReturn(appointment);
         when(appointmentMapper.toResponseDto(appointment)).thenReturn(responseDto);
 
@@ -127,7 +150,11 @@ class AppointmentServiceImplTest {
         when(servOfferingRepository.existsByIdAndBusinessId(2L, businessId)).thenReturn(true);
         when(staffMemberRepository.existsByIdAndBusinessId(3L, businessId)).thenReturn(true);
 
+<<<<<<< HEAD
+        when(appointmentRepository.findByStaffMemberIdAndBusinessId(3L, businessId)).thenReturn(List.of());
+=======
         when(appointmentRepository.findByStaffMemberId(3L)).thenReturn(List.of());
+>>>>>>> develop
 
         doThrow(new RuntimeException("Error saving")).when(appointmentRepository).save(appointment);
         assertThrows(RuntimeException.class, () -> appointmentService.saveAppointment(request));
@@ -237,7 +264,11 @@ class AppointmentServiceImplTest {
          when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(servOfferingRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(staffMemberRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+<<<<<<< HEAD
+         when(appointmentRepository.findByStaffMemberIdAndBusinessId(1L, businessId)).thenReturn(List.of(existingAppointment));
+=======
          when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
+>>>>>>> develop
          when(appointmentMapper.toEntity(request)).thenReturn(newAppointment);
 
          // When + Then
@@ -278,7 +309,11 @@ class AppointmentServiceImplTest {
          when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(servOfferingRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
          when(staffMemberRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+<<<<<<< HEAD
+         when(appointmentRepository.findByStaffMemberIdAndBusinessId(1L, businessId)).thenReturn(List.of(existingAppointment));
+=======
          when(appointmentRepository.findByStaffMemberId(1L)).thenReturn(List.of(existingAppointment));
+>>>>>>> develop
          when(appointmentRepository.save(newAppointment)).thenReturn(newAppointment);
          when(appointmentMapper.toResponseDto(newAppointment)).thenReturn(AppointmentResponseDto.builder().id(1L).build());
 
@@ -354,40 +389,55 @@ class AppointmentServiceImplTest {
         LocalDateTime originalCreatedAt = LocalDateTime.now().minusDays(1);
         LocalDateTime originalUpdatedAt = LocalDateTime.now().minusDays(1);
 
-        Appointment current = new Appointment();
-        current.setId(id);
-        current.setCreatedAt(originalCreatedAt);
-        current.setUpdatedAt(originalUpdatedAt);
+        Appointment current = Appointment.builder()
+                .id(id)
+                .businessId(businessId)
+                .customerId(1L)
+                .serviceOfferingId(2L)
+                .staffMemberId(3L)
+                .startsAt(LocalDateTime.of(2026, 2, 15, 9, 0))
+                .durationMinutes(30)
+                .priceCents(10000)
+                .createdAt(originalCreatedAt)
+                .updatedAt(originalUpdatedAt)
+                .build();
 
-        Appointment updateAppointment = new Appointment();
-        updateAppointment.setCustomerId(10L);
-        updateAppointment.setServiceOfferingId(20L);
-        updateAppointment.setStaffMemberId(30L);
-        updateAppointment.setStartsAt(java.time.LocalDateTime.of(2026, 2, 15, 10, 0));
-        updateAppointment.setDurationMinutes(45);
-        updateAppointment.setStatus(AppointmentStatus.CONFIRMED);
-        updateAppointment.setCustomerNotes("Notes");
+        AppointmentUpdateRequestDto request = getUpdateRequestDto();
+        request.setCustomerId(10L);
+        request.setStaffMemberId(30L);
+        request.setStartsAt(LocalDateTime.of(2026, 2, 15, 10, 0));
 
+<<<<<<< HEAD
+        AppointmentResponseDto response = AppointmentResponseDto.builder()
+                .id(id)
+                .build();
+=======
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
         when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
         when(customerRepository.existsByIdAndBusinessId(10L, 1L)).thenReturn(true);
         when(servOfferingRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(true);
         when(staffMemberRepository.existsByIdAndBusinessId(30L, 1L)).thenReturn(true);
+>>>>>>> develop
 
-        appointmentService.updateAppointment(updateAppointment, id);
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId))
+                .thenReturn(Optional.of(current));
 
-        verify(appointmentRepository, times(1)).save(current);
+        when(customerRepository.existsByIdAndBusinessId(10L, businessId)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(30L, businessId)).thenReturn(true);
+
+        when(appointmentRepository.findByStaffMemberIdAndBusinessId(30L, businessId)).thenReturn(List.of());
+
+        when(appointmentRepository.save(current)).thenReturn(current);
+        when(appointmentMapper.toResponseDto(current)).thenReturn(response);
+
+        appointmentService.updateAppointment(id, request);
+
+        verify(appointmentRepository).save(current);
 
         assertEquals(10L, current.getCustomerId());
-        assertEquals(20L, current.getServiceOfferingId());
         assertEquals(30L, current.getStaffMemberId());
-        assertEquals(java.time.LocalDateTime.of(2026, 2, 15, 10, 0), current.getStartsAt());
-        assertEquals(45, current.getDurationMinutes());
-        assertEquals(AppointmentStatus.CONFIRMED, current.getStatus());
-        assertEquals("Notes", current.getCustomerNotes());
-
         assertEquals(originalCreatedAt, current.getCreatedAt());
-        assertNotNull(current.getUpdatedAt());
         assertTrue(current.getUpdatedAt().isAfter(originalUpdatedAt));
     }
 
@@ -398,20 +448,31 @@ class AppointmentServiceImplTest {
 
         Appointment currentAppointment = Appointment.builder()
                 .id(id)
-                .customerId(10L)
-                .serviceOfferingId(20L)
-                .staffMemberId(30L)
+                .businessId(businessId)
+                .customerId(1L)
+                .serviceOfferingId(2L)
+                .staffMemberId(3L)
                 .startsAt(LocalDateTime.of(2026, 2, 15, 9, 0))
                 .durationMinutes(30)
                 .build();
 
         Appointment overlappingAppointment = Appointment.builder()
                 .id(2L)
-                .staffMemberId(30L)
+                .staffMemberId(3L)
                 .startsAt(LocalDateTime.of(2026, 2, 15, 10, 0))
                 .durationMinutes(60)
                 .build();
 
+<<<<<<< HEAD
+        AppointmentUpdateRequestDto request = getUpdateRequestDto();
+        request.setStartsAt(LocalDateTime.of(2026, 2, 15, 10, 30));
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(currentAppointment));
+        when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(3L, businessId)).thenReturn(true);
+        when(appointmentRepository.findByStaffMemberIdAndBusinessId(3L, businessId)).thenReturn(List.of(currentAppointment, overlappingAppointment));
+        assertThrows(AppointmentOverlapException.class, () -> appointmentService.updateAppointment(id, request));
+=======
         Appointment updateAppointment = Appointment.builder()
                 .customerId(10L)
                 .serviceOfferingId(20L)
@@ -433,6 +494,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(AppointmentOverlapException.class,
                 () -> appointmentService.updateAppointment(updateAppointment, id));
+>>>>>>> develop
 
         verify(appointmentRepository, never()).save(any());
     }
@@ -445,21 +507,69 @@ class AppointmentServiceImplTest {
 
         Appointment existingAppointment = Appointment.builder()
                 .id(id)
+                .businessId(businessId)
                 .staffMemberId(1L)
                 .customerId(1L)
-                .serviceOfferingId(1L)
+                .serviceOfferingId(2L)
                 .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
                 .durationMinutes(30)
+                .createdAt(LocalDateTime.now().minusDays(1))
+                .updatedAt(LocalDateTime.now().minusDays(1))
                 .build();
 
-        Appointment appointmentUpdate = Appointment.builder()
-                .staffMemberId(1L)
+        AppointmentUpdateRequestDto request = getUpdateRequestDto();
+        request.setCustomerId(1L);
+        request.setServiceOfferingId(2L);
+        request.setStaffMemberId(1L);
+
+        // When + then
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(existingAppointment));
+        when(customerRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+        when(staffMemberRepository.existsByIdAndBusinessId(1L, businessId)).thenReturn(true);
+        when(appointmentRepository.findByStaffMemberIdAndBusinessId(1L, businessId)).thenReturn(List.of(existingAppointment));
+        when(appointmentRepository.save(existingAppointment)).thenReturn(existingAppointment);
+        when(appointmentMapper.toResponseDto(existingAppointment)).thenReturn(AppointmentResponseDto.builder().id(id).build());
+
+        appointmentService.updateAppointment(id, request);
+        verify(appointmentRepository).save(existingAppointment);
+    }
+
+    @Test
+    void updateAppointment_whenServiceChanges_shouldRecalculateSnapshots() {
+        Long id = 1L;
+        Long businessId = 1L;
+
+        LocalDateTime startsAt = LocalDateTime.of(2026, 5, 15, 10, 0);
+        LocalDateTime originalCreatedAt = LocalDateTime.now().minusDays(1);
+        LocalDateTime originalUpdatedAt = LocalDateTime.now().minusDays(1);
+
+        Appointment existingAppointment = Appointment.builder()
+                .id(id)
+                .businessId(businessId)
                 .customerId(1L)
-                .serviceOfferingId(1L)
-                .startsAt(LocalDateTime.of(2026, 5, 15, 10, 0))
+                .serviceOfferingId(2L)
+                .staffMemberId(3L)
+                .startsAt(startsAt)
+                .endsAt(startsAt.plusMinutes(30))
                 .durationMinutes(30)
+                .priceCents(10000)
+                .createdAt(originalCreatedAt)
+                .updatedAt(originalUpdatedAt)
                 .build();
 
+<<<<<<< HEAD
+        AppointmentUpdateRequestDto request = AppointmentUpdateRequestDto.builder()
+                .serviceOfferingId(20L)
+                .build();
+
+        ServiceOffering newService = ServiceOffering.builder()
+                .id(20L)
+                .businessId(businessId)
+                .durationMinutes(60)
+                .priceCents(25000)
+                .build();
+=======
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
         when(appointmentRepository.findByIdAndBusinessId(id, businessId))
                 .thenReturn(Optional.of(existingAppointment));
@@ -467,14 +577,33 @@ class AppointmentServiceImplTest {
         when(customerRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
         when(servOfferingRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
         when(staffMemberRepository.existsByIdAndBusinessId(1L, 1L)).thenReturn(true);
+>>>>>>> develop
 
-        when(appointmentRepository.findByStaffMemberId(1L))
-                .thenReturn(List.of(existingAppointment));
+        AppointmentResponseDto responseDto = AppointmentResponseDto.builder()
+                .id(id)
+                .serviceOfferingId(20L)
+                .durationMinutes(60)
+                .priceCents(25000)
+                .startsAt(startsAt)
+                .endsAt(startsAt.plusMinutes(60))
+                .build();
 
-        // When
-        appointmentService.updateAppointment(appointmentUpdate, id);
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(existingAppointment));
+        when(servOfferingRepository.findByIdAndBusinessId(20L, businessId)).thenReturn(Optional.of(newService));
+        when(appointmentRepository.findByStaffMemberIdAndBusinessId(3L, businessId)).thenReturn(List.of());
+        when(appointmentRepository.save(existingAppointment)).thenReturn(existingAppointment);
+        when(appointmentMapper.toResponseDto(existingAppointment)).thenReturn(responseDto);
 
-        // Then
+        AppointmentResponseDto result = appointmentService.updateAppointment(id, request);
+        assertNotNull(result);
+        assertEquals(20L, existingAppointment.getServiceOfferingId());
+        assertEquals(60, existingAppointment.getDurationMinutes());
+        assertEquals(25000, existingAppointment.getPriceCents());
+        assertEquals(startsAt.plusMinutes(60), existingAppointment.getEndsAt());
+        assertEquals(originalCreatedAt, existingAppointment.getCreatedAt());
+        assertTrue(existingAppointment.getUpdatedAt().isAfter(originalUpdatedAt));
+
         verify(appointmentRepository).save(existingAppointment);
     }
 

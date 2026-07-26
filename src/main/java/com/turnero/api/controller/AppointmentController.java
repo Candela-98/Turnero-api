@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
+import com.turnero.api.dto.AppointmentUpdateRequestDto;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.openapi.*;
@@ -67,14 +68,17 @@ public class AppointmentController {
 
     @Operation(
             summary = "Actualizar turno",
-            description = "Actualiza los detalles de un turno específico utilizando su ID"
+            description = "Actualiza parcialmente los datos permitidos de un turno específico"
     )
     @ApiUpdateResponses
-    @PutMapping("/{id}")
-    public ResponseEntity<Appointment> updateAppointment(@Valid @RequestBody AppointmentRequestDto appointmentDto, @PathVariable Long id) {
-        var appointment = appointmentMapper.toEntity(appointmentDto);
-        appointmentService.updateAppointment(appointment, id);
-        return ResponseEntity.noContent().build();
+    @PatchMapping("/{id}")
+    public ResponseEntity<AppointmentResponseDto> updateAppointment(
+            @PathVariable Long id, @Valid @RequestBody AppointmentUpdateRequestDto request) {
+
+        AppointmentResponseDto response =
+                appointmentService.updateAppointment(id, request);
+
+        return ResponseEntity.ok(response);
     }
 
     @Operation(

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.controller.AppointmentController;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
+import com.turnero.api.dto.AppointmentUpdateRequestDto;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.*;
 import com.turnero.api.model.enums.AppointmentStatus;
@@ -134,6 +135,17 @@ public class AppointmentControllerIT {
                 .name("Corte")
                 .durationMinutes(60)
                 .priceCents(15000)
+                .build();
+    }
+
+    private AppointmentUpdateRequestDto getAppointmentUpdateRequestDto() {
+        return AppointmentUpdateRequestDto.builder()
+                .customerId(1L)
+                .serviceOfferingId(1L)
+                .staffMemberId(1L)
+                .startsAt(LocalDateTime.now().plusDays(2))
+                .customerNotes("Updated appointment")
+                .internalNotes("Internal notes")
                 .build();
     }
 
@@ -337,7 +349,7 @@ public class AppointmentControllerIT {
     }
 
     @Test
-    void updateAppointment_whenRequestIsValid_updatesAppointment_andReturns204() throws Exception{
+    void updateAppointment_whenRequestIsValid_updatesAppointment_andReturns200() throws Exception{
         //Given
         Customer customer = customerRepository.save(getCustomerEntity());
         ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
@@ -355,32 +367,36 @@ public class AppointmentControllerIT {
         LocalDateTime originalCreatedAt = saved.getCreatedAt();
         LocalDateTime originalUpdatedAt = saved.getUpdatedAt();
 
-        AppointmentRequestDto dto = getAppointmentRequestDto();
+        AppointmentUpdateRequestDto dto = getAppointmentUpdateRequestDto();
         dto.setCustomerId(customer.getId());
         dto.setServiceOfferingId(serviceOffering.getId());
         dto.setStaffMemberId(staffMember.getId());
         dto.setStartsAt(LocalDateTime.now().plusDays(2));
-        dto.setDurationMinutes(30);
-        dto.setStatus(AppointmentStatus.CONFIRMED); // o el que tengas
         dto.setCustomerNotes("Updated appointment");
 
         // When
+<<<<<<< HEAD
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
+=======
         mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+>>>>>>> develop
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         // Then
         Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
 
         assertThat(updated.getStartsAt()).isEqualTo(dto.getStartsAt());
-        assertThat(updated.getDurationMinutes()).isEqualTo(30);
+        assertThat(updated.getDurationMinutes()).isEqualTo(60);
         assertThat(updated.getCustomerNotes()).isEqualTo("Updated appointment");
         assertThat(updated.getCreatedAt()).isEqualTo(originalCreatedAt);
         assertThat(updated.getUpdatedAt()).isNotNull();
         assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
     }
 
+<<<<<<< HEAD
+=======
     @Test
     void uPDateAppointment_whenCustomerInformationIsMissing_returns400() throws Exception{
         //Given
@@ -410,6 +426,7 @@ public class AppointmentControllerIT {
 
         assertThat(appointmentRepository.findById(saved.getId())).isPresent();
     }
+>>>>>>> develop
 
     // El mismo test se puede hacer para serviceOffering y staffMember, pero por brevedad solo se muestra para customer
     @Test
@@ -418,11 +435,15 @@ public class AppointmentControllerIT {
         Appointment appointment = getAppointment();
         Appointment saved = appointmentRepository.save(appointment);
 
-        AppointmentRequestDto dto = getAppointmentRequestDto();
+        AppointmentUpdateRequestDto dto = getAppointmentUpdateRequestDto();
         dto.setCustomerId(999L);
 
         // When + Then
+<<<<<<< HEAD
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
+=======
         mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+>>>>>>> develop
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound())

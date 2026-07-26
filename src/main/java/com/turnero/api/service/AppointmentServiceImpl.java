@@ -3,11 +3,19 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
+<<<<<<< HEAD
+import com.turnero.api.dto.AppointmentUpdateRequestDto;
+=======
+>>>>>>> develop
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.Customer;
+<<<<<<< HEAD
+import com.turnero.api.model.ServiceOffering;
+=======
+>>>>>>> develop
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
@@ -61,10 +69,12 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private void validateNoOverlap(Long staffMemberId, LocalDateTime newStart,int durationMinutes,
-                                   Long appointmentIdToExclude) {
+                                   Long appointmentIdToExclude, Long businessId) {
 
         LocalDateTime newEnd = newStart.plusMinutes(durationMinutes);
-        List<Appointment> staffAppointments = appointmentRepository.findByStaffMemberId(staffMemberId);
+        List<Appointment> staffAppointments = appointmentRepository.findByStaffMemberIdAndBusinessId(
+                        staffMemberId,
+                        businessId);
         boolean hasOverlap = staffAppointments.stream()
                 .filter(existing -> appointmentIdToExclude == null
                         || !existing.getId().equals(appointmentIdToExclude))
@@ -95,7 +105,8 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.getStaffMemberId(),
                 appointment.getStartsAt(),
                 appointment.getDurationMinutes(),
-                null
+                null,
+                businessId
         );
 
         LocalDateTime now = LocalDateTime.now();
@@ -123,6 +134,13 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+<<<<<<< HEAD
+    public AppointmentResponseDto updateAppointment(Long id, AppointmentUpdateRequestDto request) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        Appointment existingAppointment = appointmentRepository.findByIdAndBusinessId(id, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
+=======
     public void updateAppointment(Appointment appointment, Long id) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
@@ -131,29 +149,63 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setBusinessId(businessId);
 
         validateReferences(appointment, businessId);
+>>>>>>> develop
 
-        validateNoOverlap(
-                appointment.getStaffMemberId(),
-                appointment.getStartsAt(),
-                appointment.getDurationMinutes(),
-                id
+        if (request.getCustomerId() != null) {
+            if (!customerRepository.existsByIdAndBusinessId(request.getCustomerId(), businessId)) {
+                throw new ResourceNotFoundException("Customer not found.");
+            }
+            existingAppointment.setCustomerId(request.getCustomerId());
+        }
+
+        if (request.getStaffMemberId() != null) {
+            if (!staffMemberRepository.existsByIdAndBusinessId(request.getStaffMemberId(), businessId)) {
+                throw new ResourceNotFoundException("Staff member not found.");
+            }
+            existingAppointment.setStaffMemberId(request.getStaffMemberId());
+        }
+
+        boolean serviceChanged = request.getServiceOfferingId() != null && !request.getServiceOfferingId()
+                .equals(existingAppointment.getServiceOfferingId());
+
+        if (serviceChanged) {
+            ServiceOffering serviceOffering = serviceRepository.findByIdAndBusinessId(request.getServiceOfferingId(), businessId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Service offering not found."));
+
+            existingAppointment.setServiceOfferingId(serviceOffering.getId());
+            existingAppointment.setDurationMinutes(serviceOffering.getDurationMinutes());
+            existingAppointment.setPriceCents(serviceOffering.getPriceCents());
+        }
+
+        if (request.getStartsAt() != null) {
+            existingAppointment.setStartsAt(request.getStartsAt());
+        }
+
+        if (serviceChanged || request.getStartsAt() != null) {
+            existingAppointment.setEndsAt(existingAppointment.getStartsAt().plusMinutes(
+                            existingAppointment.getDurationMinutes()));
+        }
+
+        if (request.getCustomerNotes() != null) {
+            existingAppointment.setCustomerNotes(request.getCustomerNotes());
+        }
+
+        if (request.getInternalNotes() != null) {
+            existingAppointment.setInternalNotes(request.getInternalNotes());
+        }
+
+        validateNoOverlap(existingAppointment.getStaffMemberId(),
+                existingAppointment.getStartsAt(),
+                existingAppointment.getDurationMinutes(),
+                id,
+                businessId
         );
 
-        existAppointment.setCustomerId(appointment.getCustomerId());
-        existAppointment.setServiceOfferingId(appointment.getServiceOfferingId());
-        existAppointment.setStaffMemberId(appointment.getStaffMemberId());
-        existAppointment.setStartsAt(appointment.getStartsAt());
-        existAppointment.setEndsAt(appointment.getEndsAt());
-        existAppointment.setDurationMinutes(appointment.getDurationMinutes());
-        existAppointment.setPriceCents(appointment.getPriceCents());
-        existAppointment.setStatus(appointment.getStatus());
-        existAppointment.setSource(appointment.getSource());
-        existAppointment.setCustomerNotes(appointment.getCustomerNotes());
-        existAppointment.setInternalNotes(appointment.getInternalNotes());
-        existAppointment.setUpdatedAt(LocalDateTime.now());
+        existingAppointment.setUpdatedAt(LocalDateTime.now());
+        Appointment updatedAppointment = appointmentRepository.save(existingAppointment);
+        log.info("Appointment with id={} businessId={} successfully updated.", id, businessId);
 
-        appointmentRepository.save(existAppointment);
-        log.info("Appointment with id={} successfully updated.", id);
+        return appointmentMapper.toResponseDto(updatedAppointment);
     }
 
     @Override
