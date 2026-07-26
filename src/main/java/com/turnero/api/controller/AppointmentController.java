@@ -92,6 +92,18 @@ public class AppointmentController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/complete")
+    public ResponseEntity<AppointmentResponseDto> completeAppointment(@PathVariable Long id) {
+        AppointmentResponseDto response = appointmentService.completeAppointment(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/no-show")
+    public ResponseEntity<AppointmentResponseDto> markAppointmentAsNoShow(@PathVariable Long id) {
+        AppointmentResponseDto response = appointmentService.markAppointmentAsNoShow(id);
+        return ResponseEntity.ok(response);
+    }
+
     @Operation(
             summary = "Eliminar turno",
             description = "Elimina un turno específico utilizando su ID"

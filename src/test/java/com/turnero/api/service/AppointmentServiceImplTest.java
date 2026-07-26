@@ -709,6 +709,145 @@ class AppointmentServiceImplTest {
     }
 
     @Test
+    void completeAppointment_whenConfirmed_shouldCompleteAndSave() {
+        Long appointmentId = 1L;
+        Long businessId = 1L;
+        LocalDateTime originalUpdatedAt = LocalDateTime.now().minusDays(1);
+
+        Appointment appointment = Appointment.builder()
+                .id(appointmentId)
+                .businessId(businessId)
+                .status(AppointmentStatus.CONFIRMED)
+                .updatedAt(originalUpdatedAt)
+                .build();
+
+        AppointmentResponseDto responseDto = AppointmentResponseDto.builder()
+                .id(appointmentId)
+                .status(AppointmentStatus.COMPLETED)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(appointmentId, businessId)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.save(appointment)).thenReturn(appointment);
+        when(appointmentMapper.toResponseDto(appointment)).thenReturn(responseDto);
+
+        AppointmentResponseDto result = appointmentService.completeAppointment(appointmentId);
+
+        assertNotNull(result);
+        assertEquals(AppointmentStatus.COMPLETED, result.getStatus());
+        assertEquals(AppointmentStatus.COMPLETED, appointment.getStatus());
+        assertTrue(appointment.getUpdatedAt().isAfter(originalUpdatedAt));
+
+        verify(currentBusinessContext).getCurrentBusinessId();
+        verify(appointmentRepository).findByIdAndBusinessId(appointmentId, businessId);
+        verify(appointmentRepository).save(appointment);
+        verify(appointmentMapper).toResponseDto(appointment);
+    }
+
+    @Test
+    void completeAppointment_whenCancelled_shouldThrowInvalidStateTransition() {
+        Long appointmentId = 1L;
+        Long businessId = 1L;
+
+        Appointment appointment = Appointment.builder()
+                .id(appointmentId)
+                .businessId(businessId)
+                .status(AppointmentStatus.CANCELLED)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(appointmentId, businessId)).thenReturn(Optional.of(appointment));
+
+        InvalidStateTransitionException exception = assertThrows(InvalidStateTransitionException.class, ()
+                -> appointmentService.completeAppointment(appointmentId));
+
+        assertEquals("Cannot transition appointment from CANCELLED to COMPLETED", exception.getMessage());
+
+        verify(currentBusinessContext).getCurrentBusinessId();
+        verify(appointmentRepository).findByIdAndBusinessId(appointmentId, businessId);
+        verify(appointmentRepository, never()).save(any(Appointment.class));
+        verify(appointmentMapper, never()).toResponseDto(any(Appointment.class));
+    }
+
+    @Test
+    void completeAppointment_whenAppointmentBelongsToAnotherBusiness_shouldThrowNotFound() {
+        Long appointmentId = 1L;
+        Long currentBusinessId = 1L;
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(currentBusinessId);
+        when(appointmentRepository.findByIdAndBusinessId(appointmentId, currentBusinessId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, ()
+                -> appointmentService.completeAppointment(appointmentId));
+
+        assertEquals("Appointment not found with ID: " + appointmentId, exception.getMessage());
+
+        verify(appointmentRepository).findByIdAndBusinessId(appointmentId, currentBusinessId);
+        verify(appointmentRepository, never()).save(any(Appointment.class));
+        verify(appointmentMapper, never()).toResponseDto(any(Appointment.class));
+    }
+
+    @Test
+    void markAppointmentAsNoShow_whenConfirmed_shouldMarkAsNoShowAndSave(){
+        Long appointmentId = 1L;
+        Long businessId = 1L;
+        LocalDateTime originalUpdatedAt = LocalDateTime.now().minusDays(1);
+
+        Appointment appointment = Appointment.builder()
+                .id(appointmentId)
+                .businessId(businessId)
+                .status(AppointmentStatus.CONFIRMED)
+                .updatedAt(originalUpdatedAt)
+                .build();
+
+        AppointmentResponseDto responseDto = AppointmentResponseDto.builder()
+                .id(appointmentId)
+                .status(AppointmentStatus.NO_SHOW)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(appointmentId, businessId)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.save(appointment)).thenReturn(appointment);
+        when(appointmentMapper.toResponseDto(appointment)).thenReturn(responseDto);
+
+        AppointmentResponseDto result = appointmentService.markAppointmentAsNoShow(appointmentId);
+
+        assertNotNull(result);
+        assertEquals(AppointmentStatus.NO_SHOW, result.getStatus());
+        assertEquals(AppointmentStatus.NO_SHOW, appointment.getStatus());
+        assertTrue(appointment.getUpdatedAt().isAfter(originalUpdatedAt));
+
+        verify(currentBusinessContext).getCurrentBusinessId();
+        verify(appointmentRepository).findByIdAndBusinessId(appointmentId, businessId);
+        verify(appointmentRepository).save(appointment);
+        verify(appointmentMapper).toResponseDto(appointment);
+    }
+
+    @Test
+    void markAppointmentAsNoShow_whenCancelled_shouldThrowInvalidStateTransition() {
+        Long appointmentId = 1L;
+        Long businessId = 1L;
+
+        Appointment appointment = Appointment.builder()
+                .id(appointmentId)
+                .businessId(businessId)
+                .status(AppointmentStatus.CANCELLED)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(appointmentRepository.findByIdAndBusinessId(appointmentId, businessId)).thenReturn(Optional.of(appointment));
+
+        InvalidStateTransitionException exception = assertThrows(InvalidStateTransitionException.class,
+                () -> appointmentService.markAppointmentAsNoShow(appointmentId));
+
+        assertEquals("Cannot transition appointment from CANCELLED to NO_SHOW", exception.getMessage());
+
+        verify(appointmentRepository).findByIdAndBusinessId(appointmentId, businessId);
+        verify(appointmentRepository, never()).save(any(Appointment.class));
+        verify(appointmentMapper, never()).toResponseDto(any(Appointment.class));
+    }
+
+    @Test
     void deleteAppointment_whenExists_shouldDelete() {
         Long id = 1L;
         Long businessId = 1L;

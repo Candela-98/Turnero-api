@@ -330,8 +330,7 @@ public class AppointmentControllerTest {
                 .status(AppointmentStatus.CONFIRMED)
                 .build();
 
-        when(appointmentService.confirmAppointment(id))
-                .thenReturn(response);
+        when(appointmentService.confirmAppointment(id)).thenReturn(response);
 
         mockMvc.perform(post(BASE_URL + "/{id}/confirm", id))
                 .andExpect(status().isOk())
@@ -392,6 +391,45 @@ public class AppointmentControllerTest {
         verify(appointmentService).cancelAppointment(eq(id), any(AppointmentCancelRequestDto.class));
     }
 
+    @Test
+    void completeAppointment_shouldReturnCompletedAppointment() throws Exception{
+        Long id = 1L;
+
+        AppointmentResponseDto responseDto = AppointmentResponseDto.builder()
+                .id(id)
+                .status(AppointmentStatus.COMPLETED)
+                .build();
+
+        when(appointmentService.completeAppointment(id)).thenReturn(responseDto);
+
+        mockMvc.perform(post(BASE_URL + "/{id}/complete", id))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        verify(appointmentService).completeAppointment(id);
+    }
+
+    @Test
+    void markAppointmentAsNoShow_shouldReturnNoShowAppointment() throws Exception{
+        Long id = 1L;
+
+        AppointmentResponseDto responseDto = AppointmentResponseDto.builder()
+                .id(id)
+                .status(AppointmentStatus.NO_SHOW)
+                .build();
+
+        when(appointmentService.markAppointmentAsNoShow(id)).thenReturn(responseDto);
+
+        mockMvc.perform(post(BASE_URL + "/{id}/no-show", id))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.status").value("NO_SHOW"));
+
+        verify(appointmentService).markAppointmentAsNoShow(id);
+    }
 
     @Test
     void deleteAppointment_ok_shouldReturn200_andCallService() throws Exception{
