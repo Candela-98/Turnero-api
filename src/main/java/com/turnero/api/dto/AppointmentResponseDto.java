@@ -48,6 +48,9 @@ public class AppointmentResponseDto {
     @Schema(description = "Internal notes for the appointment", example = "VIP customer")
     private String internalNotes;
 
+    @Schema(description = "Reason provided when the appointment was cancelled", example = "Customer requested cancellation")
+    private String cancellationReason;
+
     @Schema(description = "Appointment creation date and time", example = "2024-12-01T10:00:00")
     private LocalDateTime createdAt;
 

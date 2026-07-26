@@ -3,6 +3,7 @@ package com.turnero.api.integration;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.controller.AppointmentController;
+import com.turnero.api.dto.AppointmentCancelRequestDto;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.dto.AppointmentUpdateRequestDto;
@@ -375,11 +376,7 @@ public class AppointmentControllerIT {
         dto.setCustomerNotes("Updated appointment");
 
         // When
-<<<<<<< HEAD
         mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
-=======
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
->>>>>>> develop
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
@@ -395,39 +392,6 @@ public class AppointmentControllerIT {
         assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
     }
 
-<<<<<<< HEAD
-=======
-    @Test
-    void uPDateAppointment_whenCustomerInformationIsMissing_returns400() throws Exception{
-        //Given
-        Appointment appointment = getAppointment();
-        Appointment saved = appointmentRepository.save(appointment);
-
-        AppointmentRequestDto dto = getAppointmentRequestDto();
-        dto.setCustomerId(null);
-        dto.setCustomerName(null);
-        dto.setCustomerEmail(null);
-
-
-        // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.message").value("Validation error"))
-                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.details[0].field").value("customerId"))
-                .andExpect(jsonPath("$.details[0].message").exists())
-                .andExpect(jsonPath("$.path").value(BASE_URL + "/" + saved.getId()))
-                .andExpect(jsonPath("$.timestamp").exists());
-
-        assertThat(appointmentRepository.findById(saved.getId())).isPresent();
-    }
->>>>>>> develop
-
     // El mismo test se puede hacer para serviceOffering y staffMember, pero por brevedad solo se muestra para customer
     @Test
     void updateAppointment_whenCustomerDoesNotExist_returns404() throws Exception{
@@ -439,11 +403,7 @@ public class AppointmentControllerIT {
         dto.setCustomerId(999L);
 
         // When + Then
-<<<<<<< HEAD
         mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
-=======
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
->>>>>>> develop
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound())
@@ -493,6 +453,161 @@ public class AppointmentControllerIT {
         assertThat(response).extracting(AppointmentResponseDto::getCustomerNotes)
                 .containsExactlyInAnyOrder("Test appointment", "Second appointment");
 
+    }
+
+    @Test
+    void confirmAppointment_whenPending_returns200AndUpdatesStatus() throws Exception{
+        // Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.PENDING);
+
+        Appointment saved = appointmentRepository.save(appointment);
+        LocalDateTime originalUpdatedAt = saved.getUpdatedAt();
+
+        // When
+        mockMvc.perform(post(BASE_URL + "/{id}/confirm", saved.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+        // Then
+        Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
+        assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
+    }
+
+    @Test
+    void confirmAppointment_whenNotPending_returns400() throws Exception{
+        // Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.CONFIRMED);
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        // When + Then
+        mockMvc.perform(post(BASE_URL + "/{id}/confirm", saved.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"))
+                .andExpect(jsonPath("$.message").value("Cannot transition appointment from CONFIRMED to CONFIRMED"));
+    }
+
+    @Test
+    void cancelAppointment_whenPending_returns200AndUpdatesStatus() throws Exception{
+        // Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.PENDING);
+
+        Appointment saved = appointmentRepository.save(appointment);
+        LocalDateTime originalUpdatedAt = saved.getUpdatedAt();
+
+        // When
+        mockMvc.perform(post(BASE_URL + "/{id}/cancel", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"cancellationReason\": \"Customer requested cancellation\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.cancellationReason").value("Customer requested cancellation"));
+
+        // Then
+        Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
+        assertThat(updated.getCancellationReason()).isEqualTo("Customer requested cancellation");
+        assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
+    }
+
+    @Test
+    void cancelAppointment_whenAlreadyCancelled_returns409() throws Exception {
+        // Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        AppointmentCancelRequestDto request = AppointmentCancelRequestDto.builder()
+                        .cancellationReason("Customer requested cancellation")
+                        .build();
+
+        // When + Then
+        mockMvc.perform(post(BASE_URL + "/{id}/cancel", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"))
+                .andExpect(jsonPath("$.message").value("Cannot transition appointment from CANCELLED to CANCELLED"));
+
+        Appointment unchanged = appointmentRepository.findById(saved.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
+    }
+
+    @Test
+    void cancelAppointment_whenConfirmed_returns200AndUpdatesStatus() throws Exception {
+        // Given
+        Customer customer = customerRepository.save(getCustomerEntity());
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+
+        Appointment appointment = getAppointment();
+        appointment.setCustomerId(customer.getId());
+        appointment.setServiceOfferingId(serviceOffering.getId());
+        appointment.setStaffMemberId(staffMember.getId());
+        appointment.setStatus(AppointmentStatus.CONFIRMED);
+
+        Appointment saved = appointmentRepository.save(appointment);
+        LocalDateTime originalUpdatedAt = saved.getUpdatedAt();
+
+        AppointmentCancelRequestDto request = AppointmentCancelRequestDto.builder()
+                .cancellationReason("Customer requested cancellation")
+                .build();
+
+        // When
+        mockMvc.perform(post(BASE_URL + "/{id}/cancel", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.cancellationReason").value("Customer requested cancellation"));
+
+        // Then
+        Appointment updated = appointmentRepository.findById(saved.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
+        assertThat(updated.getCancellationReason()).isEqualTo("Customer requested cancellation");
+        assertThat(updated.getUpdatedAt()).isAfter(originalUpdatedAt);
     }
 
     @Test

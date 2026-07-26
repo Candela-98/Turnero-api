@@ -2,9 +2,11 @@ package com.turnero.api.controller;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.dto.AppointmentCancelRequestDto;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
 import com.turnero.api.dto.AppointmentUpdateRequestDto;
+import com.turnero.api.exception.InvalidStateTransitionException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.enums.AppointmentStatus;
@@ -251,7 +253,6 @@ public class AppointmentControllerTest {
         given(appointmentService.updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class)))
                 .willReturn(response);
 
-<<<<<<< HEAD
         // When + Then
         mockMvc.perform(patch(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -265,16 +266,6 @@ public class AppointmentControllerTest {
 
         then(appointmentService).should().updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class));
         then(appointmentMapper).shouldHaveNoInteractions();
-=======
-        //When + Then
-            mockMvc.perform(put(BASE_URL + "/5")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isNoContent());
-            then(appointmentMapper).should().toEntity(any(AppointmentRequestDto.class));
-            then(appointmentService).should().updateAppointment(entity,id);
->>>>>>> develop
-
     }
 
     @Test
@@ -284,17 +275,11 @@ public class AppointmentControllerTest {
         AppointmentUpdateRequestDto request = getAppointmentUpdateRequestDto(id);
         request.setStartsAt(LocalDateTime.now().minusDays(1));
 
-<<<<<<< HEAD
+
         // When + Then
         mockMvc.perform(patch(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-=======
-        //When + Then
-        mockMvc.perform(put(BASE_URL + "/5")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dto)))
->>>>>>> develop
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
@@ -303,11 +288,9 @@ public class AppointmentControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details[0].field").value("startsAt"))
                 .andExpect(jsonPath("$.details[0].message").exists())
-<<<<<<< HEAD
                 .andExpect(jsonPath("$.path").value(BASE_URL + "/" + id))
-=======
                 .andExpect(jsonPath("$.path").value(BASE_URL + "/5"))
->>>>>>> develop
+
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(appointmentService).shouldHaveNoInteractions();
@@ -323,13 +306,9 @@ public class AppointmentControllerTest {
         given(appointmentService.updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class))).
                 willThrow(new ResourceNotFoundException("Customer not found."));
 
-<<<<<<< HEAD
+
         // When + Then
         mockMvc.perform(patch(BASE_URL + "/{id}", id)
-=======
-        //When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", id)
->>>>>>> develop
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -340,6 +319,77 @@ public class AppointmentControllerTest {
 
         then(appointmentService).should().updateAppointment(eq(id), any(AppointmentUpdateRequestDto.class));
         then(appointmentMapper).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void confirmAppointment_shouldReturnOk() throws Exception {
+        Long id = 1L;
+
+        AppointmentResponseDto response = AppointmentResponseDto.builder()
+                .id(id)
+                .status(AppointmentStatus.CONFIRMED)
+                .build();
+
+        when(appointmentService.confirmAppointment(id))
+                .thenReturn(response);
+
+        mockMvc.perform(post(BASE_URL + "/{id}/confirm", id))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+        verify(appointmentService).confirmAppointment(id);
+    }
+
+    @Test
+    void confirmAppointment_whenInvalidTransition_shouldReturnConflict() throws Exception {
+        Long id = 1L;
+
+        when(appointmentService.confirmAppointment(id)).thenThrow(new InvalidStateTransitionException(
+                        "Cannot transition appointment from CANCELLED to CONFIRMED"));
+
+        mockMvc.perform(post(BASE_URL + "/{id}/confirm", id))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"))
+                .andExpect(jsonPath("$.message").value("Cannot transition appointment from CANCELLED to CONFIRMED"))
+                .andExpect(jsonPath("$.path").value(BASE_URL + "/1/confirm"))
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        verify(appointmentService).confirmAppointment(id);
+    }
+
+    @Test
+    void cancelAppointment_shouldReturnOk() throws Exception {
+        Long id = 1L;
+
+        AppointmentCancelRequestDto request = AppointmentCancelRequestDto.builder()
+                .cancellationReason("Customer requested cancellation")
+                .build();
+
+        AppointmentResponseDto response = AppointmentResponseDto.builder()
+                .id(id)
+                .status(AppointmentStatus.CANCELLED)
+                .cancellationReason("Customer requested cancellation")
+                .build();
+
+        when(appointmentService.cancelAppointment(eq(id), any(AppointmentCancelRequestDto.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(post(BASE_URL + "/{id}/cancel", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.cancellationReason")
+                        .value("Customer requested cancellation"));
+
+        verify(appointmentService).cancelAppointment(eq(id), any(AppointmentCancelRequestDto.class));
     }
 
 
