@@ -4,8 +4,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.ServOfferingRequestDto;
 import com.turnero.api.dto.ServOfferingResponseDto;
+import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.mapper.ServiceOfferingMapper;
+import com.turnero.api.model.Appointment;
 import com.turnero.api.model.ServiceOffering;
+import com.turnero.api.model.enums.AppointmentStatus;
+import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.service.ServOfferingService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -49,6 +54,9 @@ public class ServOfferingControllerIT {
 
     @Autowired
     ServOfferingRepository servOfferingRepository;
+
+    @Autowired
+    AppointmentRepository appointmentRepository;
 
     private static final String BASE_URL = "/api/v1/service-offerings";
 
@@ -166,32 +174,38 @@ public class ServOfferingControllerIT {
         //Given
         ServiceOffering saved = servOfferingRepository.save(getServiceOffering());
 
-        ServOfferingRequestDto dto = getServOfferingRequestDto();
-        dto.setName("Corte");
-        dto.setDurationMinutes(45);
-        dto.setPriceCents(8000);
+        ServOfferingRequestDto dto = ServOfferingRequestDto.builder()
+                .name("Corte")
+                .durationMinutes(60)
+                .priceCents(10000)
+                .build();
 
         // When
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.name").value("Corte"))
+                .andExpect(jsonPath("$.duration_minutes").value(60))
+                .andExpect(jsonPath("$.price_cents").value(10000));
 
         // Then
         ServiceOffering updated = servOfferingRepository.findById(saved.getId()).orElseThrow();
         assertThat(updated.getName()).isEqualTo("Corte");
-        assertThat(updated.getDurationMinutes()).isEqualTo(45);
-        assertThat(updated.getPriceCents()).isEqualTo(8000);
+        assertThat(updated.getDurationMinutes()).isEqualTo(60);
+        assertThat(updated.getPriceCents()).isEqualTo(10000);
     }
 
     @Test
     void updateServiceOffering_whenNameIsNull_returns400() throws Exception{
         //Given
-        ServOfferingRequestDto dto = getServOfferingRequestDto();
-        dto.setName(null);
+        ServOfferingRequestDto dto = ServOfferingRequestDto.builder()
+                .name("")
+                .build();
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", 1L)
+        mockMvc.perform(patch(BASE_URL + "/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -231,6 +245,60 @@ public class ServOfferingControllerIT {
         assertThat(response).extracting(ServOfferingResponseDto::getName).containsExactlyInAnyOrder("Corte y barba", "Coloración");
         assertThat(response).extracting(ServOfferingResponseDto::getDurationMinutes).containsExactlyInAnyOrder(60, 90);
         assertThat(response).extracting(ServOfferingResponseDto::getPriceCents).containsExactlyInAnyOrder(10000, 15000);
+
+    }
+
+    @Test
+    void updateServiceOffering_whenAppointmentExists_shouldPreserveAppointmentSnapshots() throws Exception{
+        //Given
+        ServiceOffering serviceOffering = ServiceOffering.builder()
+                .businessId(1L)
+                .name("Corte y barba")
+                .durationMinutes(60)
+                .priceCents(10000)
+                .build();
+
+        ServiceOffering savedServiceOffering = servOfferingRepository.save(serviceOffering);
+        LocalDateTime startsAt = LocalDateTime.now().plusDays(1);
+
+        Appointment appointment = Appointment.builder()
+                .businessId(1L)
+                .customerId(1L)
+                .serviceOfferingId(savedServiceOffering.getId())
+                .staffMemberId(1L)
+                .startsAt(startsAt)
+                .endsAt(startsAt.plusMinutes(30))
+                .durationMinutes(30)
+                .priceCents(10000)
+                .status(AppointmentStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        ServOfferingUpdateRequestDto updateRequest = ServOfferingUpdateRequestDto.builder()
+                        .durationMinutes(60)
+                        .priceCents(25000)
+                        .build();
+
+        // When
+        mockMvc.perform(patch(BASE_URL + "/{id}", savedServiceOffering.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.duration_minutes").value(60))
+                .andExpect(jsonPath("$.price_cents").value(25000));
+
+        // Then
+        ServiceOffering updatedServiceOffering = servOfferingRepository.findById(savedServiceOffering.getId()).orElseThrow();
+        assertThat(updatedServiceOffering.getDurationMinutes()).isEqualTo(60);
+        assertThat(updatedServiceOffering.getPriceCents()).isEqualTo(25000);
+
+        Appointment unchangedAppointment = appointmentRepository.findById(savedAppointment.getId()).orElseThrow();
+        assertThat(unchangedAppointment.getDurationMinutes()).isEqualTo(30);
+        assertThat(unchangedAppointment.getPriceCents()).isEqualTo(10000);
+        assertThat(unchangedAppointment.getEndsAt()).isEqualTo(startsAt.plusMinutes(30));
 
     }
 

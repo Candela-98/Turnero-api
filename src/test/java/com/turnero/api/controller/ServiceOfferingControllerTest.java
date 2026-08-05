@@ -3,6 +3,7 @@ package com.turnero.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.ServOfferingRequestDto;
 import com.turnero.api.dto.ServOfferingResponseDto;
+import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
@@ -221,29 +222,49 @@ public class ServiceOfferingControllerTest {
     void updateServOffering_ok_shouldReturn200_andCallService() throws Exception{
         // Given
         Long id = 1L;
-        var dto = getServiceOfferingDto(id);
-        ServiceOffering entity = getServiceOfferingEntity(id);
-        given(sMapper.toEntity(any(ServOfferingRequestDto.class))).willReturn(entity);
+
+        var dto = ServOfferingUpdateRequestDto.builder()
+                .name("Corte y barba")
+                .durationMinutes(60)
+                .priceCents(10000)
+                .build();
+
+        var entity = getServiceOfferingEntity(id);
+        entity.setName("Corte y barba");
+        entity.setDurationMinutes(60);
+        entity.setPriceCents(10000);
+
+        var responseDto = getServiceOfferingResponseDto(id);
+        responseDto.setName("Corte y barba");
+        responseDto.setDurationMinutes(60);
+        responseDto.setPriceCents(10000);
+
+        given(servOfferingService.updateServOffering(any(ServOfferingUpdateRequestDto.class), eq(1L))).willReturn(entity);
+        given(sMapper.toResponseDto(entity)).willReturn(responseDto);
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/1")
+        mockMvc.perform(patch(BASE_URL + "/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Corte y barba"))
+                .andExpect(jsonPath("$.duration_minutes").value(60))
+                .andExpect(jsonPath("$.price_cents").value(10000));
 
-        then(sMapper).should().toEntity(any(ServOfferingRequestDto.class));
-        then(servOfferingService).should().updateServOffering(entity, 1L);
+        then(sMapper).should().toResponseDto(entity);
+        then(servOfferingService).should().updateServOffering(any(ServOfferingUpdateRequestDto.class), eq(id));
     }
 
     @Test
     void updateServOffering_withInvalidDto_shouldReturn400() throws Exception{
         //Given
-        Long id = 1L;
-        var dto = getServiceOfferingDto(id);
-        dto.setName("");
+        var dto = ServOfferingUpdateRequestDto.builder()
+                .name("")
+                .build();
 
         // When + Then
-        mockMvc.perform(put(BASE_URL+ "/1")
+        mockMvc.perform(patch(BASE_URL+ "/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())

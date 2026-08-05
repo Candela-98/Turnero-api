@@ -1,6 +1,7 @@
 package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
+import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.model.enums.ServiceOfferingStatus;
@@ -48,17 +49,34 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     }
 
     @Override
-    public void updateServOffering(ServiceOffering serviceOffering, Long id) {
+    public ServiceOffering updateServOffering(ServOfferingUpdateRequestDto servOfferigUpdateDto, Long id) {
         ServiceOffering currentServOffering = findServiceOffering(id);
 
-        currentServOffering.setName(serviceOffering.getName());
-        currentServOffering.setCategory(serviceOffering.getCategory());
-        currentServOffering.setDurationMinutes(serviceOffering.getDurationMinutes());
-        currentServOffering.setPriceCents(serviceOffering.getPriceCents());
-        currentServOffering.setStatus(serviceOffering.getStatus());
+        if (servOfferigUpdateDto.getName() != null) {
+            currentServOffering.setName(servOfferigUpdateDto.getName());
+        }
 
-        servOfferingRepository.save(currentServOffering);
+        if (servOfferigUpdateDto.getCategory() != null) {
+            currentServOffering.setCategory(servOfferigUpdateDto.getCategory());
+        }
+
+        if (servOfferigUpdateDto.getDurationMinutes() != null) {
+            currentServOffering.setDurationMinutes(servOfferigUpdateDto.getDurationMinutes());
+        }
+
+        if (servOfferigUpdateDto.getPriceCents() != null) {
+            currentServOffering.setPriceCents(servOfferigUpdateDto.getPriceCents());
+        }
+
+        if (servOfferigUpdateDto.getStatus() != null) {
+            currentServOffering.setStatus(servOfferigUpdateDto.getStatus());
+        }
+
+        ServiceOffering updatedServiceOffering = servOfferingRepository.save(currentServOffering);
+
         log.info("Service offering with id={} successfully updated.", id);
+
+        return updatedServiceOffering;
 
     }
 
