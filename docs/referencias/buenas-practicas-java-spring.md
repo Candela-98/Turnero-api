@@ -389,6 +389,8 @@ Cuando se pida un cambio a Codex, incluir:
 - Tests esperados.
 - Comando de verificacion.
 
+El prompt siguiente es un ejemplo historico de TURN-33. Reemplazar siempre la clave, el alcance y las fuentes por los de la subtarea activa; Jira y el tracking son la referencia de trabajo vigente.
+
 Prompt recomendado:
 
 ```text

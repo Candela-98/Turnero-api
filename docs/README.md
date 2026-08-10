@@ -15,14 +15,15 @@ Este archivo es el indice de documentacion backend. No es fuente tecnica complet
 
 ### Para retomar implementacion
 
-1. `mvp/proximos-pasos-mvp.md`
-2. `mvp/plan-migracion-backend-mvp.md`
-3. `mvp/schema-db-mvp.md`
-4. `mvp/flujos-funcionales-mvp.md`
-5. `mvp/auth/google-mvp.md`
-6. `mvp/api-contracts-mvp.md`
-7. `referencias/arquitectura-backend.md`
-8. `referencias/buenas-practicas-java-spring.md`
+1. `mvp/tracking-implementacion-mvp.md`
+2. `mvp/proximos-pasos-mvp.md`
+3. `mvp/plan-migracion-backend-mvp.md`
+4. `mvp/schema-db-mvp.md`
+5. `mvp/flujos-funcionales-mvp.md`
+6. `mvp/auth/google-mvp.md`
+7. `mvp/api-contracts-mvp.md`
+8. `referencias/arquitectura-backend.md`
+9. `referencias/buenas-practicas-java-spring.md`
 
 `referencias/guia-historias-tecnicas.md` se conserva como referencia para escribir historias tecnicas, pero no representa el backlog vigente.
 `referencias/arquitectura-backend.md` se conserva como guia practica de arquitectura backend.
@@ -31,7 +32,7 @@ El backlog activo vive en Jira bajo la epica `TURN-1`; `backlog-jira-mvp.md` es 
 
 ## Proyecto
 
-- Backend: Spring Boot 3.5, Java 21, Gradle, JPA, H2 en desarrollo/tests.
+- Backend: Spring Boot 3.5, Java 21, Gradle, JPA, PostgreSQL/Flyway en desarrollo y H2 para tests rapidos; Testcontainers valida migraciones sobre PostgreSQL.
 - Frontend de referencia: `../turnero-frontend`.
 - Fuente visual/funcional del MVP: pantallas aprobadas en Stitch.
 - Caso inicial: tiendas chicas, un negocio por cuenta, owner/admin inicial, booking publico sin login y agenda diaria como centro operativo.
@@ -89,12 +90,21 @@ Fuente para contratos HTTP MVP:
 
 ### `mvp/proximos-pasos-mvp.md`
 
-Fuente para estado y roadmap:
+Guia de prioridades estrategicas:
 
-- Que esta listo.
-- Que falta.
-- Brechas contra el backend actual.
-- Orden recomendado antes de codear.
+- Orden general de trabajo.
+- Riesgos transversales.
+- Referencias al documento fuente de cada decision.
+
+No contiene el estado detallado de implementacion ni el alcance de cada PR.
+
+### `mvp/tracking-implementacion-mvp.md`
+
+Fuente para estado real de implementacion:
+
+- PRs del plan ya mergeados en `develop`.
+- Proximo PR recomendado.
+- Alcances que no deben asumirse como completos todavia.
 
 ### `mvp/plan-migracion-backend-mvp.md`
 
@@ -143,10 +153,10 @@ Guia practica para implementar y revisar cambios Java/Spring Boot:
 
 ## Regla de Trabajo
 
-Antes de codear backend, mantener este orden:
+Para iniciar o retomar una subtarea backend, seguir este orden:
 
-1. Cerrar flujos funcionales.
-2. Definir contratos HTTP.
-3. Definir plan de migracion por PRs.
-4. Definir migraciones DB.
-5. Implementar incrementalmente con tests.
+1. Consultar el estado en `tracking-implementacion-mvp.md` y en Jira.
+2. Leer el alcance exacto en `plan-migracion-backend-mvp.md`.
+3. Leer solo las fuentes de comportamiento, contrato, persistencia o auth que afecte la subtarea.
+4. Implementar incrementalmente con tests.
+5. Actualizar el tracking al mergearse el cambio; no usar el plan como registro de avance.

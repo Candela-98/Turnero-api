@@ -14,9 +14,11 @@ No reemplaza las fuentes de verdad:
 
 La idea es que cada item de este plan pueda convertirse en una subtarea Jira y en un PR con proposito claro.
 
-## Estado actual observado
+## Punto de partida historico del plan
 
-Backend actual: base funcional single-business.
+Esta seccion registra el estado que motivo este plan de migracion. No describe el estado actual del repositorio: para eso consultar `tracking-implementacion-mvp.md`.
+
+Al crear el plan, el backend era una base funcional single-business.
 
 Existe:
 
@@ -129,7 +131,7 @@ Requisitos:
 
 ### Makefile local
 
-Agregar un `Makefile` de conveniencia inspirado en `/Users/xavi/Desktop/Workspace/repoEjemplo/repoEjemplo-backend/Makefile`, pero adaptado a Turnero API, Java, Gradle, Spring Boot, Docker Compose, PostgreSQL y Flyway.
+Agregar un `Makefile` de conveniencia adaptado a Turnero API, Java, Gradle, Spring Boot, Docker Compose, PostgreSQL y Flyway.
 
 Objetivo:
 
@@ -205,6 +207,12 @@ TURNERO_COOKIE_SECURE=false
 - Debe asumir RDS PostgreSQL, secretos gestionados, backups, migraciones controladas y observabilidad.
 
 ## Secuencia de PRs
+
+### Estado de implementacion
+
+El estado real de avance contra este plan se mantiene en `tracking-implementacion-mvp.md`.
+
+Este documento define el orden, alcance y criterios esperados de cada PR, pero no debe usarse como fuente de tracking.
 
 ### PR A1 - Preparar PostgreSQL, Flyway y schema MVP completo
 
@@ -1406,9 +1414,11 @@ Fuera de alcance:
 - Multi-sucursal.
 - Plan AWS final, salvo decisiones necesarias para no bloquear configuracion local.
 
-## Definition of Done para empezar implementacion
+## Definition of Ready inicial de la migracion
 
-Antes de codear backend del MVP debe estar cumplido:
+Esta lista se uso para iniciar la migracion. Para evaluar una subtarea actual, usar sus criterios en este plan, Jira y el tracking.
+
+Antes de iniciar la migracion backend del MVP debia estar cumplido:
 
 - Este plan revisado y aceptado.
 - PostgreSQL confirmado como DB objetivo.

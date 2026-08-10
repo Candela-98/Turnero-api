@@ -882,7 +882,6 @@ Los defaults iniciales de `booking_settings` y `business_hours` tambien se defin
 - `appointments.staff_member_id` siempre es obligatorio al crear el turno.
 - Los tokens publicos se guardan en `appointment_public_tokens`.
 - La DB guarda `token_hash`, no el token plano.
-- `notifications` queda post-MVP.
 - `notifications` se mantiene documentada como tabla futura.
 - `users.auth_provider` y `users.auth_subject` se usan en lugar de campos atados a Google para permitir migracion post-MVP a Auth0 u otro proveedor.
 - Las sesiones propias se guardan en `user_sessions` con hash de token.
@@ -890,6 +889,6 @@ Los defaults iniciales de `booking_settings` y `business_hours` tambien se defin
 
 ## Decisiones abiertas
 
-Estas decisiones conviene cerrarlas antes de implementar migraciones finales:
+Estas decisiones siguen abiertas para los flujos que las usen. No bloquean la migracion inicial ya definida en este documento:
 
 - Cuando se habilite portal cliente, si se mantiene solo Google o se suma email, telefono/OTP u otro proveedor.
