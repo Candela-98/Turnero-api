@@ -9,6 +9,7 @@ import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.model.enums.AppointmentStatus;
+import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.service.ServOfferingService;
@@ -317,9 +318,10 @@ public class ServOfferingControllerIT {
     }
 
     @Test
-    void  deleteServiceOffering_whenServiceOfferingExists_deletesServiceOffering_andReturns204() throws Exception {
+    void  deleteServiceOffering_whenServiceOfferingExists_shouldDeactivateWithoutDeleting() throws Exception {
         //Given
         ServiceOffering serviceOffering = getServiceOffering();
+        serviceOffering.setStatus(ServiceOfferingStatus.ACTIVE);
         ServiceOffering saved = servOfferingRepository.save(serviceOffering);
         Long id = saved.getId();
 
@@ -329,7 +331,11 @@ public class ServOfferingControllerIT {
                 .andReturn();
 
         //Then
-        assertThat(servOfferingRepository.existsById(id)).isFalse();
+
+        ServiceOffering deactivated = servOfferingRepository.findById(id).orElseThrow();
+
+        assertThat(deactivated.getStatus()).isEqualTo(ServiceOfferingStatus.INACTIVE);
+        assertThat(servOfferingRepository.existsById(id)).isTrue();
     }
 
     @Test
@@ -344,6 +350,73 @@ public class ServOfferingControllerIT {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Service offering not found with ID: " + id));
+    }
+
+    @Test
+    void deleteServiceOffering_whenServiceOfferingIsOutsideBusinessScope_returns404() throws Exception{
+        //Given
+        ServiceOffering serviceOffering = getServiceOffering();
+        serviceOffering.setBusinessId(2L);
+        serviceOffering.setStatus(ServiceOfferingStatus.ACTIVE);
+
+        ServiceOffering saved = servOfferingRepository.save(serviceOffering);
+
+        //When + Then
+        mockMvc.perform(delete(BASE_URL + "/{id}", saved.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message")
+                        .value("Service offering not found with ID: " + saved.getId()));
+
+        ServiceOffering unchanged = servOfferingRepository.findById(saved.getId()).orElseThrow();
+
+        assertThat(unchanged.getStatus()).isEqualTo(ServiceOfferingStatus.ACTIVE);
+    }
+
+    @Test
+    void deleteServiceOffering_whenAppointmentExists_shouldPreserveHistoricalAppointment() throws Exception{
+        //Given
+        ServiceOffering serviceOffering = ServiceOffering.builder()
+                .businessId(1L)
+                .name("Corte y barba")
+                .durationMinutes(60)
+                .priceCents(10000)
+                .status(ServiceOfferingStatus.ACTIVE)
+                .build();
+
+        ServiceOffering savedServiceOffering = servOfferingRepository.save(serviceOffering);
+        LocalDateTime startsAt = LocalDateTime.now().plusDays(1);
+
+        Appointment appointment = Appointment.builder()
+                .businessId(1L)
+                .customerId(1L)
+                .serviceOfferingId(savedServiceOffering.getId())
+                .staffMemberId(1L)
+                .startsAt(startsAt)
+                .endsAt(startsAt.plusMinutes(30))
+                .durationMinutes(30)
+                .priceCents(10000)
+                .status(AppointmentStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        // When
+        mockMvc.perform(delete(BASE_URL + "/{id}", savedServiceOffering.getId()))
+                .andExpect(status().isNoContent());
+
+        // Then
+        ServiceOffering deactivatedService = servOfferingRepository.findById(savedServiceOffering.getId()).orElseThrow();
+        Appointment historicalAppointment = appointmentRepository.findById(savedAppointment.getId()).orElseThrow();
+
+        assertThat(deactivatedService.getStatus()).isEqualTo(ServiceOfferingStatus.INACTIVE);
+        assertThat(historicalAppointment.getDurationMinutes()).isEqualTo(30);
+        assertThat(historicalAppointment.getPriceCents()).isEqualTo(10000);
+        assertThat(historicalAppointment.getEndsAt()).isEqualTo(startsAt.plusMinutes(30));
     }
 
 }

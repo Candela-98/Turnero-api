@@ -83,12 +83,13 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     @Override
     public void deleteServOffering(Long id) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
-        if(servOfferingRepository.existsByIdAndBusinessId(id, businessId)) {
-            servOfferingRepository.deleteById(id);
-            log.info("Service offering with id={} successfully deleted for businessId={}.", id, businessId);
-        }else {
-            throw new ResourceNotFoundException("Service offering not found with ID: " + id);
-        }
+        ServiceOffering serviceOffering = servOfferingRepository.findByIdAndBusinessId(id, businessId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Service offering not found with ID: " + id));
 
+        serviceOffering.setStatus(ServiceOfferingStatus.INACTIVE);
+
+        servOfferingRepository.save(serviceOffering);
+
+        log.info("Service offering with id={} successfully deactivated for businessId={}.", id, businessId);
     }
 }
