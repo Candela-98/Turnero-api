@@ -519,7 +519,7 @@ public class AppointmentControllerIT {
         Appointment appointment = getAppointment();
         appointment.setCustomerId(customer.getId());
         appointment.setServiceOfferingId(serviceOffering.getId());
-        appointment.setStaffMemberId(staffMember.getId());
+         appointment.setStaffMemberId(staffMember.getId());
         appointment.setStatus(AppointmentStatus.CONFIRMED);
 
         Appointment saved = appointmentRepository.save(appointment);
