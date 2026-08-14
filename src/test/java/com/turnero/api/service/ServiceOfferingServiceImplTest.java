@@ -169,35 +169,44 @@ public class ServiceOfferingServiceImplTest {
     }
 
     @Test
-    void deleteServiceOffering_whenExists_deletes() {
+    void deleteServiceOffering_whenExists_shouldSetStatusInactiveAndSave() {
         Long id = 1L;
         Long businessId = 1L;
 
+        ServiceOffering serviceOffering = new ServiceOffering();
+        serviceOffering.setId(id);
+        serviceOffering.setBusinessId(businessId);
+        serviceOffering.setStatus(ServiceOfferingStatus.ACTIVE);
+
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.existsByIdAndBusinessId(id, businessId)).thenReturn(true);
+        when(servOfferingRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(serviceOffering));
+        when(servOfferingRepository.save(serviceOffering)).thenReturn(serviceOffering);
 
         servOfferingService.deleteServOffering(id);
 
-        verify(currentBusinessContext, times(1)).getCurrentBusinessId();
-        verify(servOfferingRepository, times(1)).existsByIdAndBusinessId(id, businessId);
-        verify(servOfferingRepository, times(1)).deleteById(id);
+        assertEquals(ServiceOfferingStatus.INACTIVE, serviceOffering.getStatus());
+
+        verify(currentBusinessContext).getCurrentBusinessId();
+        verify(servOfferingRepository).findByIdAndBusinessId(id, businessId);
+        verify(servOfferingRepository).save(serviceOffering);
+        verify(servOfferingRepository, never()).deleteById(anyLong());
     }
 
     @Test
-    void deleteServiceOffering_whenNotExists_throwsException_andDoesNotDelete() {
+    void deleteServiceOffering_whenNotExists_throwsException_andDoesNotSave() {
         Long id = 99L;
         Long businessId = 1L;
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.existsByIdAndBusinessId(id, businessId)).thenReturn(false);
+        when(servOfferingRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception = assertThrows(
-                ResourceNotFoundException.class, () -> servOfferingService.deleteServOffering(id));
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> servOfferingService.deleteServOffering(id));
 
         assertEquals("Service offering not found with ID: " + id, exception.getMessage());
 
-        verify(currentBusinessContext, times(1)).getCurrentBusinessId();
-        verify(servOfferingRepository, times(1)).existsByIdAndBusinessId(id, businessId);
+        verify(currentBusinessContext).getCurrentBusinessId();
+        verify(servOfferingRepository).findByIdAndBusinessId(id, businessId);
+        verify(servOfferingRepository, never()).save(any());
         verify(servOfferingRepository, never()).deleteById(anyLong());
     }
 }

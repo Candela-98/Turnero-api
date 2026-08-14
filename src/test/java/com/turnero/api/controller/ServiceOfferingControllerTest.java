@@ -283,7 +283,7 @@ public class ServiceOfferingControllerTest {
     }
 
     @Test
-    void deleteServOffering_ok_shouldReturn200_andCallService() throws Exception {
+    void deleteServOffering_ok_shouldReturn204_andCallService() throws Exception {
         //When + Then
         mockMvc.perform(delete(BASE_URL + "/1"))
                 .andExpect(status().isNoContent());
