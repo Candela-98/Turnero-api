@@ -1,5 +1,7 @@
 package com.turnero.api.service;
 
+import com.turnero.api.dto.ServOfferingResponseDto;
+import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.model.ServiceOffering;
 
 import java.util.List;
@@ -12,7 +14,7 @@ public interface ServOfferingService {
 
     ServiceOffering findServiceOffering(Long id);
 
-    void updateServOffering(ServiceOffering serviceOffering, Long id);
+    ServiceOffering updateServOffering(ServOfferingUpdateRequestDto servOfferigUpdateDto, Long id);
 
     void deleteServOffering(Long id);
 }

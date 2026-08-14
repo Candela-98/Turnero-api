@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
+import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.model.enums.ServiceOfferingStatus;
@@ -122,21 +123,23 @@ public class ServiceOfferingServiceImplTest {
         currentServiceOffering.setDurationMinutes(20);
         currentServiceOffering.setPriceCents(1000);
 
-        ServiceOffering updatedServiceOffering = new ServiceOffering();
-        updatedServiceOffering.setName("Corte + barba");
-        updatedServiceOffering.setDurationMinutes(45);
-        updatedServiceOffering.setPriceCents(3000);
+        ServOfferingUpdateRequestDto updateRequest = ServOfferingUpdateRequestDto.builder()
+                        .name("Corte + barba")
+                        .durationMinutes(45)
+                        .priceCents(3000)
+                        .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.findByIdAndBusinessId(id, businessId))
-                .thenReturn(Optional.of(currentServiceOffering));
+        when(servOfferingRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(currentServiceOffering));
+        when(servOfferingRepository.save(currentServiceOffering)).thenReturn(currentServiceOffering);
 
-        servOfferingService.updateServOffering(updatedServiceOffering, id);
+        ServiceOffering result = servOfferingService.updateServOffering(updateRequest, id);
 
         assertEquals("Corte + barba", currentServiceOffering.getName());
         assertEquals(45, currentServiceOffering.getDurationMinutes());
         assertEquals(3000, currentServiceOffering.getPriceCents());
         assertEquals(businessId, currentServiceOffering.getBusinessId());
+        assertSame(currentServiceOffering, result);
 
         verify(currentBusinessContext, times(1)).getCurrentBusinessId();
         verify(servOfferingRepository, times(1)).findByIdAndBusinessId(id, businessId);
@@ -148,12 +151,12 @@ public class ServiceOfferingServiceImplTest {
         Long id = 99L;
         Long businessId = 1L;
 
-        ServiceOffering updatedServiceOffering = new ServiceOffering();
-        updatedServiceOffering.setName("Corte + barba");
+        ServOfferingUpdateRequestDto updatedServiceOffering = ServOfferingUpdateRequestDto.builder()
+                .name("Corte + barba")
+                .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.findByIdAndBusinessId(id, businessId))
-                .thenReturn(Optional.empty());
+        when(servOfferingRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> servOfferingService.updateServOffering(updatedServiceOffering, id));

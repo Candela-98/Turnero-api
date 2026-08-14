@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 import com.turnero.api.dto.ServOfferingRequestDto;
 import com.turnero.api.dto.ServOfferingResponseDto;
+import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.openapi.*;
@@ -62,11 +63,12 @@ public class ServOfferingController {
             description = "Actualiza los detalles de un servicio ofrecido específico utilizando su ID"
     )
     @ApiUpdateResponses
-    @PutMapping("/{id}")
-    public ResponseEntity<ServiceOffering> updateServOffering(@Valid @RequestBody ServOfferingRequestDto servOfferingDto, @PathVariable Long id) {
-        var serviceOfferingOffering = serviceOfferingMapper.toEntity(servOfferingDto);
-        servOfferingService.updateServOffering(serviceOfferingOffering, id);
-        return ResponseEntity.noContent().build();
+    @PatchMapping("/{id}")
+    public ResponseEntity<ServOfferingResponseDto> updateServOffering(@Valid @RequestBody ServOfferingUpdateRequestDto servOfferingDto, @PathVariable Long id) {
+        var updatedServiceOffering = servOfferingService.updateServOffering(servOfferingDto, id);
+        var responseDto = serviceOfferingMapper.toResponseDto(updatedServiceOffering);
+
+        return ResponseEntity.ok(responseDto);
     }
 
     @Operation(
