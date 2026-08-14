@@ -4,13 +4,17 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
+import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.mapper.StaffMemberMapper;
+import com.turnero.api.model.Appointment;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.model.User;
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.model.enums.UserRole;
+import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.UserRepository;
@@ -56,6 +60,9 @@ public class StaffMemberControllerIT {
     StaffMemberRepository staffMemberRepository;
 
     @Autowired
+    AppointmentRepository appointmentRepository;
+
+    @Autowired
     BusinessHoursRepository businessHoursRepository;
 
     @Autowired
@@ -65,6 +72,7 @@ public class StaffMemberControllerIT {
 
     @BeforeEach
     void cleanDb() {
+        appointmentRepository.deleteAll();
         staffMemberRepository.deleteAll();
     }
 
@@ -204,22 +212,46 @@ public class StaffMemberControllerIT {
     }
 
     @Test
-    void updateStaffMember_whenRequestIsValid_updatesStaffMember_andReturns204() throws Exception {
+    void findStaffMember_whenOutsideBusinessScope_returns404() throws Exception {
+        // Given
+        StaffMember staffMember = getStaffMember();
+        staffMember.setBusinessId(2L);
+        StaffMember saved = staffMemberRepository.save(staffMember);
+
+        // When + Then
+        mockMvc.perform(get(BASE_URL + "/{id}", saved.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: " + saved.getId()));
+    }
+
+    @Test
+    void updateStaffMember_whenRequestIsValid_updatesStaffMember_andReturns200() throws Exception {
         // Given
         StaffMember staffMember = getStaffMember();
         StaffMember saved = staffMemberRepository.save(staffMember);
 
-        StaffMemberRequestDto dto = getStaffMemberRequestDto();
-        dto.setName("Matias Updated");
-        dto.setRoleLabel("Lead barber");
-        dto.setSpecialty("Barber Updated");
-        dto.setAvatarUrl("https://example.com/avatar-updated.png");
+        StaffMemberUpdateRequestDto dto = StaffMemberUpdateRequestDto.builder()
+                .name("Matias Updated")
+                .roleLabel("Lead barber")
+                .specialty("Barber Updated")
+                .avatarUrl("https://example.com/avatar-updated.png")
+                .status(StaffMemberStatus.INACTIVE)
+                .build();
 
         // When
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.name").value("Matias Updated"))
+                .andExpect(jsonPath("$.role_label").value("Lead barber"))
+                .andExpect(jsonPath("$.specialty").value("Barber Updated"))
+                .andExpect(jsonPath("$.avatar_url").value("https://example.com/avatar-updated.png"))
+                .andExpect(jsonPath("$.status").value("INACTIVE"));
 
         // Then
         StaffMember updated = staffMemberRepository.findById(saved.getId()).orElseThrow();
@@ -227,6 +259,39 @@ public class StaffMemberControllerIT {
         assertThat(updated.getRoleLabel()).isEqualTo("Lead barber");
         assertThat(updated.getSpecialty()).isEqualTo("Barber Updated");
         assertThat(updated.getAvatarUrl()).isEqualTo("https://example.com/avatar-updated.png");
+        assertThat(updated.getStatus()).isEqualTo(StaffMemberStatus.INACTIVE);
+        assertThat(updated.getBusinessId()).isEqualTo(1L);
+        assertThat(updated.getUserId()).isEqualTo(20L);
+    }
+
+    @Test
+    void updateStaffMember_whenRequestIsPartial_updatesOnlyProvidedFields() throws Exception {
+        // Given
+        StaffMember saved = staffMemberRepository.save(getStaffMember());
+
+        StaffMemberUpdateRequestDto dto = StaffMemberUpdateRequestDto.builder()
+                .roleLabel("Lead barber")
+                .build();
+
+        // When
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.name").value("Matias"))
+                .andExpect(jsonPath("$.role_label").value("Lead barber"))
+                .andExpect(jsonPath("$.specialty").value("Barber"))
+                .andExpect(jsonPath("$.avatar_url").value("https://example.com/avatar.png"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+        // Then
+        StaffMember updated = staffMemberRepository.findById(saved.getId()).orElseThrow();
+        assertThat(updated.getName()).isEqualTo("Matias");
+        assertThat(updated.getRoleLabel()).isEqualTo("Lead barber");
+        assertThat(updated.getSpecialty()).isEqualTo("Barber");
+        assertThat(updated.getAvatarUrl()).isEqualTo("https://example.com/avatar.png");
+        assertThat(updated.getStatus()).isEqualTo(StaffMemberStatus.ACTIVE);
     }
 
     @Test
@@ -234,11 +299,12 @@ public class StaffMemberControllerIT {
         // Given
         StaffMember saved = staffMemberRepository.save(getStaffMember());
 
-        StaffMemberRequestDto dto = getStaffMemberRequestDto();
-        dto.setName("");
+        StaffMemberUpdateRequestDto dto = StaffMemberUpdateRequestDto.builder()
+                .name("")
+                .build();
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -251,6 +317,50 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.details[0].message").exists())
                 .andExpect(jsonPath("$.path").value(BASE_URL + "/" + saved.getId()))
                 .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void updateStaffMember_whenDoesNotExist_returns404() throws Exception {
+        // Given
+        StaffMemberUpdateRequestDto dto = StaffMemberUpdateRequestDto.builder()
+                .name("Matias Updated")
+                .build();
+
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/{id}", 999L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: 999"));
+    }
+
+    @Test
+    void updateStaffMember_whenOutsideBusinessScope_returns404AndDoesNotModifyStaffMember() throws Exception {
+        // Given
+        StaffMember staffMember = getStaffMember();
+        staffMember.setBusinessId(2L);
+        StaffMember saved = staffMemberRepository.save(staffMember);
+
+        StaffMemberUpdateRequestDto dto = StaffMemberUpdateRequestDto.builder()
+                .name("Matias Updated")
+                .build();
+
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: " + saved.getId()));
+
+        StaffMember unchanged = staffMemberRepository.findById(saved.getId()).orElseThrow();
+        assertThat(unchanged.getName()).isEqualTo("Matias");
+        assertThat(unchanged.getBusinessId()).isEqualTo(2L);
     }
 
     @Test
@@ -296,6 +406,51 @@ public class StaffMemberControllerIT {
         List<StaffMember> response = objectMapper.readValue(json, new TypeReference<>() {});
 
         assertThat(response).isEmpty();
+    }
+
+    @Test
+    void updateStaffMember_whenAppointmentExists_shouldPreserveHistoricalAppointment() throws Exception {
+        // Given
+        StaffMember savedStaffMember = staffMemberRepository.save(getStaffMember());
+        var startsAt = java.time.LocalDateTime.now().plusDays(1);
+
+        Appointment appointment = Appointment.builder()
+                .businessId(1L)
+                .customerId(1L)
+                .serviceOfferingId(1L)
+                .staffMemberId(savedStaffMember.getId())
+                .startsAt(startsAt)
+                .endsAt(startsAt.plusMinutes(30))
+                .durationMinutes(30)
+                .priceCents(10000)
+                .status(AppointmentStatus.PENDING)
+                .createdAt(java.time.LocalDateTime.now())
+                .updatedAt(java.time.LocalDateTime.now())
+                .build();
+
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        StaffMemberUpdateRequestDto updateRequest = StaffMemberUpdateRequestDto.builder()
+                .name("Matias Updated")
+                .status(StaffMemberStatus.INACTIVE)
+                .build();
+
+        // When
+        mockMvc.perform(patch(BASE_URL + "/{id}", savedStaffMember.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Matias Updated"))
+                .andExpect(jsonPath("$.status").value("INACTIVE"));
+
+        // Then
+        Appointment unchangedAppointment = appointmentRepository.findById(savedAppointment.getId()).orElseThrow();
+        assertThat(unchangedAppointment.getStaffMemberId()).isEqualTo(savedStaffMember.getId());
+        assertThat(unchangedAppointment.getStartsAt()).isEqualTo(startsAt);
+        assertThat(unchangedAppointment.getEndsAt()).isEqualTo(startsAt.plusMinutes(30));
+        assertThat(unchangedAppointment.getDurationMinutes()).isEqualTo(30);
+        assertThat(unchangedAppointment.getPriceCents()).isEqualTo(10000);
+        assertThat(unchangedAppointment.getStatus()).isEqualTo(AppointmentStatus.PENDING);
     }
 
     @Test

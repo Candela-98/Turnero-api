@@ -3,6 +3,7 @@ package com.turnero.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
+import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.StaffMemberMapper;
 
@@ -25,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @WebMvcTest(StaffMemberController.class)
-public class StaffMemberControlTest {
+public class StaffMemberControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -221,31 +222,60 @@ public class StaffMemberControlTest {
     void updateStaffMember_ok_shouldReturn200_andCallService() throws Exception{
         // Given
         Long id = 1L;
-        var dto = getStaffMemberDTO(id);
+        var dto = StaffMemberUpdateRequestDto.builder()
+                .name("Daniel Updated")
+                .roleLabel("Lead barber")
+                .specialty("Barber Updated")
+                .avatarUrl("https://example.com/avatar-updated.png")
+                .status(StaffMemberStatus.INACTIVE)
+                .build();
         var entity = getStaffMemberEntity(id);
+        entity.setName("Daniel Updated");
+        entity.setRoleLabel("Lead barber");
+        entity.setSpecialty("Barber Updated");
+        entity.setAvatarUrl("https://example.com/avatar-updated.png");
+        entity.setStatus(StaffMemberStatus.INACTIVE);
+        var responseDto = StaffMemberResponseDto.builder()
+                .id(id)
+                .businessId(10L)
+                .userId(20L)
+                .name("Daniel Updated")
+                .roleLabel("Lead barber")
+                .specialty("Barber Updated")
+                .avatarUrl("https://example.com/avatar-updated.png")
+                .status(StaffMemberStatus.INACTIVE)
+                .build();
 
-        given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
+        given(staffService.updateStaffMember(any(StaffMemberUpdateRequestDto.class), eq(id))).willReturn(entity);
+        given(staffMapper.toResponseDto(entity)).willReturn(responseDto);
 
-        // When
-        mockMvc.perform(put(BASE_URL + "/1")
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Daniel Updated"))
+                .andExpect(jsonPath("$.role_label").value("Lead barber"))
+                .andExpect(jsonPath("$.specialty").value("Barber Updated"))
+                .andExpect(jsonPath("$.avatar_url").value("https://example.com/avatar-updated.png"))
+                .andExpect(jsonPath("$.status").value("INACTIVE"));
 
-        //Then
-        then(staffMapper).should().toEntity(any(StaffMemberRequestDto.class));
-        then(staffService).should().updateStaffMember(entity, 1L);
+        then(staffService).should().updateStaffMember(any(StaffMemberUpdateRequestDto.class), eq(id));
+        then(staffMapper).should().toResponseDto(entity);
     }
 
     @Test
     void updateStaffMember_withInvalidDto_shouldReturn400() throws Exception{
         //Given
         Long id = 1L;
-        var dto = getStaffMemberDTO(id);
-        dto.setName("");
+        var dto = StaffMemberUpdateRequestDto.builder()
+                .name("")
+                .build();
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", id)
+        mockMvc.perform(patch(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -261,6 +291,30 @@ public class StaffMemberControlTest {
 
         then(staffMapper).shouldHaveNoInteractions();
         then(staffService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void updateStaffMember_withNonExistingId_shouldReturn404() throws Exception {
+        // Given
+        var dto = StaffMemberUpdateRequestDto.builder()
+                .name("Daniel Updated")
+                .build();
+
+        given(staffService.updateStaffMember(any(StaffMemberUpdateRequestDto.class), eq(999L)))
+                .willThrow(new ResourceNotFoundException("Staffmember not found with ID: 999"));
+
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: 999"));
+
+        then(staffService).should().updateStaffMember(any(StaffMemberUpdateRequestDto.class), eq(999L));
+        then(staffMapper).shouldHaveNoInteractions();
     }
 
     @Test

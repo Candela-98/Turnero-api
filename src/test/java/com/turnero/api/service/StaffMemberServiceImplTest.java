@@ -1,6 +1,7 @@
 package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
+import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
@@ -100,29 +101,38 @@ public class StaffMemberServiceImplTest {
     @Test
     void findStaffMember_whenExists_returnsStaffMember() {
         Long id = 1L;
+        Long businessId = 1L;
         StaffMember staffMember = new StaffMember();
         staffMember.setId(id);
+        staffMember.setBusinessId(businessId);
 
-        when(staffMemberRepository.findById(id)).thenReturn(Optional.of(staffMember));
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(staffMember));
 
         StaffMember result = staffMemberService.findStaffMember(id);
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
-        verify(staffMemberRepository, times(1)).findById(id);
+        assertEquals(businessId, result.getBusinessId());
+        verify(currentBusinessContext, times(1)).getCurrentBusinessId();
+        verify(staffMemberRepository, times(1)).findByIdAndBusinessId(id, businessId);
     }
 
     @Test
     void findStaffMember_whenNotExists_throwsException() {
         Long id = 99L;
-        when(staffMemberRepository.findById(id)).thenReturn(Optional.empty());
+        Long businessId = 1L;
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> staffMemberService.findStaffMember(id));
 
         assertEquals("Staffmember not found with ID: " + id, exception.getMessage());
 
-        verify(staffMemberRepository, times(1)).findById(id);
+        verify(currentBusinessContext, times(1)).getCurrentBusinessId();
+        verify(staffMemberRepository, times(1)).findByIdAndBusinessId(id, businessId);
     }
 
     @Test
@@ -147,32 +157,86 @@ public class StaffMemberServiceImplTest {
     @Test
     void updateStaffMember_whenExists_updatesAndSaves() {
         Long id = 1L;
+        Long businessId = 1L;
 
         StaffMember current = new StaffMember();
         current.setId(id);
+        current.setBusinessId(businessId);
+        current.setUserId(20L);
         current.setName("Carlos");
+        current.setRoleLabel("Junior barber");
         current.setSpecialty("Barber");
+        current.setAvatarUrl("https://example.com/avatar.png");
+        current.setStatus(StaffMemberStatus.ACTIVE);
 
-        StaffMember updatedStaff = new StaffMember();
-        updatedStaff.setName("Juan Carlos");
-        updatedStaff.setSpecialty("Barber plus");
+        StaffMemberUpdateRequestDto updatedStaff = StaffMemberUpdateRequestDto.builder()
+                .name("Juan Carlos")
+                .roleLabel("Senior barber")
+                .specialty("Barber plus")
+                .avatarUrl("https://example.com/avatar-updated.png")
+                .status(StaffMemberStatus.INACTIVE)
+                .build();
 
-        when(staffMemberRepository.findById(id)).thenReturn(Optional.of(current));
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
+        when(staffMemberRepository.save(current)).thenReturn(current);
 
-        staffMemberService.updateStaffMember(updatedStaff, id);
+        StaffMember result = staffMemberService.updateStaffMember(updatedStaff, id);
 
         verify(staffMemberRepository, times(1)).save(current);
         assertEquals("Juan Carlos", current.getName());
+        assertEquals("Senior barber", current.getRoleLabel());
         assertEquals("Barber plus", current.getSpecialty());
+        assertEquals("https://example.com/avatar-updated.png", current.getAvatarUrl());
+        assertEquals(StaffMemberStatus.INACTIVE, current.getStatus());
+        assertEquals(businessId, current.getBusinessId());
+        assertEquals(20L, current.getUserId());
+        assertSame(current, result);
+    }
+
+    @Test
+    void updateStaffMember_whenPartialRequest_updatesOnlyProvidedFields() {
+        Long id = 1L;
+        Long businessId = 1L;
+
+        StaffMember current = new StaffMember();
+        current.setId(id);
+        current.setBusinessId(businessId);
+        current.setUserId(20L);
+        current.setName("Carlos");
+        current.setRoleLabel("Junior barber");
+        current.setSpecialty("Barber");
+        current.setAvatarUrl("https://example.com/avatar.png");
+        current.setStatus(StaffMemberStatus.ACTIVE);
+
+        StaffMemberUpdateRequestDto updateRequest = StaffMemberUpdateRequestDto.builder()
+                .roleLabel("Lead barber")
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
+        when(staffMemberRepository.save(current)).thenReturn(current);
+
+        staffMemberService.updateStaffMember(updateRequest, id);
+
+        assertEquals("Carlos", current.getName());
+        assertEquals("Lead barber", current.getRoleLabel());
+        assertEquals("Barber", current.getSpecialty());
+        assertEquals("https://example.com/avatar.png", current.getAvatarUrl());
+        assertEquals(StaffMemberStatus.ACTIVE, current.getStatus());
     }
 
     @Test
     void updateStaffMember_whenDoesNotExist_throwsException_andDoesNotSave() {
         Long id = 99L;
-        when(staffMemberRepository.findById(id)).thenReturn(Optional.empty());
+        Long businessId = 1L;
 
-        StaffMember updateStaff = new StaffMember();
-        updateStaff.setName("New");
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+
+        StaffMemberUpdateRequestDto updateStaff = StaffMemberUpdateRequestDto.builder()
+                .name("New")
+                .build();
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> staffMemberService.updateStaffMember(updateStaff, id));
