@@ -2,12 +2,15 @@ package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursResponseDto;
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.model.StaffWorkingHours;
 import com.turnero.api.model.enums.AppointmentStatus;
+import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.BusinessHoursRepository;
@@ -17,9 +20,12 @@ import com.turnero.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -116,10 +122,89 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         return updatedStaffMember;
     }
 
+    @Override
     public List<StaffMember> findAllStaffMember() {
 
         Long businessId = currentBusinessContext.getCurrentBusinessId();
         return staffMemberRepository.findAllByBusinessId(businessId);
+    }
+
+    @Override
+    public List<StaffWorkingHoursResponseDto> getWorkingHours(Long staffMemberId) {
+
+        findStaffMember(staffMemberId);
+
+        return staffWorkingHoursRepository
+                .findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId)
+                .stream()
+                .map(hour -> StaffWorkingHoursResponseDto.builder()
+                        .dayOfWeek(hour.getDayOfWeek())
+                        .startsAt(hour.getStartsAt())
+                        .endsAt(hour.getEndsAt())
+                        .isAvailable(hour.isAvailable())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public List<StaffWorkingHoursResponseDto> replaceWorkingHours(Long staffMemberId, List<StaffWorkingHoursRequestDto> workingHours) {
+
+        findStaffMember(staffMemberId);
+
+        if (workingHours.size() != 7) {
+            throw new IllegalArgumentException("Working hours must contain exactly 7 days");
+        }
+
+        Set<DayOfWeek> days = workingHours.stream()
+                .map(StaffWorkingHoursRequestDto::getDayOfWeek)
+                .collect(Collectors.toSet());
+
+        if (days.size() != 7) {
+            throw new IllegalArgumentException("Working hours must contain all 7 unique days");
+        }
+
+        for (StaffWorkingHoursRequestDto workingHour : workingHours) {
+
+            if (Boolean.TRUE.equals(workingHour.getIsAvailable()) && workingHour.getStartsAt() == null) {
+
+                throw new IllegalArgumentException("Start time is required when the day is available");
+            }
+
+            if( Boolean.TRUE.equals(workingHour.getIsAvailable()) && workingHour.getEndsAt() == null) {
+                throw new IllegalArgumentException("End time is required when the day is available");
+            }
+
+            if (Boolean.TRUE.equals(workingHour.getIsAvailable()) &&
+                    workingHour.getStartsAt() != null &&
+                    workingHour.getEndsAt() != null &&
+                    !workingHour.getStartsAt().isBefore(workingHour.getEndsAt())) {
+                throw new IllegalArgumentException("Start time must be before end time for available days");
+            }
+        }
+
+        staffWorkingHoursRepository.deleteAllByStaffMemberId(staffMemberId);
+
+        List<StaffWorkingHours> newWorkingHours = workingHours.stream()
+                .map(workingHour -> StaffWorkingHours.builder()
+                        .staffMemberId(staffMemberId)
+                        .dayOfWeek(workingHour.getDayOfWeek())
+                        .startsAt(workingHour.getStartsAt())
+                        .endsAt(workingHour.getEndsAt())
+                        .isAvailable(Boolean.TRUE.equals(workingHour.getIsAvailable()))
+                        .build())
+                .toList();
+
+        List<StaffWorkingHours> savedWorkingHours = staffWorkingHoursRepository.saveAll(newWorkingHours);
+
+        return savedWorkingHours.stream()
+                .map(hour -> StaffWorkingHoursResponseDto.builder()
+                        .dayOfWeek(hour.getDayOfWeek())
+                        .startsAt(hour.getStartsAt())
+                        .endsAt(hour.getEndsAt())
+                        .isAvailable(hour.isAvailable())
+                        .build())
+                .toList();
     }
 
     @Override

@@ -201,7 +201,7 @@ public class ServOfferingControllerIT {
     @Test
     void updateServiceOffering_whenNameIsNull_returns400() throws Exception{
         //Given
-        ServOfferingRequestDto dto = ServOfferingRequestDto.builder()
+        ServOfferingUpdateRequestDto dto = ServOfferingUpdateRequestDto.builder()
                 .name("")
                 .build();
 

@@ -2,10 +2,13 @@ package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursResponseDto;
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.StaffWorkingHours;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.model.enums.StaffMemberStatus;
@@ -347,6 +350,142 @@ public class StaffMemberServiceImplTest {
         assertDeleteBlockedByFutureAppointment(AppointmentStatus.CONFIRMED);
     }
 
+    @Test
+    void getWorkingHours_whenStaffExists_returnsWorkingHours() {
+        Long staffMemberId = 1L;
+        Long businessId = 1L;
+        StaffMember staffMember = StaffMember.builder()
+                .id(staffMemberId)
+                .businessId(businessId)
+                .build();
+        StaffWorkingHours monday = workingHoursEntity(staffMemberId, DayOfWeek.MONDAY, true);
+        StaffWorkingHours tuesday = workingHoursEntity(staffMemberId, DayOfWeek.TUESDAY, false);
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(staffMemberId, businessId))
+                .thenReturn(Optional.of(staffMember));
+        when(staffWorkingHoursRepository.findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId))
+                .thenReturn(List.of(monday, tuesday));
+
+        List<StaffWorkingHoursResponseDto> response = staffMemberService.getWorkingHours(staffMemberId);
+
+        assertEquals(2, response.size());
+        assertEquals(DayOfWeek.MONDAY, response.get(0).getDayOfWeek());
+        assertEquals(LocalTime.of(9, 0), response.get(0).getStartsAt());
+        assertEquals(LocalTime.of(18, 0), response.get(0).getEndsAt());
+        assertTrue(response.get(0).isAvailable());
+        assertEquals(DayOfWeek.TUESDAY, response.get(1).getDayOfWeek());
+        assertFalse(response.get(1).isAvailable());
+
+        verify(staffMemberRepository).findByIdAndBusinessId(staffMemberId, businessId);
+        verify(staffWorkingHoursRepository).findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId);
+    }
+
+    @Test
+    void getWorkingHours_whenStaffDoesNotExistOrIsOutsideScope_throwsException() {
+        Long staffMemberId = 99L;
+        Long businessId = 1L;
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(staffMemberId, businessId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> staffMemberService.getWorkingHours(staffMemberId)
+        );
+
+        assertEquals("Staffmember not found with ID: " + staffMemberId, exception.getMessage());
+        verify(staffWorkingHoursRepository, never()).findAllByStaffMemberIdOrderByDayOfWeekAsc(anyLong());
+    }
+
+    @Test
+    void replaceWorkingHours_whenRequestIsValid_replacesAllSevenDays() {
+        Long staffMemberId = 1L;
+        Long businessId = 1L;
+        StaffMember staffMember = StaffMember.builder()
+                .id(staffMemberId)
+                .businessId(businessId)
+                .build();
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(staffMemberId, businessId))
+                .thenReturn(Optional.of(staffMember));
+        when(staffWorkingHoursRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<StaffWorkingHoursResponseDto> response = staffMemberService.replaceWorkingHours(staffMemberId, request);
+
+        assertEquals(7, response.size());
+        assertEquals(DayOfWeek.MONDAY, response.get(0).getDayOfWeek());
+        assertEquals(LocalTime.of(9, 0), response.get(0).getStartsAt());
+        assertEquals(LocalTime.of(17, 0), response.get(0).getEndsAt());
+        assertTrue(response.get(0).isAvailable());
+
+        verify(staffWorkingHoursRepository).deleteAllByStaffMemberId(staffMemberId);
+        verify(staffWorkingHoursRepository).saveAll(argThat(saved -> {
+            List<StaffWorkingHours> savedHours = (List<StaffWorkingHours>) saved;
+            return savedHours.size() == 7
+                    && savedHours.stream().allMatch(hour -> staffMemberId.equals(hour.getStaffMemberId()));
+        }));
+    }
+
+    @Test
+    void replaceWorkingHours_whenWeekHasLessThanSevenDays_throwsExceptionAndDoesNotModifyHours() {
+        assertInvalidWorkingHoursDoesNotModify(fullWeekRequest().subList(0, 6));
+    }
+
+    @Test
+    void replaceWorkingHours_whenWeekHasDuplicateDays_throwsExceptionAndDoesNotModifyHours() {
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
+        request.get(6).setDayOfWeek(DayOfWeek.MONDAY);
+
+        assertInvalidWorkingHoursDoesNotModify(request);
+    }
+
+    @Test
+    void replaceWorkingHours_whenAvailableDayHasNoStartTime_throwsExceptionAndDoesNotModifyHours() {
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
+        request.get(0).setStartsAt(null);
+
+        assertInvalidWorkingHoursDoesNotModify(request);
+    }
+
+    @Test
+    void replaceWorkingHours_whenAvailableDayHasNoEndTime_throwsExceptionAndDoesNotModifyHours() {
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
+        request.get(0).setEndsAt(null);
+
+        assertInvalidWorkingHoursDoesNotModify(request);
+    }
+
+    @Test
+    void replaceWorkingHours_whenStartTimeIsNotBeforeEndTime_throwsExceptionAndDoesNotModifyHours() {
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
+        request.get(0).setStartsAt(LocalTime.of(18, 0));
+        request.get(0).setEndsAt(LocalTime.of(18, 0));
+
+        assertInvalidWorkingHoursDoesNotModify(request);
+    }
+
+    @Test
+    void replaceWorkingHours_whenStaffIsOutsideScope_throwsExceptionAndDoesNotModifyHours() {
+        Long staffMemberId = 1L;
+        Long businessId = 1L;
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(staffMemberId, businessId))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> staffMemberService.replaceWorkingHours(staffMemberId, fullWeekRequest())
+        );
+
+        verify(staffWorkingHoursRepository, never()).deleteAllByStaffMemberId(anyLong());
+        verify(staffWorkingHoursRepository, never()).saveAll(anyList());
+    }
+
     private void assertDeleteBlockedByFutureAppointment(AppointmentStatus status) {
         Long id = 1L;
         Long businessId = 1L;
@@ -380,6 +519,58 @@ public class StaffMemberServiceImplTest {
         verify(staffMemberRepository, never()).save(any());
         verify(staffMemberRepository, never()).deleteById(anyLong());
         verify(staffMemberRepository, never()).delete(any(StaffMember.class));
+    }
+
+    private void assertInvalidWorkingHoursDoesNotModify(List<StaffWorkingHoursRequestDto> request) {
+        Long staffMemberId = 1L;
+        Long businessId = 1L;
+        StaffMember staffMember = StaffMember.builder()
+                .id(staffMemberId)
+                .businessId(businessId)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(staffMemberId, businessId))
+                .thenReturn(Optional.of(staffMember));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> staffMemberService.replaceWorkingHours(staffMemberId, request)
+        );
+
+        verify(staffWorkingHoursRepository, never()).deleteAllByStaffMemberId(anyLong());
+        verify(staffWorkingHoursRepository, never()).saveAll(anyList());
+    }
+
+    private List<StaffWorkingHoursRequestDto> fullWeekRequest() {
+        return List.of(
+                workingHoursRequest(DayOfWeek.MONDAY),
+                workingHoursRequest(DayOfWeek.TUESDAY),
+                workingHoursRequest(DayOfWeek.WEDNESDAY),
+                workingHoursRequest(DayOfWeek.THURSDAY),
+                workingHoursRequest(DayOfWeek.FRIDAY),
+                workingHoursRequest(DayOfWeek.SATURDAY),
+                workingHoursRequest(DayOfWeek.SUNDAY)
+        );
+    }
+
+    private StaffWorkingHoursRequestDto workingHoursRequest(DayOfWeek dayOfWeek) {
+        return StaffWorkingHoursRequestDto.builder()
+                .dayOfWeek(dayOfWeek)
+                .startsAt(LocalTime.of(9, 0))
+                .endsAt(LocalTime.of(17, 0))
+                .isAvailable(true)
+                .build();
+    }
+
+    private StaffWorkingHours workingHoursEntity(Long staffMemberId, DayOfWeek dayOfWeek, boolean available) {
+        return StaffWorkingHours.builder()
+                .staffMemberId(staffMemberId)
+                .dayOfWeek(dayOfWeek)
+                .startsAt(available ? LocalTime.of(9, 0) : null)
+                .endsAt(available ? LocalTime.of(18, 0) : null)
+                .isAvailable(available)
+                .build();
     }
 }
 
