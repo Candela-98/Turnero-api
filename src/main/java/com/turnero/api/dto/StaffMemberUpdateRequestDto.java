@@ -1,5 +1,6 @@
 package com.turnero.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.turnero.api.model.enums.StaffMemberStatus;
@@ -19,6 +20,7 @@ public class StaffMemberUpdateRequestDto {
 
     @Schema(description = "The staff member's role label", example = "Senior barber")
     @Size(max = 100, message = "The staffmember's role label must have at most 100 characters.")
+    @JsonProperty("role_label")
     private String roleLabel;
 
     @Schema(description = "The staff member's specialty", example = "Hairdresser")
@@ -27,6 +29,7 @@ public class StaffMemberUpdateRequestDto {
 
     @Schema(description = "The staff member's avatar URL", example = "https://example.com/avatar.png")
     @Size(max = 255, message = "The staffmember's avatar URL must have at most 255 characters.")
+    @JsonProperty("avatar_url")
     private String avatarUrl;
 
     @Schema(description = "The staff member's status", example = "ACTIVE")

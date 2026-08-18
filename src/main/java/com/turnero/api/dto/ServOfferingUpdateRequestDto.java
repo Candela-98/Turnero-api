@@ -1,5 +1,6 @@
 package com.turnero.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.turnero.api.model.enums.ServiceOfferingStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
@@ -22,10 +23,12 @@ public class ServOfferingUpdateRequestDto {
 
     @Schema(description = "Service duration in minutes", example = "45")
     @Min(value = 1, message = "The duration minimum is 1 minute")
+    @JsonProperty("duration_minutes")
     private Integer durationMinutes;
 
     @Schema(description = "Price of the service offering in cents", example = "12000")
     @PositiveOrZero(message = "The price must be greater than or equal to 0")
+    @JsonProperty("price_cents")
     private Integer priceCents;
 
     @Schema(description = "The service offering status", example = "ACTIVE")
