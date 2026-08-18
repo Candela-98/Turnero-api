@@ -11,6 +11,7 @@ import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.model.User;
 import com.turnero.api.model.enums.AppointmentStatus;
+import com.turnero.api.model.enums.AppointmentSource;
 import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.model.enums.UserRole;
@@ -31,6 +32,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -114,6 +116,28 @@ public class StaffMemberControllerIT {
                 .name("Test User")
                 .email("matias@mail.com")
                 .role(UserRole.STAFF)
+                .build());
+    }
+
+    private Appointment createAppointment(
+            Long businessId,
+            Long staffMemberId,
+            AppointmentStatus appointmentStatus,
+            LocalDateTime startsAt
+    ) {
+        return appointmentRepository.save(Appointment.builder()
+                .businessId(businessId)
+                .customerId(1L)
+                .serviceOfferingId(1L)
+                .staffMemberId(staffMemberId)
+                .startsAt(startsAt)
+                .endsAt(startsAt.plusMinutes(30))
+                .durationMinutes(30)
+                .priceCents(10000)
+                .status(appointmentStatus)
+                .source(AppointmentSource.ADMIN)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build());
     }
 
@@ -454,7 +478,7 @@ public class StaffMemberControllerIT {
     }
 
     @Test
-    void deleteStaffMember_whenStaffMemberExists_deletesStaffMember_andReturns204() throws Exception {
+    void deleteStaffMember_whenStaffMemberExists_deactivatesWithoutDeleting_andReturns204() throws Exception {
         // Given
         StaffMember staffMember = getStaffMember();
         StaffMember saved = staffMemberRepository.save(staffMember);
@@ -465,7 +489,9 @@ public class StaffMemberControllerIT {
                 .andExpect(status().isNoContent());
 
         // Then
-        assertThat(staffMemberRepository.existsById(saved.getId())).isFalse();
+        StaffMember deactivated = staffMemberRepository.findById(id).orElseThrow();
+        assertThat(deactivated.getStatus()).isEqualTo(StaffMemberStatus.INACTIVE);
+        assertThat(staffMemberRepository.existsById(saved.getId())).isTrue();
     }
 
     @Test
@@ -480,6 +506,121 @@ public class StaffMemberControllerIT {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Staffmember not found with ID: 999"));
+    }
+
+    @Test
+    void deleteStaffMember_whenStaffMemberIsOutsideBusinessScope_returns404AndDoesNotModifyStaffMember() throws Exception {
+        // Given
+        StaffMember staffMember = getStaffMember();
+        staffMember.setBusinessId(2L);
+        StaffMember saved = staffMemberRepository.save(staffMember);
+
+        // When + Then
+        mockMvc.perform(delete(BASE_URL + "/{id}", saved.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: " + saved.getId()));
+
+        StaffMember unchanged = staffMemberRepository.findById(saved.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(StaffMemberStatus.ACTIVE);
+        assertThat(unchanged.getBusinessId()).isEqualTo(2L);
+    }
+
+    @Test
+    void deleteStaffMember_whenFuturePendingAppointmentExists_returns409AndDoesNotDeactivate() throws Exception {
+        assertDeleteBlockedByFutureActiveAppointment(AppointmentStatus.PENDING);
+    }
+
+    @Test
+    void deleteStaffMember_whenFutureConfirmedAppointmentExists_returns409AndDoesNotDeactivate() throws Exception {
+        assertDeleteBlockedByFutureActiveAppointment(AppointmentStatus.CONFIRMED);
+    }
+
+    @Test
+    void deleteStaffMember_whenPastPendingAppointmentExists_deactivatesAndPreservesAppointment() throws Exception {
+        // Given
+        StaffMember savedStaffMember = staffMemberRepository.save(getStaffMember());
+        LocalDateTime startsAt = LocalDateTime.now().minusDays(1);
+        Appointment savedAppointment = createAppointment(
+                1L,
+                savedStaffMember.getId(),
+                AppointmentStatus.PENDING,
+                startsAt
+        );
+
+        // When
+        mockMvc.perform(delete(BASE_URL + "/{id}", savedStaffMember.getId()))
+                .andExpect(status().isNoContent());
+
+        // Then
+        StaffMember deactivated = staffMemberRepository.findById(savedStaffMember.getId()).orElseThrow();
+        Appointment historicalAppointment = appointmentRepository.findById(savedAppointment.getId()).orElseThrow();
+
+        assertThat(deactivated.getStatus()).isEqualTo(StaffMemberStatus.INACTIVE);
+        assertThat(historicalAppointment.getStaffMemberId()).isEqualTo(savedStaffMember.getId());
+        assertThat(historicalAppointment.getStartsAt()).isEqualTo(startsAt);
+        assertThat(historicalAppointment.getEndsAt()).isEqualTo(startsAt.plusMinutes(30));
+        assertThat(historicalAppointment.getStatus()).isEqualTo(AppointmentStatus.PENDING);
+    }
+
+    @Test
+    void deleteStaffMember_whenFutureCancelledAppointmentExists_deactivatesAndPreservesAppointment() throws Exception {
+        assertDeleteAllowedWithFutureNonBlockingAppointment(AppointmentStatus.CANCELLED);
+    }
+
+    @Test
+    void deleteStaffMember_whenFutureCompletedAppointmentExists_deactivatesAndPreservesAppointment() throws Exception {
+        assertDeleteAllowedWithFutureNonBlockingAppointment(AppointmentStatus.COMPLETED);
+    }
+
+    private void assertDeleteBlockedByFutureActiveAppointment(AppointmentStatus appointmentStatus) throws Exception {
+        StaffMember savedStaffMember = staffMemberRepository.save(getStaffMember());
+        Appointment savedAppointment = createAppointment(
+                1L,
+                savedStaffMember.getId(),
+                appointmentStatus,
+                LocalDateTime.now().plusDays(1)
+        );
+
+        mockMvc.perform(delete(BASE_URL + "/{id}", savedStaffMember.getId()))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.code").value("CONFLICT"))
+                .andExpect(jsonPath("$.message")
+                        .value("Staff member cannot be deactivated because it has future active appointments"));
+
+        StaffMember unchanged = staffMemberRepository.findById(savedStaffMember.getId()).orElseThrow();
+        Appointment unchangedAppointment = appointmentRepository.findById(savedAppointment.getId()).orElseThrow();
+
+        assertThat(unchanged.getStatus()).isEqualTo(StaffMemberStatus.ACTIVE);
+        assertThat(unchangedAppointment.getStatus()).isEqualTo(appointmentStatus);
+        assertThat(unchangedAppointment.getStaffMemberId()).isEqualTo(savedStaffMember.getId());
+    }
+
+    private void assertDeleteAllowedWithFutureNonBlockingAppointment(AppointmentStatus appointmentStatus) throws Exception {
+        StaffMember savedStaffMember = staffMemberRepository.save(getStaffMember());
+        LocalDateTime startsAt = LocalDateTime.now().plusDays(1);
+        Appointment savedAppointment = createAppointment(
+                1L,
+                savedStaffMember.getId(),
+                appointmentStatus,
+                startsAt
+        );
+
+        mockMvc.perform(delete(BASE_URL + "/{id}", savedStaffMember.getId()))
+                .andExpect(status().isNoContent());
+
+        StaffMember deactivated = staffMemberRepository.findById(savedStaffMember.getId()).orElseThrow();
+        Appointment unchangedAppointment = appointmentRepository.findById(savedAppointment.getId()).orElseThrow();
+
+        assertThat(deactivated.getStatus()).isEqualTo(StaffMemberStatus.INACTIVE);
+        assertThat(unchangedAppointment.getStatus()).isEqualTo(appointmentStatus);
+        assertThat(unchangedAppointment.getStartsAt()).isEqualTo(startsAt);
+        assertThat(unchangedAppointment.getStaffMemberId()).isEqualTo(savedStaffMember.getId());
     }
 }
 

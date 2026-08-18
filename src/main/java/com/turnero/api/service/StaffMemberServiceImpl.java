@@ -2,11 +2,14 @@ package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
+import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.model.StaffWorkingHours;
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.StaffMemberStatus;
+import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.StaffWorkingHoursRepository;
@@ -28,6 +31,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     private final StaffWorkingHoursRepository staffWorkingHoursRepository;
     private final StaffMemberRepository staffMemberRepository;
     private final UserRepository userRepository;
+    private final AppointmentRepository appointmentRepository;
 
     @Override
     public StaffMember saveStaffMember(StaffMember staffMember) {
@@ -120,12 +124,28 @@ public class StaffMemberServiceImpl implements StaffMemberService {
 
     @Override
     public void deleteStaffMember(Long id) {
-        if(staffMemberRepository.existsById(id)) {
-            staffMemberRepository.deleteById(id);
-            log.info("Staffmember with id={} successfully deleted.", id);
-        } else {
-            throw new ResourceNotFoundException("Staffmember not found with ID: " + id);
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        StaffMember staffMember = staffMemberRepository.findByIdAndBusinessId(id, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + id));
+
+        boolean hasFutureActiveAppointments =
+                appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+                        businessId,
+                        id,
+                        List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED),
+                        LocalDateTime.now()
+                );
+
+        if (hasFutureActiveAppointments) {
+            throw new AppointmentOverlapException(
+                    "Staff member cannot be deactivated because it has future active appointments"
+            );
         }
 
+        staffMember.setStatus(StaffMemberStatus.INACTIVE);
+        staffMember.setUpdatedAt(LocalDateTime.now());
+
+        staffMemberRepository.save(staffMember);
+        log.info("Staffmember with id={} successfully deactivated for businessId={}.", id, businessId);
     }
 }

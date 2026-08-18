@@ -42,10 +42,7 @@ public class AvailabilityController {
             @RequestParam(required = false) LocalDate to,
             @RequestParam(name = "service_offering_id") Long serviceOfferingId,
             @RequestParam(name = "staff_member_id") Long staffMemberId,
-            @RequestParam(
-                    name = "exclude_appointment_id",
-                    required = false
-            ) Long excludeAppointmentId
+            @RequestParam(name = "exclude_appointment_id", required = false) Long excludeAppointmentId
     ) {
         validateDateParameters(date, from, to);
 
