@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
+import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.openapi.*;
@@ -64,11 +65,11 @@ public class StaffMemberController {
             description = "Actualiza los detalles de un profesional existente utilizando su ID"
     )
     @ApiUpdateResponses
-    @PutMapping("/{id}")
-    public ResponseEntity<StaffMember> updateStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto, @PathVariable Long id) {
-        var staff = staffMemberMapper.toEntity(staffDto);
-        staffMemberService.updateStaffMember(staff, id);
-        return ResponseEntity.noContent().build();
+    @PatchMapping("/{id}")
+    public ResponseEntity<StaffMemberResponseDto> updateStaffMember(@Valid @RequestBody StaffMemberUpdateRequestDto staffDto, @PathVariable Long id) {
+        var updatedStaffMember = staffMemberService.updateStaffMember(staffDto, id);
+        var staffResponseDto = staffMemberMapper.toResponseDto(updatedStaffMember);
+        return ResponseEntity.ok(staffResponseDto);
     }
 
     @Operation(

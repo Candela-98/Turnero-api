@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.model.StaffMember;
 
 import java.util.List;
@@ -12,7 +13,7 @@ public interface StaffMemberService {
 
     List<StaffMember> findAllStaffMember();
 
-    void updateStaffMember(StaffMember staffMember, Long id);
+    StaffMember updateStaffMember(StaffMemberUpdateRequestDto staffMemberUpdateDto, Long id);
 
     void deleteStaffMember(Long id);
 }

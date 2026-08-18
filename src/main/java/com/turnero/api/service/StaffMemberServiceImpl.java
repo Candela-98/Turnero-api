@@ -1,6 +1,7 @@
 package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
+import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
@@ -75,24 +76,40 @@ public class StaffMemberServiceImpl implements StaffMemberService {
 
     @Override
     public StaffMember findStaffMember(Long id) {
-        return staffMemberRepository.findById(id)
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        return staffMemberRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + id));
     }
 
     @Override
-    public void updateStaffMember(StaffMember staffMember, Long id) {
+    public StaffMember updateStaffMember(StaffMemberUpdateRequestDto staffMember, Long id) {
         StaffMember staffMemberExist = findStaffMember(id);
 
-        staffMemberExist.setBusinessId(staffMember.getBusinessId());
-        staffMemberExist.setUserId(staffMember.getUserId());
-        staffMemberExist.setName(staffMember.getName());
-        staffMemberExist.setRoleLabel(staffMember.getRoleLabel());
-        staffMemberExist.setSpecialty(staffMember.getSpecialty());
-        staffMemberExist.setAvatarUrl(staffMember.getAvatarUrl());
-        staffMemberExist.setStatus(staffMember.getStatus());
+        if (staffMember.getName() != null) {
+            staffMemberExist.setName(staffMember.getName());
+        }
 
-        staffMemberRepository.save(staffMemberExist);
+        if (staffMember.getRoleLabel() != null) {
+            staffMemberExist.setRoleLabel(staffMember.getRoleLabel());
+        }
+
+        if (staffMember.getSpecialty() != null) {
+            staffMemberExist.setSpecialty(staffMember.getSpecialty());
+        }
+
+        if (staffMember.getAvatarUrl() != null) {
+            staffMemberExist.setAvatarUrl(staffMember.getAvatarUrl());
+        }
+
+        if (staffMember.getStatus() != null) {
+            staffMemberExist.setStatus(staffMember.getStatus());
+        }
+
+        StaffMember updatedStaffMember = staffMemberRepository.save(staffMemberExist);
         log.info("Staffmember with id={} successfully updated.", id);
+
+        return updatedStaffMember;
     }
 
     public List<StaffMember> findAllStaffMember() {
