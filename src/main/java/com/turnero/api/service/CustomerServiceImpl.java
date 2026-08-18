@@ -3,6 +3,7 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Customer;
+import com.turnero.api.model.enums.CustomerStatus;
 import com.turnero.api.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class CustomerServiceImpl implements CustomerService {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
         customer.setBusinessId(businessId);
+        customer.setStatus(CustomerStatus.ACTIVE);
         customer.setCreatedAt(LocalDateTime.now());
         customer.setUpdatedAt(LocalDateTime.now());
 

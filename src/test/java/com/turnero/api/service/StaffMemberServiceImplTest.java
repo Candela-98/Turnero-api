@@ -2,11 +2,14 @@ package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
+import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.model.enums.StaffMemberStatus;
+import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.StaffWorkingHoursRepository;
@@ -17,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +47,9 @@ public class StaffMemberServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private AppointmentRepository appointmentRepository;
 
     @Test
     void saveStaffMember_shouldSaveAndReturnStaffMember() {
@@ -247,26 +254,132 @@ public class StaffMemberServiceImplTest {
     }
 
     @Test
-    void deleteStaffMember_whenExists_deletes() {
+    void deleteStaffMember_whenExists_setsStatusInactiveAndDoesNotDelete() {
         Long id = 1L;
-        when(staffMemberRepository.existsById(id)).thenReturn(true);
+        Long businessId = 1L;
+        StaffMember staffMember = StaffMember.builder()
+                .id(id)
+                .businessId(businessId)
+                .status(StaffMemberStatus.ACTIVE)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(staffMember));
+        when(appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+                eq(businessId),
+                eq(id),
+                eq(List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED)),
+                any(LocalDateTime.class)
+        )).thenReturn(false);
+        when(staffMemberRepository.save(staffMember)).thenReturn(staffMember);
 
         staffMemberService.deleteStaffMember(id);
 
-        verify(staffMemberRepository, times(1)).deleteById(id);
+        assertEquals(StaffMemberStatus.INACTIVE, staffMember.getStatus());
+        assertNotNull(staffMember.getUpdatedAt());
+
+        verify(currentBusinessContext).getCurrentBusinessId();
+        verify(staffMemberRepository).findByIdAndBusinessId(id, businessId);
+        verify(appointmentRepository).existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+                eq(businessId),
+                eq(id),
+                eq(List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED)),
+                any(LocalDateTime.class)
+        );
+        verify(staffMemberRepository).save(staffMember);
+        verify(staffMemberRepository, never()).deleteById(anyLong());
+        verify(staffMemberRepository, never()).delete(any(StaffMember.class));
     }
 
     @Test
     void deleteStaffMember_whenDoesNotExist_throwsException() {
         Long id = 99L;
-        when(staffMemberRepository.existsById(id)).thenReturn(false);
+        Long businessId = 1L;
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> staffMemberService.deleteStaffMember(id));
 
         assertEquals("Staffmember not found with ID: " + id, exception.getMessage());
 
+        verify(currentBusinessContext).getCurrentBusinessId();
+        verify(staffMemberRepository).findByIdAndBusinessId(id, businessId);
+        verify(appointmentRepository, never()).existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+                anyLong(),
+                anyLong(),
+                anyList(),
+                any(LocalDateTime.class)
+        );
+        verify(staffMemberRepository, never()).save(any());
         verify(staffMemberRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void deleteStaffMember_whenOutsideBusinessScope_throwsExceptionAndDoesNotSave() {
+        Long id = 1L;
+        Long businessId = 1L;
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> staffMemberService.deleteStaffMember(id));
+
+        verify(staffMemberRepository).findByIdAndBusinessId(id, businessId);
+        verify(appointmentRepository, never()).existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+                anyLong(),
+                anyLong(),
+                anyList(),
+                any(LocalDateTime.class)
+        );
+        verify(staffMemberRepository, never()).save(any());
+        verify(staffMemberRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void deleteStaffMember_whenFuturePendingAppointmentExists_throwsConflictAndDoesNotSave() {
+        assertDeleteBlockedByFutureAppointment(AppointmentStatus.PENDING);
+    }
+
+    @Test
+    void deleteStaffMember_whenFutureConfirmedAppointmentExists_throwsConflictAndDoesNotSave() {
+        assertDeleteBlockedByFutureAppointment(AppointmentStatus.CONFIRMED);
+    }
+
+    private void assertDeleteBlockedByFutureAppointment(AppointmentStatus status) {
+        Long id = 1L;
+        Long businessId = 1L;
+        StaffMember staffMember = StaffMember.builder()
+                .id(id)
+                .businessId(businessId)
+                .status(StaffMemberStatus.ACTIVE)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(staffMember));
+        when(appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+                eq(businessId),
+                eq(id),
+                eq(List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED)),
+                any(LocalDateTime.class)
+        )).thenReturn(true);
+
+        AppointmentOverlapException exception = assertThrows(
+                AppointmentOverlapException.class,
+                () -> staffMemberService.deleteStaffMember(id)
+        );
+
+        assertEquals(
+                "Staff member cannot be deactivated because it has future active appointments",
+                exception.getMessage()
+        );
+        assertEquals(StaffMemberStatus.ACTIVE, staffMember.getStatus());
+        assertNotNull(status);
+
+        verify(staffMemberRepository, never()).save(any());
+        verify(staffMemberRepository, never()).deleteById(anyLong());
+        verify(staffMemberRepository, never()).delete(any(StaffMember.class));
     }
 }
 
