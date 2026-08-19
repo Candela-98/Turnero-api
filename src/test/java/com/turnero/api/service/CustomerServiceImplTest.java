@@ -236,25 +236,70 @@ public class CustomerServiceImplTest {
     }
 
     @Test
-    void deleteCustomer_whenExists_deletes() {
+    void deleteCustomer_whenExists_setsStatusInactiveAndDoesNotDelete() {
         Long id = 1L;
-        when(customerRepository.existsById(id)).thenReturn(true);
+        Long businessId = 1L;
+        LocalDateTime originalUpdatedAt = LocalDateTime.now().minusDays(1);
+        Customer customer = Customer.builder()
+                .id(id)
+                .businessId(businessId)
+                .userId(20L)
+                .name("Candela")
+                .email("candela@mail.com")
+                .phoneNumber("123")
+                .internalNotes("Notes")
+                .status(CustomerStatus.ACTIVE)
+                .createdAt(originalUpdatedAt.minusDays(1))
+                .updatedAt(originalUpdatedAt)
+                .build();
+
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(customer)).thenReturn(customer);
 
         customerService.deleteCustomer(id);
 
-        verify(customerRepository, times(1)).deleteById(id);
+        assertEquals(CustomerStatus.INACTIVE, customer.getStatus());
+        assertNotEquals(originalUpdatedAt, customer.getUpdatedAt());
+        verify(customerRepository).save(customer);
+        verify(customerRepository, never()).delete(customer);
+        verify(customerRepository, never()).deleteById(anyLong());
+        verify(customerRepository, never()).findById(id);
     }
 
     @Test
     void deleteCustomer_whenNotExists_throwException() {
         Long id = 99L;
-        when(customerRepository.existsById(id)).thenReturn(false);
+        Long businessId = 1L;
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> customerService.deleteCustomer(id));
 
         assertEquals("Customer not found with ID: 99", exception.getMessage());
 
+        verify(customerRepository, never()).save(any());
+        verify(customerRepository, never()).delete(any(Customer.class));
         verify(customerRepository, never()).deleteById(anyLong());
+        verify(customerRepository, never()).findById(id);
+    }
+
+    @Test
+    void deleteCustomer_whenOutsideBusinessScope_throwsExceptionAndDoesNotSave() {
+        Long id = 1L;
+        Long businessId = 1L;
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
+        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class, () -> customerService.deleteCustomer(id));
+
+        assertEquals("Customer not found with ID: " + id, exception.getMessage());
+        verify(customerRepository).findByIdAndBusinessId(id, businessId);
+        verify(customerRepository, never()).save(any());
+        verify(customerRepository, never()).delete(any(Customer.class));
+        verify(customerRepository, never()).deleteById(anyLong());
+        verify(customerRepository, never()).findById(id);
     }
 }
