@@ -1,6 +1,7 @@
 package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
+import com.turnero.api.dto.CustomerUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.Customer;
 import com.turnero.api.model.enums.CustomerStatus;
@@ -38,21 +39,41 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public Customer findCustomer(Long id) {
-        return customerRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+
+        return customerRepository.findByIdAndBusinessId(id, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + id));
     }
 
     @Override
-    public void updateCustomer(Customer customer, Long id) {
+    public Customer updateCustomer(CustomerUpdateRequestDto customer, Long id) {
         Customer currentCustomer = findCustomer(id);
 
-        currentCustomer.setName(customer.getName());
-        currentCustomer.setEmail(customer.getEmail());
-        currentCustomer.setPhoneNumber(customer.getPhoneNumber());
+        if (customer.getName() != null) {
+            currentCustomer.setName(customer.getName());
+        }
+
+        if (customer.getEmail() != null) {
+            currentCustomer.setEmail(customer.getEmail());
+        }
+
+        if (customer.getPhoneNumber() != null) {
+            currentCustomer.setPhoneNumber(customer.getPhoneNumber());
+        }
+
+        if (customer.getInternalNotes() != null) {
+            currentCustomer.setInternalNotes(customer.getInternalNotes());
+        }
+
+        if (customer.getStatus() != null) {
+            currentCustomer.setStatus(customer.getStatus());
+        }
+
         currentCustomer.setUpdatedAt(LocalDateTime.now());
 
-        customerRepository.save(currentCustomer);
+        Customer updatedCustomer = customerRepository.save(currentCustomer);
         log.info("Customer with id={} successfully updated", id);
+        return updatedCustomer;
     }
 
     public List<Customer> findAllCustomer() {

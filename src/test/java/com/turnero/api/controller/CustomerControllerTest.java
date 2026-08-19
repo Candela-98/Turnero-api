@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -13,8 +14,11 @@ import java.util.List;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.dto.CustomerResponseDto;
+import com.turnero.api.dto.CustomerUpdateRequestDto;
+import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
+import com.turnero.api.model.enums.CustomerStatus;
 import com.turnero.api.service.CustomerService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,8 +65,11 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.id").value(12))
                 .andExpect(jsonPath("$.name").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
-                .andExpect(jsonPath("$.phone").value("1122334455"))
-                .andExpect(jsonPath("$.createdAt").value("2026-02-24T21:00:00"));
+                .andExpect(jsonPath("$.phone_number").value("1122334455"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.internal_notes").value("Prefiere corte bajo."))
+                .andExpect(jsonPath("$.created_at").value("2026-02-24T21:00:00"))
+                .andExpect(jsonPath("$.updated_at").value("2026-02-24T22:00:00"));
 
         // Assert
         then(customerMapper).should().toEntity(any(CustomerRequestDto.class));
@@ -137,11 +144,32 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.id").value(12))
                 .andExpect(jsonPath("$.name").value("Juan"))
                 .andExpect(jsonPath("$.email").value("juan@mail.com"))
-                .andExpect(jsonPath("$.phone").value("1122334455"))
-                .andExpect(jsonPath("$.createdAt").value("2026-02-24T21:00:00"));
+                .andExpect(jsonPath("$.phone_number").value("1122334455"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.internal_notes").value("Prefiere corte bajo."))
+                .andExpect(jsonPath("$.created_at").value("2026-02-24T21:00:00"))
+                .andExpect(jsonPath("$.updated_at").value("2026-02-24T22:00:00"));
 
-        then(customerService).should().findCustomer(any());
+        then(customerService).should().findCustomer(id);
         then(customerMapper).should().toResponseDto(customer);
+    }
+
+    @Test
+    void retrieveCustomer_whenCustomerDoesNotExist_returns404() throws Exception {
+        // Given
+        given(customerService.findCustomer(999L)).willThrow(new ResourceNotFoundException("Customer not found with ID: 999"));
+
+        // When + Then
+        mockMvc.perform(get(BASE_URL + "/999")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found with ID: 999"));
+
+        then(customerService).should().findCustomer(999L);
+        then(customerMapper).shouldHaveNoInteractions();
     }
 
     @Test
@@ -166,32 +194,58 @@ class CustomerControllerTest {
     void updateCustomer_whenRequestIsValid_returns200() throws Exception {
         // Given
         Long id = 12L;
-        var dto = getCustomerDTO();
+        var dto = CustomerUpdateRequestDto.builder()
+                .name("Santiago Actualizado")
+                .internalNotes("Cliente frecuente")
+                .status(CustomerStatus.INACTIVE)
+                .build();
         var entity = getCustomerEntity(id);
+        entity.setName("Santiago Actualizado");
+        entity.setInternalNotes("Cliente frecuente");
+        entity.setStatus(CustomerStatus.INACTIVE);
+        entity.setUpdatedAt(LocalDateTime.of(2026, 2, 24, 23, 0));
+        var responseDto = CustomerResponseDto.builder()
+                .id(id)
+                .name("Santiago Actualizado")
+                .email("juan@mail.com")
+                .phoneNumber("1122334455")
+                .status(CustomerStatus.INACTIVE)
+                .internalNotes("Cliente frecuente")
+                .createdAt(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .updatedAt(LocalDateTime.of(2026, 2, 24, 23, 0))
+                .build();
 
-        given(customerMapper.toEntity(any(CustomerRequestDto.class)))
-                .willReturn(entity);
+        given(customerService.updateCustomer(any(CustomerUpdateRequestDto.class), eq(id))).willReturn(entity);
+        given(customerMapper.toResponseDto(entity)).willReturn(responseDto);
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", id)
+        mockMvc.perform(patch(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(12))
+                .andExpect(jsonPath("$.name").value("Santiago Actualizado"))
+                .andExpect(jsonPath("$.email").value("juan@mail.com"))
+                .andExpect(jsonPath("$.phone_number").value("1122334455"))
+                .andExpect(jsonPath("$.internal_notes").value("Cliente frecuente"))
+                .andExpect(jsonPath("$.status").value("INACTIVE"))
+                .andExpect(jsonPath("$.updated_at").value("2026-02-24T23:00:00"));
 
-        then(customerMapper).should().toEntity(any(CustomerRequestDto.class));
-        then(customerService).should().updateCustomer(entity, id);
-        then(customerService).shouldHaveNoMoreInteractions();
+        then(customerService).should().updateCustomer(any(CustomerUpdateRequestDto.class), eq(id));
+        then(customerMapper).should().toResponseDto(entity);
     }
 
     @Test
     void updateCustomer_whenNameIsBlank_returns400() throws Exception {
         // Given
         Long id = 12L;
-        var dto = getCustomerDTO();
-        dto.setName("");
+        var dto = CustomerUpdateRequestDto.builder()
+                .name("")
+                .build();
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", 12L)
+        mockMvc.perform(patch(BASE_URL + "/{id}", 12L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -209,18 +263,42 @@ class CustomerControllerTest {
     }
 
     @Test
+    void updateCustomer_whenCustomerDoesNotExist_returns404() throws Exception {
+        // Given
+        var dto = CustomerUpdateRequestDto.builder()
+                .name("Santiago Actualizado")
+                .build();
+
+        given(customerService.updateCustomer(any(CustomerUpdateRequestDto.class), eq(999L)))
+                .willThrow(new ResourceNotFoundException("Customer not found with ID: 999"));
+
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found with ID: 999"));
+
+        then(customerService).should().updateCustomer(any(CustomerUpdateRequestDto.class), eq(999L));
+        then(customerMapper).shouldHaveNoInteractions();
+    }
+
+    @Test
     void findAllCustomers_whenCustomersExist_returns200AndList() throws Exception {
         // Given
         Long id = 12L;
         var customer1 = getCustomerEntity(id);
         var customer2 = getCustomerEntity(13L);
 
-        var response1 = getCustomerResponseDto(id);
-        var response2 = getCustomerResponseDto(13L);
+        var response1 = getCustomerSummaryResponseDto(id);
+        var response2 = getCustomerSummaryResponseDto(13L);
 
         given(customerService.findAllCustomer())
                 .willReturn(List.of(customer1, customer2));
-        given(customerMapper.toResponseDtoList(List.of(customer1, customer2)))
+        given(customerMapper.toSummaryResponseDtoList(List.of(customer1, customer2)))
                 .willReturn(List.of(response1, response2));
 
         // When + Then
@@ -231,11 +309,12 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(12))
                 .andExpect(jsonPath("$[0].name").value("Juan"))
+                .andExpect(jsonPath("$[0].internal_notes").doesNotExist())
                 .andExpect(jsonPath("$[1].id").value(13))
                 .andExpect(jsonPath("$[1].name").value("Juan"));
 
         then(customerService).should().findAllCustomer();
-        then(customerMapper).should().toResponseDtoList(List.of(customer1, customer2));
+        then(customerMapper).should().toSummaryResponseDtoList(List.of(customer1, customer2));
     }
 
     @Test
@@ -281,8 +360,21 @@ class CustomerControllerTest {
                 .id(id)
                 .name("Juan")
                 .email("juan@mail.com")
-                .phone("1122334455")
+                .phoneNumber("1122334455")
+                .status(CustomerStatus.ACTIVE)
+                .internalNotes("Prefiere corte bajo.")
                 .createdAt(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .updatedAt(LocalDateTime.of(2026, 2, 24, 22, 0))
+                .build();
+    }
+
+    private CustomerResponseDto getCustomerSummaryResponseDto(Long id) {
+        return CustomerResponseDto.builder()
+                .id(id)
+                .name("Juan")
+                .email("juan@mail.com")
+                .phoneNumber("1122334455")
+                .status(CustomerStatus.ACTIVE)
                 .build();
     }
 
@@ -292,7 +384,10 @@ class CustomerControllerTest {
                 .name("Juan")
                 .email("juan@mail.com")
                 .phoneNumber("1122334455")
+                .status(CustomerStatus.ACTIVE)
+                .internalNotes("Prefiere corte bajo.")
                 .createdAt(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .updatedAt(LocalDateTime.of(2026, 2, 24, 22, 0))
                 .build();
 
     }

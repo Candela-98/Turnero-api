@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.dto.CustomerResponseDto;
+import com.turnero.api.dto.CustomerUpdateRequestDto;
 import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
 import com.turnero.api.openapi.*;
@@ -62,11 +63,11 @@ public class CustomerController {
             description = "Actualiza los detalles de un cliente específico utilizando su ID"
     )
     @ApiUpdateResponses
-    @PutMapping("/{id}")
-    public ResponseEntity<Void> updateCustomer(@Valid @RequestBody CustomerRequestDto customerDto, @PathVariable Long id) {
-        var customer = customerMapper.toEntity(customerDto);
-        customerService.updateCustomer(customer, id);
-        return ResponseEntity.noContent().build();
+    @PatchMapping("/{id}")
+    public ResponseEntity<CustomerResponseDto> updateCustomer(@Valid @RequestBody CustomerUpdateRequestDto customerDto, @PathVariable Long id) {
+        var updatedCustomer = customerService.updateCustomer(customerDto, id);
+        var customerResponseDto = customerMapper.toResponseDto(updatedCustomer);
+        return ResponseEntity.ok(customerResponseDto);
     }
 
     @Operation(
@@ -76,7 +77,7 @@ public class CustomerController {
     @GetMapping
     public ResponseEntity<List<CustomerResponseDto>> listCustomer() {
         var customers = customerService.findAllCustomer();
-        var customersResponseDto = customerMapper.toResponseDtoList(customers);
+        var customersResponseDto = customerMapper.toSummaryResponseDtoList(customers);
         return ResponseEntity.ok(customersResponseDto);
     }
 
