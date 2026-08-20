@@ -3,10 +3,14 @@ package com.turnero.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
+import com.turnero.api.dto.StaffMemberUpdateRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursResponseDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.StaffMemberMapper;
 
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.service.StaffMemberService;
 import org.junit.jupiter.api.Test;
@@ -16,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @WebMvcTest(StaffMemberController.class)
-public class StaffMemberControlTest {
+public class StaffMemberControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -221,31 +226,60 @@ public class StaffMemberControlTest {
     void updateStaffMember_ok_shouldReturn200_andCallService() throws Exception{
         // Given
         Long id = 1L;
-        var dto = getStaffMemberDTO(id);
+        var dto = StaffMemberUpdateRequestDto.builder()
+                .name("Daniel Updated")
+                .roleLabel("Lead barber")
+                .specialty("Barber Updated")
+                .avatarUrl("https://example.com/avatar-updated.png")
+                .status(StaffMemberStatus.INACTIVE)
+                .build();
         var entity = getStaffMemberEntity(id);
+        entity.setName("Daniel Updated");
+        entity.setRoleLabel("Lead barber");
+        entity.setSpecialty("Barber Updated");
+        entity.setAvatarUrl("https://example.com/avatar-updated.png");
+        entity.setStatus(StaffMemberStatus.INACTIVE);
+        var responseDto = StaffMemberResponseDto.builder()
+                .id(id)
+                .businessId(10L)
+                .userId(20L)
+                .name("Daniel Updated")
+                .roleLabel("Lead barber")
+                .specialty("Barber Updated")
+                .avatarUrl("https://example.com/avatar-updated.png")
+                .status(StaffMemberStatus.INACTIVE)
+                .build();
 
-        given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
+        given(staffService.updateStaffMember(any(StaffMemberUpdateRequestDto.class), eq(id))).willReturn(entity);
+        given(staffMapper.toResponseDto(entity)).willReturn(responseDto);
 
-        // When
-        mockMvc.perform(put(BASE_URL + "/1")
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Daniel Updated"))
+                .andExpect(jsonPath("$.role_label").value("Lead barber"))
+                .andExpect(jsonPath("$.specialty").value("Barber Updated"))
+                .andExpect(jsonPath("$.avatar_url").value("https://example.com/avatar-updated.png"))
+                .andExpect(jsonPath("$.status").value("INACTIVE"));
 
-        //Then
-        then(staffMapper).should().toEntity(any(StaffMemberRequestDto.class));
-        then(staffService).should().updateStaffMember(entity, 1L);
+        then(staffService).should().updateStaffMember(any(StaffMemberUpdateRequestDto.class), eq(id));
+        then(staffMapper).should().toResponseDto(entity);
     }
 
     @Test
     void updateStaffMember_withInvalidDto_shouldReturn400() throws Exception{
         //Given
         Long id = 1L;
-        var dto = getStaffMemberDTO(id);
-        dto.setName("");
+        var dto = StaffMemberUpdateRequestDto.builder()
+                .name("")
+                .build();
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", id)
+        mockMvc.perform(patch(BASE_URL + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -261,6 +295,30 @@ public class StaffMemberControlTest {
 
         then(staffMapper).shouldHaveNoInteractions();
         then(staffService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void updateStaffMember_withNonExistingId_shouldReturn404() throws Exception {
+        // Given
+        var dto = StaffMemberUpdateRequestDto.builder()
+                .name("Daniel Updated")
+                .build();
+
+        given(staffService.updateStaffMember(any(StaffMemberUpdateRequestDto.class), eq(999L)))
+                .willThrow(new ResourceNotFoundException("Staffmember not found with ID: 999"));
+
+        // When + Then
+        mockMvc.perform(patch(BASE_URL + "/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: 999"));
+
+        then(staffService).should().updateStaffMember(any(StaffMemberUpdateRequestDto.class), eq(999L));
+        then(staffMapper).shouldHaveNoInteractions();
     }
 
     @Test
@@ -288,6 +346,170 @@ public class StaffMemberControlTest {
                 .andExpect(jsonPath("$.message").value("Staff member not found"));
 
         then(staffService).should().deleteStaffMember(999L);
+    }
+
+    @Test
+    void getWorkingHours_ok_shouldReturn200_andCallService() throws Exception {
+        Long id = 1L;
+        given(staffService.getWorkingHours(id)).willReturn(List.of(
+                workingHoursResponse(DayOfWeek.MONDAY),
+                workingHoursResponse(DayOfWeek.TUESDAY)
+        ));
+
+        mockMvc.perform(get(BASE_URL + "/{id}/working-hours", id))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].day_of_week").value("MONDAY"))
+                .andExpect(jsonPath("$[0].starts_at").value("09:00"))
+                .andExpect(jsonPath("$[0].ends_at").value("17:00"))
+                .andExpect(jsonPath("$[0].is_available").value(true));
+
+        then(staffService).should().getWorkingHours(id);
+    }
+
+    @Test
+    void replaceWorkingHours_ok_shouldReturn200_andSevenWorkingHours() throws Exception {
+        Long id = 1L;
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
+
+        given(staffService.replaceWorkingHours(eq(id), anyList())).willReturn(fullWeekResponse());
+
+        mockMvc.perform(put(BASE_URL + "/{id}/working-hours", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(7))
+                .andExpect(jsonPath("$[0].day_of_week").value("MONDAY"))
+                .andExpect(jsonPath("$[0].starts_at").value("09:00"))
+                .andExpect(jsonPath("$[0].ends_at").value("17:00"))
+                .andExpect(jsonPath("$[0].is_available").value(true));
+
+        then(staffService).should().replaceWorkingHours(eq(id), anyList());
+    }
+
+    @Test
+    void replaceWorkingHours_whenDayOfWeekIsMissing_shouldReturn400() throws Exception {
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
+        request.get(0).setDayOfWeek(null);
+
+        mockMvc.perform(put(BASE_URL + "/1/working-hours")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"));
+
+        then(staffService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void replaceWorkingHours_whenIsAvailableIsMissing_shouldReturn400() throws Exception {
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
+        request.get(0).setIsAvailable(null);
+
+        mockMvc.perform(put(BASE_URL + "/1/working-hours")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"));
+
+        then(staffService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void replaceWorkingHours_whenBusinessValidationFails_shouldReturn400() throws Exception {
+        given(staffService.replaceWorkingHours(eq(1L), anyList()))
+                .willThrow(new IllegalArgumentException("Working hours must contain exactly 7 days"));
+
+        mockMvc.perform(put(BASE_URL + "/1/working-hours")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(fullWeekRequest().subList(0, 6))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Working hours must contain exactly 7 days"));
+
+        then(staffService).should().replaceWorkingHours(eq(1L), anyList());
+    }
+
+    @Test
+    void getWorkingHours_whenOutsideScope_shouldReturn404() throws Exception {
+        given(staffService.getWorkingHours(999L))
+                .willThrow(new ResourceNotFoundException("Staffmember not found with ID: 999"));
+
+        mockMvc.perform(get(BASE_URL + "/999/working-hours"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: 999"));
+
+        then(staffService).should().getWorkingHours(999L);
+    }
+
+    @Test
+    void replaceWorkingHours_whenOutsideScope_shouldReturn404() throws Exception {
+        given(staffService.replaceWorkingHours(eq(999L), anyList()))
+                .willThrow(new ResourceNotFoundException("Staffmember not found with ID: 999"));
+
+        mockMvc.perform(put(BASE_URL + "/999/working-hours")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(fullWeekRequest())))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: 999"));
+
+        then(staffService).should().replaceWorkingHours(eq(999L), anyList());
+    }
+
+    private List<StaffWorkingHoursRequestDto> fullWeekRequest() {
+        return List.of(
+                workingHoursRequest(DayOfWeek.MONDAY),
+                workingHoursRequest(DayOfWeek.TUESDAY),
+                workingHoursRequest(DayOfWeek.WEDNESDAY),
+                workingHoursRequest(DayOfWeek.THURSDAY),
+                workingHoursRequest(DayOfWeek.FRIDAY),
+                workingHoursRequest(DayOfWeek.SATURDAY),
+                workingHoursRequest(DayOfWeek.SUNDAY)
+        );
+    }
+
+    private List<StaffWorkingHoursResponseDto> fullWeekResponse() {
+        return List.of(
+                workingHoursResponse(DayOfWeek.MONDAY),
+                workingHoursResponse(DayOfWeek.TUESDAY),
+                workingHoursResponse(DayOfWeek.WEDNESDAY),
+                workingHoursResponse(DayOfWeek.THURSDAY),
+                workingHoursResponse(DayOfWeek.FRIDAY),
+                workingHoursResponse(DayOfWeek.SATURDAY),
+                workingHoursResponse(DayOfWeek.SUNDAY)
+        );
+    }
+
+    private StaffWorkingHoursRequestDto workingHoursRequest(DayOfWeek dayOfWeek) {
+        return StaffWorkingHoursRequestDto.builder()
+                .dayOfWeek(dayOfWeek)
+                .startsAt(LocalTime.of(9, 0))
+                .endsAt(LocalTime.of(17, 0))
+                .isAvailable(true)
+                .build();
+    }
+
+    private StaffWorkingHoursResponseDto workingHoursResponse(DayOfWeek dayOfWeek) {
+        return StaffWorkingHoursResponseDto.builder()
+                .dayOfWeek(dayOfWeek)
+                .startsAt(LocalTime.of(9, 0))
+                .endsAt(LocalTime.of(17, 0))
+                .isAvailable(true)
+                .build();
     }
 }
 

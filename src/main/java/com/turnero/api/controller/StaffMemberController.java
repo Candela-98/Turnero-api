@@ -2,6 +2,9 @@ package com.turnero.api.controller;
 
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
+import com.turnero.api.dto.StaffMemberUpdateRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursResponseDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.openapi.*;
@@ -59,16 +62,35 @@ public class StaffMemberController {
         return ResponseEntity.ok(staffResponseDto);
     }
 
+    @GetMapping("/{id}/working-hours")
+    public ResponseEntity<List<StaffWorkingHoursResponseDto>> getWorkingHours(@PathVariable Long id) {
+
+        return ResponseEntity.ok(staffMemberService.getWorkingHours(id));
+    }
+
     @Operation(
             summary = "Actualizar profesional",
             description = "Actualiza los detalles de un profesional existente utilizando su ID"
     )
     @ApiUpdateResponses
-    @PutMapping("/{id}")
-    public ResponseEntity<StaffMember> updateStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto, @PathVariable Long id) {
-        var staff = staffMemberMapper.toEntity(staffDto);
-        staffMemberService.updateStaffMember(staff, id);
-        return ResponseEntity.noContent().build();
+    @PatchMapping("/{id}")
+    public ResponseEntity<StaffMemberResponseDto> updateStaffMember(@Valid @RequestBody StaffMemberUpdateRequestDto staffDto, @PathVariable Long id) {
+        var updatedStaffMember = staffMemberService.updateStaffMember(staffDto, id);
+        var staffResponseDto = staffMemberMapper.toResponseDto(updatedStaffMember);
+        return ResponseEntity.ok(staffResponseDto);
+    }
+
+    @Operation(
+            summary = "Reemplazar horarios semanales del profesional",
+            description = "Reemplaza la semana completa de horarios de trabajo de un profesional"
+    )
+    @PutMapping("/{id}/working-hours")
+    public ResponseEntity<List<StaffWorkingHoursResponseDto>> replaceWorkingHours(@PathVariable Long id,
+            @Valid @RequestBody List<StaffWorkingHoursRequestDto> workingHours) {
+
+        var updatedWorkingHours = staffMemberService.replaceWorkingHours(id, workingHours);
+
+        return ResponseEntity.ok(updatedWorkingHours);
     }
 
     @Operation(
