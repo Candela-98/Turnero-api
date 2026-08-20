@@ -1,14 +1,17 @@
 package com.turnero.api.integration;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
+import com.turnero.api.dto.StaffWorkingHoursRequestDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.StaffWorkingHours;
 import com.turnero.api.model.User;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.AppointmentSource;
@@ -18,6 +21,7 @@ import com.turnero.api.model.enums.UserRole;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
+import com.turnero.api.repository.StaffWorkingHoursRepository;
 import com.turnero.api.repository.UserRepository;
 import com.turnero.api.service.StaffMemberService;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +40,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -62,6 +66,9 @@ public class StaffMemberControllerIT {
     StaffMemberRepository staffMemberRepository;
 
     @Autowired
+    StaffWorkingHoursRepository staffWorkingHoursRepository;
+
+    @Autowired
     AppointmentRepository appointmentRepository;
 
     @Autowired
@@ -75,6 +82,7 @@ public class StaffMemberControllerIT {
     @BeforeEach
     void cleanDb() {
         appointmentRepository.deleteAll();
+        staffWorkingHoursRepository.deleteAll();
         staffMemberRepository.deleteAll();
     }
 
@@ -139,6 +147,79 @@ public class StaffMemberControllerIT {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build());
+    }
+
+    private List<StaffWorkingHoursRequestDto> fullWeekRequest(LocalTime startsAt, LocalTime endsAt) {
+        return List.of(
+                workingHoursRequest(DayOfWeek.MONDAY, startsAt, endsAt, true),
+                workingHoursRequest(DayOfWeek.TUESDAY, startsAt, endsAt, true),
+                workingHoursRequest(DayOfWeek.WEDNESDAY, startsAt, endsAt, true),
+                workingHoursRequest(DayOfWeek.THURSDAY, startsAt, endsAt, true),
+                workingHoursRequest(DayOfWeek.FRIDAY, startsAt, endsAt, true),
+                workingHoursRequest(DayOfWeek.SATURDAY, null, null, false),
+                workingHoursRequest(DayOfWeek.SUNDAY, null, null, false)
+        );
+    }
+
+    private StaffWorkingHoursRequestDto workingHoursRequest(
+            DayOfWeek dayOfWeek,
+            LocalTime startsAt,
+            LocalTime endsAt,
+            boolean isAvailable
+    ) {
+        return StaffWorkingHoursRequestDto.builder()
+                .dayOfWeek(dayOfWeek)
+                .startsAt(startsAt)
+                .endsAt(endsAt)
+                .isAvailable(isAvailable)
+                .build();
+    }
+
+    private void createFullWeekWorkingHours(Long staffMemberId, LocalTime startsAt, LocalTime endsAt) {
+        List<StaffWorkingHours> workingHours = List.of(
+                workingHoursEntity(staffMemberId, DayOfWeek.MONDAY, startsAt, endsAt, true),
+                workingHoursEntity(staffMemberId, DayOfWeek.TUESDAY, startsAt, endsAt, true),
+                workingHoursEntity(staffMemberId, DayOfWeek.WEDNESDAY, startsAt, endsAt, true),
+                workingHoursEntity(staffMemberId, DayOfWeek.THURSDAY, startsAt, endsAt, true),
+                workingHoursEntity(staffMemberId, DayOfWeek.FRIDAY, startsAt, endsAt, true),
+                workingHoursEntity(staffMemberId, DayOfWeek.SATURDAY, null, null, false),
+                workingHoursEntity(staffMemberId, DayOfWeek.SUNDAY, null, null, false)
+        );
+
+        staffWorkingHoursRepository.saveAll(workingHours);
+    }
+
+    private StaffWorkingHours workingHoursEntity(
+            Long staffMemberId,
+            DayOfWeek dayOfWeek,
+            LocalTime startsAt,
+            LocalTime endsAt,
+            boolean isAvailable
+    ) {
+        return StaffWorkingHours.builder()
+                .staffMemberId(staffMemberId)
+                .dayOfWeek(dayOfWeek)
+                .startsAt(startsAt)
+                .endsAt(endsAt)
+                .isAvailable(isAvailable)
+                .build();
+    }
+
+    private JsonNode findJsonDay(JsonNode workingHours, DayOfWeek dayOfWeek) {
+        for (JsonNode workingHour : workingHours) {
+            if (dayOfWeek.name().equals(workingHour.get("day_of_week").asText())) {
+                return workingHour;
+            }
+        }
+
+        throw new AssertionError("Missing working hours for " + dayOfWeek);
+    }
+
+    private StaffWorkingHours findPersistedDay(List<StaffWorkingHours> workingHours, DayOfWeek dayOfWeek) {
+        return workingHours.stream()
+                .filter(workingHour -> workingHour.getDayOfWeek() == dayOfWeek)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing working hours for " + dayOfWeek));
     }
 
     @Test
@@ -573,6 +654,161 @@ public class StaffMemberControllerIT {
     @Test
     void deleteStaffMember_whenFutureCompletedAppointmentExists_deactivatesAndPreservesAppointment() throws Exception {
         assertDeleteAllowedWithFutureNonBlockingAppointment(AppointmentStatus.COMPLETED);
+    }
+
+    @Test
+    void getWorkingHours_whenWeekExists_returnsStaffWeek() throws Exception {
+        StaffMember saved = staffMemberRepository.save(getStaffMember());
+        createFullWeekWorkingHours(saved.getId(), LocalTime.of(9, 0), LocalTime.of(18, 0));
+
+        MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}/working-hours", saved.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(7))
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode monday = findJsonDay(response, DayOfWeek.MONDAY);
+        JsonNode saturday = findJsonDay(response, DayOfWeek.SATURDAY);
+
+        assertThat(monday.has("day_of_week")).isTrue();
+        assertThat(monday.has("starts_at")).isTrue();
+        assertThat(monday.has("ends_at")).isTrue();
+        assertThat(monday.has("is_available")).isTrue();
+        assertThat(monday.has("available")).isFalse();
+        assertThat(monday.get("starts_at").asText()).isEqualTo("09:00");
+        assertThat(monday.get("ends_at").asText()).isEqualTo("18:00");
+        assertThat(monday.get("is_available").asBoolean()).isTrue();
+        assertThat(saturday.get("starts_at").isNull()).isTrue();
+        assertThat(saturday.get("ends_at").isNull()).isTrue();
+        assertThat(saturday.get("is_available").asBoolean()).isFalse();
+    }
+
+    @Test
+    void replaceWorkingHours_whenRequestIsValid_replacesSevenRecordsInDatabase() throws Exception {
+        StaffMember saved = staffMemberRepository.save(getStaffMember());
+        createFullWeekWorkingHours(saved.getId(), LocalTime.of(9, 0), LocalTime.of(18, 0));
+
+        mockMvc.perform(put(BASE_URL + "/{id}/working-hours", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                fullWeekRequest(LocalTime.of(10, 30), LocalTime.of(16, 45))
+                        )))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(7))
+                .andExpect(jsonPath("$[0].day_of_week").value("MONDAY"))
+                .andExpect(jsonPath("$[0].starts_at").value("10:30"))
+                .andExpect(jsonPath("$[0].ends_at").value("16:45"))
+                .andExpect(jsonPath("$[0].is_available").value(true));
+
+        List<StaffWorkingHours> persisted = staffWorkingHoursRepository
+                .findAllByStaffMemberIdOrderByDayOfWeekAsc(saved.getId());
+        StaffWorkingHours monday = findPersistedDay(persisted, DayOfWeek.MONDAY);
+        StaffWorkingHours saturday = findPersistedDay(persisted, DayOfWeek.SATURDAY);
+
+        assertThat(persisted).hasSize(7);
+        assertThat(monday.getStartsAt()).isEqualTo(LocalTime.of(10, 30));
+        assertThat(monday.getEndsAt()).isEqualTo(LocalTime.of(16, 45));
+        assertThat(saturday.isAvailable()).isFalse();
+        assertThat(saturday.getStartsAt()).isNull();
+        assertThat(saturday.getEndsAt()).isNull();
+    }
+
+    @Test
+    void replaceWorkingHours_whenWeekIsIncomplete_returns400() throws Exception {
+        StaffMember saved = staffMemberRepository.save(getStaffMember());
+        createFullWeekWorkingHours(saved.getId(), LocalTime.of(9, 0), LocalTime.of(18, 0));
+
+        mockMvc.perform(put(BASE_URL + "/{id}/working-hours", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                fullWeekRequest(LocalTime.of(10, 0), LocalTime.of(16, 0)).subList(0, 6)
+                        )))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Working hours must contain exactly 7 days"));
+    }
+
+    @Test
+    void replaceWorkingHours_whenRangeIsInvalid_returns400() throws Exception {
+        StaffMember saved = staffMemberRepository.save(getStaffMember());
+        createFullWeekWorkingHours(saved.getId(), LocalTime.of(9, 0), LocalTime.of(18, 0));
+
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest(LocalTime.of(10, 0), LocalTime.of(16, 0));
+        request.get(0).setStartsAt(LocalTime.of(17, 0));
+        request.get(0).setEndsAt(LocalTime.of(17, 0));
+
+        mockMvc.perform(put(BASE_URL + "/{id}/working-hours", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message")
+                        .value("Start time must be before end time for available days"));
+    }
+
+    @Test
+    void workingHours_whenStaffIsOutsideBusinessScope_returns404() throws Exception {
+        StaffMember staffMember = getStaffMember();
+        staffMember.setBusinessId(2L);
+        StaffMember saved = staffMemberRepository.save(staffMember);
+        createFullWeekWorkingHours(saved.getId(), LocalTime.of(9, 0), LocalTime.of(18, 0));
+
+        mockMvc.perform(get(BASE_URL + "/{id}/working-hours", saved.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: " + saved.getId()));
+
+        mockMvc.perform(put(BASE_URL + "/{id}/working-hours", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                fullWeekRequest(LocalTime.of(10, 0), LocalTime.of(16, 0))
+                        )))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Staffmember not found with ID: " + saved.getId()));
+
+        List<StaffWorkingHours> unchanged = staffWorkingHoursRepository
+                .findAllByStaffMemberIdOrderByDayOfWeekAsc(saved.getId());
+        assertThat(unchanged).hasSize(7);
+        assertThat(unchanged.get(0).getStartsAt()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(unchanged.get(0).getEndsAt()).isEqualTo(LocalTime.of(18, 0));
+    }
+
+    @Test
+    void replaceWorkingHours_whenValidationFails_doesNotPartiallyReplaceWeek() throws Exception {
+        StaffMember saved = staffMemberRepository.save(getStaffMember());
+        createFullWeekWorkingHours(saved.getId(), LocalTime.of(9, 0), LocalTime.of(18, 0));
+
+        List<StaffWorkingHoursRequestDto> request = fullWeekRequest(LocalTime.of(10, 0), LocalTime.of(16, 0));
+        request.get(2).setStartsAt(null);
+
+        mockMvc.perform(put(BASE_URL + "/{id}/working-hours", saved.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message").value("Start time is required when the day is available"));
+
+        List<StaffWorkingHours> unchanged = staffWorkingHoursRepository
+                .findAllByStaffMemberIdOrderByDayOfWeekAsc(saved.getId());
+        StaffWorkingHours monday = findPersistedDay(unchanged, DayOfWeek.MONDAY);
+        StaffWorkingHours wednesday = findPersistedDay(unchanged, DayOfWeek.WEDNESDAY);
+
+        assertThat(unchanged).hasSize(7);
+        assertThat(monday.getStartsAt()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(monday.getEndsAt()).isEqualTo(LocalTime.of(18, 0));
+        assertThat(wednesday.getStartsAt()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(wednesday.getEndsAt()).isEqualTo(LocalTime.of(18, 0));
     }
 
     private void assertDeleteBlockedByFutureActiveAppointment(AppointmentStatus appointmentStatus) throws Exception {
