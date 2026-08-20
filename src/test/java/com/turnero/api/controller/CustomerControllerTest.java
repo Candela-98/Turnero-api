@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -327,6 +328,24 @@ class CustomerControllerTest {
 
         then(customerService).should().deleteCustomer(id);
         then(customerService).shouldHaveNoMoreInteractions();
+    }
+
+    @Test
+    void deleteCustomer_whenCustomerDoesNotExist_returns404() throws Exception {
+        Long id = 999L;
+        willThrow(new ResourceNotFoundException("Customer not found with ID: 999"))
+                .given(customerService).deleteCustomer(id);
+
+        mockMvc.perform(delete(BASE_URL + "/{id}", id)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found with ID: 999"));
+
+        then(customerService).should().deleteCustomer(id);
+        then(customerMapper).shouldHaveNoInteractions();
     }
 
     @Test
