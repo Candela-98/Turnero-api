@@ -83,12 +83,12 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public void deleteCustomer(Long id) {
+        Customer customer = findCustomer(id);
 
-        if(customerRepository.existsById(id)) {
-            customerRepository.deleteById(id);
-            log.info("Customer with id={} successfully removed", id);
-        } else {
-            throw new ResourceNotFoundException("Customer not found with ID: " + id);
-        }
+        customer.setStatus(CustomerStatus.INACTIVE);
+        customer.setUpdatedAt(LocalDateTime.now());
+
+        customerRepository.save(customer);
+        log.info("Customer with id={} successfully deactivated for businessId={}", id, customer.getBusinessId());
     }
 }
