@@ -68,4 +68,15 @@ class BusinessControllerIT {
         assertThat(updated.getStatus()).isEqualTo(BusinessStatus.ACTIVE);
         assertThat(updated.getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 1, 1, 0, 0));
     }
+
+    @Test
+    void patchBusiness_whenTimezoneIsInvalid_returnsBadRequestWithoutPersistingIt() throws Exception {
+        mockMvc.perform(patch("/api/v1/business").contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("timezone", "not-a-timezone"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+
+        assertThat(businessRepository.findById(1L).orElseThrow().getTimezone())
+                .isEqualTo("America/Argentina/Buenos_Aires");
+    }
 }
