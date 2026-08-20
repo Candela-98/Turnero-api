@@ -11,8 +11,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.dto.CustomerResponseDto;
+import com.turnero.api.dto.CustomerUpdateRequestDto;
 import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
+import com.turnero.api.model.enums.CustomerStatus;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.service.CustomerService;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,8 +88,10 @@ class CustomerControllerIT {
         assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(response.getName()).isEqualTo("Juan Perez");
         assertThat(response.getEmail()).isEqualTo("juan@mail.com");
-        assertThat(response.getPhone()).isEqualTo("1122334455");
+        assertThat(response.getPhoneNumber()).isEqualTo("1122334455");
+        assertThat(response.getStatus()).isEqualTo(CustomerStatus.ACTIVE);
         assertThat(response.getCreatedAt()).isNotNull();
+        assertThat(response.getUpdatedAt()).isNotNull();
     }
 
     @Test
@@ -154,10 +158,13 @@ class CustomerControllerIT {
         CustomerResponseDto response = objectMapper.readValue(json, CustomerResponseDto.class);
 
         assertThat(response.getId()).isEqualTo(saved.getId());
-        assertThat(saved.getName()).isEqualTo("Juan Perez");
-        assertThat(saved.getEmail()).isEqualTo("juan@mail.com");
-        assertThat(saved.getPhoneNumber()).isEqualTo("1122334455");
-        assertThat(saved.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+        assertThat(response.getName()).isEqualTo("Juan Perez");
+        assertThat(response.getEmail()).isEqualTo("juan@mail.com");
+        assertThat(response.getPhoneNumber()).isEqualTo("1122334455");
+        assertThat(response.getStatus()).isEqualTo(CustomerStatus.ACTIVE);
+        assertThat(response.getInternalNotes()).isEqualTo("Prefiere corte bajo.");
+        assertThat(response.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+        assertThat(response.getUpdatedAt()).isEqualTo(saved.getUpdatedAt());
     }
 
     @Test
@@ -169,42 +176,63 @@ class CustomerControllerIT {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message").value("Customer not found"));
+                .andExpect(jsonPath("$.message").value("Customer not found with ID: " + id));
     }
 
     @Test
-    void updateCustomer_whenRequestIsValid_updatesCustomer_andReturns204() throws Exception {
+    void updateCustomer_whenRequestIsValid_updatesCustomer_andReturns200() throws Exception {
         // Given
         Customer customer = getCustomer();
 
         Customer saved = customerRepository.save(customer);
 
-        CustomerRequestDto dto = getCustomerRequestDto();
-        dto.setName("Juan Updated");
-        dto.setEmail("new@mail.com");
+        CustomerUpdateRequestDto dto = CustomerUpdateRequestDto.builder()
+                .name("Juan Updated")
+                .email("new@mail.com")
+                .phoneNumber("+54 11 5555-5555")
+                .internalNotes("Cliente frecuente")
+                .status(CustomerStatus.INACTIVE)
+                .build();
 
         // When
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+        MvcResult result = mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.name").value("Juan Updated"))
+                .andExpect(jsonPath("$.email").value("new@mail.com"))
+                .andExpect(jsonPath("$.phone_number").value("+54 11 5555-5555"))
+                .andExpect(jsonPath("$.internal_notes").value("Cliente frecuente"))
+                .andExpect(jsonPath("$.status").value("INACTIVE"))
+                .andReturn();
 
         // Then
         Customer updated = customerRepository.findById(saved.getId()).orElseThrow();
 
         assertThat(updated.getName()).isEqualTo("Juan Updated");
         assertThat(updated.getEmail()).isEqualTo("new@mail.com");
+        assertThat(updated.getPhoneNumber()).isEqualTo("+54 11 5555-5555");
+        assertThat(updated.getInternalNotes()).isEqualTo("Cliente frecuente");
+        assertThat(updated.getStatus()).isEqualTo(CustomerStatus.INACTIVE);
+
+        CustomerResponseDto response = objectMapper.readValue(
+                result.getResponse().getContentAsString(),
+                CustomerResponseDto.class
+        );
+        assertThat(response.getId()).isEqualTo(saved.getId());
     }
 
     @Test
     void udpateCustomer_whenNameIsBlank_returns400() throws Exception {
         // Given
-        CustomerRequestDto dto = getCustomerRequestDto();
+        CustomerUpdateRequestDto dto = CustomerUpdateRequestDto.builder()
+                .name("")
+                .build();
         Customer saved = customerRepository.save(getCustomer());
-        dto.setName("");
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -309,10 +337,14 @@ class CustomerControllerIT {
 
     private Customer getCustomer() {
         return Customer.builder()
+                .businessId(1L)
                 .name("Juan Perez")
                 .email("juan@mail.com")
                 .phoneNumber("1122334455")
+                .status(CustomerStatus.ACTIVE)
+                .internalNotes("Prefiere corte bajo.")
                 .createdAt(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .updatedAt(LocalDateTime.of(2026, 2, 24, 22, 0))
                 .build();
     }
 
