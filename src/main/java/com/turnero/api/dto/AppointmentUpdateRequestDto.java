@@ -1,5 +1,6 @@
 package com.turnero.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Future;
 import lombok.Builder;
@@ -22,6 +23,7 @@ public class AppointmentUpdateRequestDto {
 
     @Schema(description = "Appointment date and time", example = "2026-12-31T14:30:00")
     @Future(message = "The date and time must be in the future")
+    @JsonProperty("starts_at")
     private LocalDateTime startsAt;
 
     @Schema(description = "Customer notes for the appointment", example = "The customer prefers an afternoon schedule")

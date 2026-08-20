@@ -7,4 +7,8 @@ import java.util.List;
 
 public interface StaffWorkingHoursRepository extends JpaRepository<StaffWorkingHours, Long> {
     List<StaffWorkingHours> findAllByStaffMemberId(Long staffMemberId);
+
+    List<StaffWorkingHours> findAllByStaffMemberIdOrderByDayOfWeekAsc(Long staffMemberId);
+
+    void deleteAllByStaffMemberId(Long staffMemberId);
 }

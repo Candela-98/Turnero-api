@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     Optional<Appointment> findByIdAndBusinessId(Long id, Long businessId);
 
     List<Appointment> findByStaffMemberIdAndBusinessId(Long staffMemberId, Long businessId);
+
+    boolean existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+            Long businessId,
+            Long staffMemberId,
+            Collection<AppointmentStatus> statuses,
+            LocalDateTime startsAt
+    );
 
     @Query("""
             SELECT appointment

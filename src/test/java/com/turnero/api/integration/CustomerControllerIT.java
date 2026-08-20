@@ -11,8 +11,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.dto.CustomerResponseDto;
+import com.turnero.api.dto.CustomerUpdateRequestDto;
 import com.turnero.api.mapper.CustomerMapper;
+import com.turnero.api.model.Appointment;
 import com.turnero.api.model.Customer;
+import com.turnero.api.model.enums.AppointmentStatus;
+import com.turnero.api.model.enums.CustomerStatus;
+import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.service.CustomerService;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,10 +52,14 @@ class CustomerControllerIT {
     @Autowired
     CustomerRepository customerRepository;
 
+    @Autowired
+    AppointmentRepository appointmentRepository;
+
     private final static String BASE_URL = "/api/v1/customers";
 
     @BeforeEach
     void cleanDb() {
+        appointmentRepository.deleteAll();
         customerRepository.deleteAll();
     }
 
@@ -86,8 +95,10 @@ class CustomerControllerIT {
         assertThat(response.getId()).isEqualTo(saved.getId());
         assertThat(response.getName()).isEqualTo("Juan Perez");
         assertThat(response.getEmail()).isEqualTo("juan@mail.com");
-        assertThat(response.getPhone()).isEqualTo("1122334455");
+        assertThat(response.getPhoneNumber()).isEqualTo("1122334455");
+        assertThat(response.getStatus()).isEqualTo(CustomerStatus.ACTIVE);
         assertThat(response.getCreatedAt()).isNotNull();
+        assertThat(response.getUpdatedAt()).isNotNull();
     }
 
     @Test
@@ -154,10 +165,13 @@ class CustomerControllerIT {
         CustomerResponseDto response = objectMapper.readValue(json, CustomerResponseDto.class);
 
         assertThat(response.getId()).isEqualTo(saved.getId());
-        assertThat(saved.getName()).isEqualTo("Juan Perez");
-        assertThat(saved.getEmail()).isEqualTo("juan@mail.com");
-        assertThat(saved.getPhoneNumber()).isEqualTo("1122334455");
-        assertThat(saved.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+        assertThat(response.getName()).isEqualTo("Juan Perez");
+        assertThat(response.getEmail()).isEqualTo("juan@mail.com");
+        assertThat(response.getPhoneNumber()).isEqualTo("1122334455");
+        assertThat(response.getStatus()).isEqualTo(CustomerStatus.ACTIVE);
+        assertThat(response.getInternalNotes()).isEqualTo("Prefiere corte bajo.");
+        assertThat(response.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+        assertThat(response.getUpdatedAt()).isEqualTo(saved.getUpdatedAt());
     }
 
     @Test
@@ -169,42 +183,63 @@ class CustomerControllerIT {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message").value("Customer not found"));
+                .andExpect(jsonPath("$.message").value("Customer not found with ID: " + id));
     }
 
     @Test
-    void updateCustomer_whenRequestIsValid_updatesCustomer_andReturns204() throws Exception {
+    void updateCustomer_whenRequestIsValid_updatesCustomer_andReturns200() throws Exception {
         // Given
         Customer customer = getCustomer();
 
         Customer saved = customerRepository.save(customer);
 
-        CustomerRequestDto dto = getCustomerRequestDto();
-        dto.setName("Juan Updated");
-        dto.setEmail("new@mail.com");
+        CustomerUpdateRequestDto dto = CustomerUpdateRequestDto.builder()
+                .name("Juan Updated")
+                .email("new@mail.com")
+                .phoneNumber("+54 11 5555-5555")
+                .internalNotes("Cliente frecuente")
+                .status(CustomerStatus.INACTIVE)
+                .build();
 
         // When
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+        MvcResult result = mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.name").value("Juan Updated"))
+                .andExpect(jsonPath("$.email").value("new@mail.com"))
+                .andExpect(jsonPath("$.phone_number").value("+54 11 5555-5555"))
+                .andExpect(jsonPath("$.internal_notes").value("Cliente frecuente"))
+                .andExpect(jsonPath("$.status").value("INACTIVE"))
+                .andReturn();
 
         // Then
         Customer updated = customerRepository.findById(saved.getId()).orElseThrow();
 
         assertThat(updated.getName()).isEqualTo("Juan Updated");
         assertThat(updated.getEmail()).isEqualTo("new@mail.com");
+        assertThat(updated.getPhoneNumber()).isEqualTo("+54 11 5555-5555");
+        assertThat(updated.getInternalNotes()).isEqualTo("Cliente frecuente");
+        assertThat(updated.getStatus()).isEqualTo(CustomerStatus.INACTIVE);
+
+        CustomerResponseDto response = objectMapper.readValue(
+                result.getResponse().getContentAsString(),
+                CustomerResponseDto.class
+        );
+        assertThat(response.getId()).isEqualTo(saved.getId());
     }
 
     @Test
     void udpateCustomer_whenNameIsBlank_returns400() throws Exception {
         // Given
-        CustomerRequestDto dto = getCustomerRequestDto();
+        CustomerUpdateRequestDto dto = CustomerUpdateRequestDto.builder()
+                .name("")
+                .build();
         Customer saved = customerRepository.save(getCustomer());
-        dto.setName("");
 
         // When + Then
-        mockMvc.perform(put(BASE_URL + "/{id}", saved.getId())
+        mockMvc.perform(patch(BASE_URL + "/{id}", saved.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
@@ -271,7 +306,7 @@ class CustomerControllerIT {
     }
 
     @Test
-    void deleteCustomer_whenCustomerExists_deletesCustomer_andReturns204() throws Exception {
+    void deleteCustomer_whenCustomerExists_deactivatesWithoutDeleting_andReturns204() throws Exception {
         // Given
         Customer customer = getCustomer();
 
@@ -282,7 +317,9 @@ class CustomerControllerIT {
         mockMvc.perform(delete(BASE_URL + "/{id}", id))
                 .andExpect(status().isNoContent());
 
-        assertThat(customerRepository.existsById(id)).isFalse();
+        Customer deactivated = customerRepository.findById(id).orElseThrow();
+        assertThat(deactivated.getStatus()).isEqualTo(CustomerStatus.INACTIVE);
+        assertThat(customerRepository.existsById(id)).isTrue();
     }
 
     @Test
@@ -299,6 +336,61 @@ class CustomerControllerIT {
                 .andExpect(jsonPath("$.message").value("Customer not found with ID: " + id));
     }
 
+    @Test
+    void deleteCustomer_whenCustomerIsOutsideBusinessScope_returns404AndDoesNotModifyCustomer() throws Exception {
+        // Given
+        Customer customer = getCustomer();
+        customer.setBusinessId(2L);
+        customer.setStatus(CustomerStatus.ACTIVE);
+        Customer saved = customerRepository.save(customer);
+
+        // When + Then
+        mockMvc.perform(delete(BASE_URL + "/{id}", saved.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Customer not found with ID: " + saved.getId()));
+
+        Customer unchanged = customerRepository.findById(saved.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(CustomerStatus.ACTIVE);
+        assertThat(unchanged.getBusinessId()).isEqualTo(2L);
+    }
+
+    @Test
+    void deleteCustomer_whenAppointmentExists_deactivatesAndPreservesHistoricalAppointment() throws Exception {
+        // Given
+        Customer savedCustomer = customerRepository.save(getCustomer());
+        LocalDateTime startsAt = LocalDateTime.now().minusDays(1);
+        Appointment savedAppointment = appointmentRepository.save(Appointment.builder()
+                .businessId(1L)
+                .customerId(savedCustomer.getId())
+                .serviceOfferingId(1L)
+                .staffMemberId(1L)
+                .startsAt(startsAt)
+                .endsAt(startsAt.plusMinutes(30))
+                .durationMinutes(30)
+                .priceCents(10000)
+                .status(AppointmentStatus.COMPLETED)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build());
+
+        // When
+        mockMvc.perform(delete(BASE_URL + "/{id}", savedCustomer.getId()))
+                .andExpect(status().isNoContent());
+
+        // Then
+        Customer deactivated = customerRepository.findById(savedCustomer.getId()).orElseThrow();
+        Appointment historicalAppointment = appointmentRepository.findById(savedAppointment.getId()).orElseThrow();
+
+        assertThat(deactivated.getStatus()).isEqualTo(CustomerStatus.INACTIVE);
+        assertThat(historicalAppointment.getCustomerId()).isEqualTo(savedCustomer.getId());
+        assertThat(historicalAppointment.getStartsAt()).isEqualTo(startsAt);
+        assertThat(historicalAppointment.getEndsAt()).isEqualTo(startsAt.plusMinutes(30));
+        assertThat(historicalAppointment.getStatus()).isEqualTo(AppointmentStatus.COMPLETED);
+    }
+
     private CustomerRequestDto getCustomerRequestDto() {
         return CustomerRequestDto.builder()
                 .name("Juan Perez")
@@ -309,10 +401,14 @@ class CustomerControllerIT {
 
     private Customer getCustomer() {
         return Customer.builder()
+                .businessId(1L)
                 .name("Juan Perez")
                 .email("juan@mail.com")
                 .phoneNumber("1122334455")
+                .status(CustomerStatus.ACTIVE)
+                .internalNotes("Prefiere corte bajo.")
                 .createdAt(LocalDateTime.of(2026, 2, 24, 21, 0))
+                .updatedAt(LocalDateTime.of(2026, 2, 24, 22, 0))
                 .build();
     }
 

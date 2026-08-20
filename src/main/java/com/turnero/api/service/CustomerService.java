@@ -1,5 +1,6 @@
 package com.turnero.api.service;
 
+import com.turnero.api.dto.CustomerUpdateRequestDto;
 import com.turnero.api.model.Customer;
 
 import java.util.List;
@@ -12,7 +13,7 @@ public interface CustomerService {
 
     List<Customer> findAllCustomer();
 
-    void updateCustomer(Customer customer, Long id);
+    Customer updateCustomer(CustomerUpdateRequestDto customer, Long id);
 
     void deleteCustomer(Long id);
 }
