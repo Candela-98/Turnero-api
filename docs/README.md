@@ -119,6 +119,10 @@ Fuente para migracion incremental backend:
 
 ## Referencias
 
+### `referencias/entorno-local.md`
+
+Guia para preparar y verificar el entorno local: Docker, PostgreSQL local, Testcontainers y configuracion de Colima en macOS.
+
 ### `referencias/guia-historias-tecnicas.md`
 
 Referencia para escribir historias tecnicas, subtareas, criterios de aceptacion y Definition of Done.
