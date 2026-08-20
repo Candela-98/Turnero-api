@@ -152,6 +152,33 @@ public class StaffMemberServiceImpl implements StaffMemberService {
 
         findStaffMember(staffMemberId);
 
+        validateWorkingHours(workingHours);
+
+        staffWorkingHoursRepository.deleteAllByStaffMemberId(staffMemberId);
+
+        List<StaffWorkingHours> newWorkingHours = workingHours.stream()
+                .map(workingHour -> StaffWorkingHours.builder()
+                        .staffMemberId(staffMemberId)
+                        .dayOfWeek(workingHour.getDayOfWeek())
+                        .startsAt(workingHour.getStartsAt())
+                        .endsAt(workingHour.getEndsAt())
+                        .isAvailable(Boolean.TRUE.equals(workingHour.getIsAvailable()))
+                        .build())
+                .toList();
+
+        List<StaffWorkingHours> savedWorkingHours = staffWorkingHoursRepository.saveAll(newWorkingHours);
+
+        return savedWorkingHours.stream()
+                .map(hour -> StaffWorkingHoursResponseDto.builder()
+                        .dayOfWeek(hour.getDayOfWeek())
+                        .startsAt(hour.getStartsAt())
+                        .endsAt(hour.getEndsAt())
+                        .isAvailable(hour.isAvailable())
+                        .build())
+                .toList();
+    }
+
+    private void validateWorkingHours(List<StaffWorkingHoursRequestDto> workingHours) {
         if (workingHours.size() != 7) {
             throw new IllegalArgumentException("Working hours must contain exactly 7 days");
         }
@@ -182,29 +209,6 @@ public class StaffMemberServiceImpl implements StaffMemberService {
                 throw new IllegalArgumentException("Start time must be before end time for available days");
             }
         }
-
-        staffWorkingHoursRepository.deleteAllByStaffMemberId(staffMemberId);
-
-        List<StaffWorkingHours> newWorkingHours = workingHours.stream()
-                .map(workingHour -> StaffWorkingHours.builder()
-                        .staffMemberId(staffMemberId)
-                        .dayOfWeek(workingHour.getDayOfWeek())
-                        .startsAt(workingHour.getStartsAt())
-                        .endsAt(workingHour.getEndsAt())
-                        .isAvailable(Boolean.TRUE.equals(workingHour.getIsAvailable()))
-                        .build())
-                .toList();
-
-        List<StaffWorkingHours> savedWorkingHours = staffWorkingHoursRepository.saveAll(newWorkingHours);
-
-        return savedWorkingHours.stream()
-                .map(hour -> StaffWorkingHoursResponseDto.builder()
-                        .dayOfWeek(hour.getDayOfWeek())
-                        .startsAt(hour.getStartsAt())
-                        .endsAt(hour.getEndsAt())
-                        .isAvailable(hour.isAvailable())
-                        .build())
-                .toList();
     }
 
     @Override
