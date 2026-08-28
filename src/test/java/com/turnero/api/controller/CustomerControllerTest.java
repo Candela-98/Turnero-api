@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.dto.CustomerResponseDto;
 import com.turnero.api.dto.CustomerUpdateRequestDto;
@@ -21,6 +22,7 @@ import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
 import com.turnero.api.model.enums.CustomerStatus;
 import com.turnero.api.service.CustomerService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -42,8 +44,15 @@ class CustomerControllerTest {
 
     @MockitoBean
     private CustomerService customerService;
+    @MockitoBean
+    private AdminAuthInterceptor adminAuthInterceptor;
 
     private static final String BASE_URL = "/api/v1/customers";
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     @Test
     void saveCustomer_whenRequestIsValid_returns200() throws Exception {

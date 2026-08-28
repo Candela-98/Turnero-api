@@ -25,8 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class SessionServiceImplTest {
@@ -135,6 +134,41 @@ class SessionServiceImplTest {
                 .hasMessage("Session has been revoked");
 
         verify(userSessionRepository).findBySessionTokenHash(sha256(rawToken));
+    }
+
+    @Test
+    void revokeSession_whenSessionIsValid_revokesSession() {
+        // Given
+        String rawToken = "valid-token";
+
+        UserSession session = new UserSession();
+        session.setRevokedAt(null);
+        session.setExpiresAt(LocalDateTime.now().plusDays(1));
+
+        when(userSessionRepository.findBySessionTokenHash(anyString()))
+                .thenReturn(Optional.of(session));
+
+        // When
+        sessionService.revokeSession(rawToken);
+
+        // Then
+        assertThat(session.getRevokedAt()).isNotNull();
+        verify(userSessionRepository).save(session);
+    }
+
+    @Test
+    void revokeSession_whenSessionIsInvalid_doesNotSaveSession() {
+        // Given
+        String rawToken = "invalid-token";
+
+        when(userSessionRepository.findBySessionTokenHash(anyString()))
+                .thenReturn(Optional.empty());
+
+        // When + Then
+        assertThatThrownBy(() -> sessionService.revokeSession(rawToken))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(userSessionRepository, never()).save(any(UserSession.class));
     }
 
     private String sha256(String rawToken) {

@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.BusinessResponseDto;
 import com.turnero.api.dto.BusinessUpdateRequestDto;
 import com.turnero.api.mapper.BusinessMapper;
@@ -8,6 +9,7 @@ import com.turnero.api.model.Business;
 import com.turnero.api.model.enums.BusinessOnboardingStatus;
 import com.turnero.api.model.enums.BusinessStatus;
 import com.turnero.api.service.BusinessService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -28,6 +30,12 @@ class BusinessControllerTest {
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private BusinessService businessService;
     @MockitoBean private BusinessMapper businessMapper;
+    @MockitoBean private AdminAuthInterceptor adminAuthInterceptor;
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     @Test
     void getBusiness_returnsCurrentBusiness() throws Exception {

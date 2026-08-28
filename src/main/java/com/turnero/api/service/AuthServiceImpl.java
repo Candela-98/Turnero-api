@@ -60,4 +60,9 @@ public class AuthServiceImpl implements AuthService{
                 business.getSlug()
         );
     }
+
+    @Override
+    public void logout(String sessionToken) {
+        sessionService.revokeSession(sessionToken);
+    }
 }

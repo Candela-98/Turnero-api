@@ -1,11 +1,13 @@
 package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.BookingSettingsResponseDto;
 import com.turnero.api.dto.BookingSettingsUpdateRequestDto;
 import com.turnero.api.mapper.BookingSettingsMapper;
 import com.turnero.api.model.BookingSettings;
 import com.turnero.api.service.BookingSettingsService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -29,6 +31,12 @@ class BookingSettingsControllerTest {
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private BookingSettingsService bookingSettingsService;
     @MockitoBean private BookingSettingsMapper bookingSettingsMapper;
+    @MockitoBean private AdminAuthInterceptor adminAuthInterceptor;
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     @Test
     void getBookingSettings_returnsCurrentBusinessSettings() throws Exception {

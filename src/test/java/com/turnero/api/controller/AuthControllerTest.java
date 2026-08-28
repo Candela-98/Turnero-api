@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.config.SessionProperties;
 import com.turnero.api.dto.AuthMeResponseDto;
 import com.turnero.api.dto.GoogleLoginRequestDto;
@@ -20,6 +21,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -40,9 +42,12 @@ class AuthControllerTest {
 
     @MockitoBean
     private SessionProperties sessionProperties;
+    @MockitoBean
+    private AdminAuthInterceptor adminAuthInterceptor;
 
     private static final String GOOGLE_LOGIN_URL = "/api/v1/auth/google";
     private static final String ME_URL = "/api/v1/auth/me";
+    private static final String LOGOUT_URL = "/api/v1/auth/logout";
 
     @Test
     void loginWithGoogle_whenRequestIsValid_returnsOkWithSessionCookie() throws Exception {
@@ -227,5 +232,113 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(authService).should().getCurrentUser(sessionToken);
+    }
+
+    @Test
+    void logout_whenSessionCookieIsValid_returns204AndExpiresSessionCookie() throws Exception {
+        String sessionToken = "raw-session-token";
+        given(sessionProperties.getCookieName()).willReturn("turnero_session");
+        given(sessionProperties.isSecure()).willReturn(true);
+        given(sessionProperties.getSameSite()).willReturn("Strict");
+
+        MvcResult result = mockMvc.perform(post(LOGOUT_URL)
+                        .cookie(
+                                new Cookie("other_session", "wrong-token"),
+                                new Cookie("turnero_session", sessionToken)
+                        ))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""))
+                .andReturn();
+
+        String setCookie = result.getResponse().getHeader(HttpHeaders.SET_COOKIE);
+        assertThat(setCookie).contains("turnero_session=");
+        assertThat(setCookie).contains("Max-Age=0");
+        assertThat(setCookie).contains("HttpOnly");
+        assertThat(setCookie).contains("Secure");
+        assertThat(setCookie).contains("SameSite=Strict");
+        assertThat(setCookie).contains("Path=/");
+
+        then(authService).should().logout(sessionToken);
+    }
+
+    @Test
+    void logout_whenSessionCookieIsValidAndSecureIsDisabled_expiresCookieWithoutSecureAttribute() throws Exception {
+        String sessionToken = "raw-session-token";
+        given(sessionProperties.getCookieName()).willReturn("turnero_session");
+        given(sessionProperties.isSecure()).willReturn(false);
+        given(sessionProperties.getSameSite()).willReturn("Lax");
+
+        MvcResult result = mockMvc.perform(post(LOGOUT_URL)
+                        .cookie(new Cookie("turnero_session", sessionToken)))
+                .andExpect(status().isNoContent())
+                .andReturn();
+
+        String setCookie = result.getResponse().getHeader(HttpHeaders.SET_COOKIE);
+        assertThat(setCookie).contains("turnero_session=");
+        assertThat(setCookie).contains("Max-Age=0");
+        assertThat(setCookie).contains("HttpOnly");
+        assertThat(setCookie).doesNotContain("Secure");
+        assertThat(setCookie).contains("SameSite=Lax");
+        assertThat(setCookie).contains("Path=/");
+
+        then(authService).should().logout(sessionToken);
+    }
+
+    @Test
+    void logout_whenRequestHasNoCookies_returns401WithoutCallingAuthService() throws Exception {
+        mockMvc.perform(post(LOGOUT_URL)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value("Session token is required"))
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.path").value(LOGOUT_URL))
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        then(authService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void logout_whenCookiesDoNotContainSessionCookie_returns401WithoutCallingAuthService() throws Exception {
+        given(sessionProperties.getCookieName()).willReturn("turnero_session");
+
+        mockMvc.perform(post(LOGOUT_URL)
+                        .cookie(new Cookie("other_session", "wrong-token"))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value("Session token is required"))
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.path").value(LOGOUT_URL))
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        then(authService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void logout_whenAuthServiceThrowsUnauthorized_returns401() throws Exception {
+        String sessionToken = "invalid-session-token";
+        given(sessionProperties.getCookieName()).willReturn("turnero_session");
+        willThrow(new UnauthorizedException("Invalid session"))
+                .given(authService)
+                .logout(sessionToken);
+
+        mockMvc.perform(post(LOGOUT_URL)
+                        .cookie(new Cookie("turnero_session", sessionToken))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value("Invalid session"))
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.path").value(LOGOUT_URL))
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        then(authService).should().logout(sessionToken);
     }
 }

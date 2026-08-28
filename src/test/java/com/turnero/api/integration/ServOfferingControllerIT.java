@@ -2,6 +2,7 @@ package com.turnero.api.integration;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.config.SessionProperties;
 import com.turnero.api.dto.ServOfferingRequestDto;
 import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.dto.ServOfferingUpdateRequestDto;
@@ -12,7 +13,9 @@ import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.ServOfferingRepository;
+import com.turnero.api.repository.UserRepository;
 import com.turnero.api.service.ServOfferingService;
+import com.turnero.api.service.SessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +25,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -58,12 +63,27 @@ public class ServOfferingControllerIT {
 
     @Autowired
     AppointmentRepository appointmentRepository;
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    SessionService sessionService;
+    @Autowired
+    SessionProperties sessionProperties;
+    @Autowired
+    WebApplicationContext webApplicationContext;
 
     private static final String BASE_URL = "/api/v1/service-offerings";
 
     @BeforeEach
     void cleanDb() {
         servOfferingRepository.deleteAll();
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").cookie(adminAuth().ownerSessionCookie(1L)))
+                .build();
+    }
+
+    private AdminAuthTestHelper adminAuth() {
+        return new AdminAuthTestHelper(userRepository, sessionService, sessionProperties);
     }
 
     private ServOfferingRequestDto getServOfferingRequestDto() {

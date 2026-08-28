@@ -1,10 +1,12 @@
 package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.dto.StaffServiceOfferingRequestDto;
 import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.service.StaffServiceOfferingService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -16,6 +18,7 @@ import java.util.List;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -31,8 +34,15 @@ public class StaffServiceOfferingControllerTest {
 
     @MockitoBean
     private StaffServiceOfferingService staffServiceOfferingService;
+    @MockitoBean
+    private AdminAuthInterceptor adminAuthInterceptor;
 
     private static final String BASE_URL = "/api/v1/staff-members";
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     private ServOfferingResponseDto getServiceOfferingResponseDto(Long id) {
         return ServOfferingResponseDto.builder()

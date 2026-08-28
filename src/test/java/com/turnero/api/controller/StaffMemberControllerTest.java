@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
@@ -13,6 +14,7 @@ import com.turnero.api.model.StaffMember;
 import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.service.StaffMemberService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -41,8 +43,15 @@ public class StaffMemberControllerTest {
     private StaffMemberService staffService;
     @MockitoBean
     private StaffMemberMapper staffMapper;
+    @MockitoBean
+    private AdminAuthInterceptor adminAuthInterceptor;
 
     private static final String BASE_URL = "/api/v1/staff-members";
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     private StaffMemberRequestDto getStaffMemberDTO(Long id){
         return StaffMemberRequestDto.builder()

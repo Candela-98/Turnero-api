@@ -3,6 +3,7 @@ package com.turnero.api.integration;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.config.SessionProperties;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
@@ -24,6 +25,7 @@ import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.StaffWorkingHoursRepository;
 import com.turnero.api.repository.UserRepository;
 import com.turnero.api.service.StaffMemberService;
+import com.turnero.api.service.SessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +35,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 
 import java.time.LocalDateTime;
@@ -76,6 +80,12 @@ public class StaffMemberControllerIT {
 
     @Autowired
     UserRepository userRepository;
+    @Autowired
+    SessionService sessionService;
+    @Autowired
+    SessionProperties sessionProperties;
+    @Autowired
+    WebApplicationContext webApplicationContext;
 
     private static final String BASE_URL = "/api/v1/staff-members";
 
@@ -84,6 +94,13 @@ public class StaffMemberControllerIT {
         appointmentRepository.deleteAll();
         staffWorkingHoursRepository.deleteAll();
         staffMemberRepository.deleteAll();
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").cookie(adminAuth().ownerSessionCookie(1L)))
+                .build();
+    }
+
+    private AdminAuthTestHelper adminAuth() {
+        return new AdminAuthTestHelper(userRepository, sessionService, sessionProperties);
     }
 
     private StaffMemberRequestDto getStaffMemberRequestDto() {
