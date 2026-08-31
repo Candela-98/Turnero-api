@@ -3,6 +3,8 @@ package com.turnero.api.integration;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.dto.AvailabilitySlotResponseDto;
+import com.turnero.api.dto.BusinessHoursDayRequestDto;
+import com.turnero.api.dto.BusinessHoursReplaceRequestDto;
 import com.turnero.api.model.*;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.DayOfWeek;
@@ -24,6 +26,7 @@ import java.util.List;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -178,6 +181,52 @@ public class AvailabilityControllerIT {
         String json = result.getResponse().getContentAsString();
         List<AvailabilitySlotResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(response).isEmpty();
+    }
+
+    @Test
+    void getAvailableSlots_afterBusinessHoursAreReplaced_usesTheUpdatedWeek() throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 3);
+        ServiceOffering serviceOffering = servOfferingRepository.save(getServiceOfferingEntity());
+        StaffMember staffMember = staffMemberRepository.save(getStaffMemberEntity());
+        bookingSettingsRepository.save(getBookingSettingsEntity());
+        businessHoursRepository.save(getBusinessHoursEntity(date));
+        staffWorkingHoursRepository.save(getStaffWorkingHoursEntity(staffMember.getId(), date));
+
+        mockMvc.perform(get(BASE_URL)
+                        .param("date", date.toString())
+                        .param("service_offering_id", serviceOffering.getId().toString())
+                        .param("staff_member_id", staffMember.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(put("/api/v1/business-hours")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(fullWeekWithMondayClosed())))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get(BASE_URL)
+                        .param("date", date.toString())
+                        .param("service_offering_id", serviceOffering.getId().toString())
+                        .param("staff_member_id", staffMember.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private BusinessHoursReplaceRequestDto fullWeekWithMondayClosed() {
+        List<BusinessHoursDayRequestDto> hours = List.of(DayOfWeek.values()).stream().map(day -> {
+            BusinessHoursDayRequestDto hour = new BusinessHoursDayRequestDto();
+            hour.setDayOfWeek(day);
+            boolean closed = day == DayOfWeek.MONDAY;
+            hour.setIsClosed(closed);
+            if (!closed) {
+                hour.setOpensAt(LocalTime.of(9, 0));
+                hour.setClosesAt(LocalTime.of(10, 0));
+            }
+            return hour;
+        }).toList();
+        BusinessHoursReplaceRequestDto request = new BusinessHoursReplaceRequestDto();
+        request.setHours(hours);
+        return request;
     }
 
     @Test

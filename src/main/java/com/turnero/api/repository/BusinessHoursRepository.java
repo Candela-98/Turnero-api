@@ -8,4 +8,5 @@ import java.util.List;
 public interface BusinessHoursRepository extends JpaRepository<BusinessHours, Long> {
     List<BusinessHours> findAllByBusinessId(Long businessId);
 
+    void deleteAllByBusinessId(Long businessId);
 }
