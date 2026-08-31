@@ -1,6 +1,6 @@
 # Tracking de Implementacion Backend MVP
 
-Actualizado: 2026-08-09
+Actualizado: 2026-08-31
 
 ## Proposito
 
@@ -20,7 +20,7 @@ El backend ya avanzo desde la base single-business/H2 hacia la base MVP con Post
 
 Appointments admin ya tiene creacion, listado base, detalle, edicion y transiciones de estado. Sin embargo, la agenda diaria y la creacion aun no cumplen por completo el contrato MVP, por lo que `PR 5` sigue siendo la brecha funcional prioritaria.
 
-La fuente de este estado es `develop` en el commit `97b91c7` (merge de PR #46, 2026-07-26). Las ramas remotas sin merge no se consideran implementadas en este tracking.
+La fuente de este estado es `develop` en el commit `69c51b1` (merge de PR #60, 2026-08-31). Las ramas remotas sin merge no se consideran implementadas en este tracking.
 
 ## PRs completados y avances en develop
 
@@ -38,6 +38,17 @@ La fuente de este estado es `develop` en el commit `97b91c7` (merge de PR #46, 2
 | PR 6 | TURN-42 | Implementado; pendiente validar alcance MVP | Detalle y actualizacion parcial de appointments mergeados en PR #44 |
 | PR 7 | TURN-43 | Implementado; pendiente validar alcance MVP | Acciones de confirmar y cancelar appointments mergeadas en PR #45 |
 | PR 7b | TURN-44 | Implementado; pendiente validar alcance MVP | Acciones de completar y marcar no-show mergeadas en PR #46 |
+| PR 8 | - | Implementado; pendiente validar contrato MVP | `GET /api/v1/availability/slots` y `AvailabilityService` ya usan horarios de negocio/profesional, excepciones y appointments bloqueantes |
+| PR 9 | - | Implementado; pendiente validar alcance MVP | Detalle y edicion de service offerings en `/api/v1/service-offerings/{id}` |
+| PR 10 | - | Implementado; pendiente validar alcance MVP | Baja de service offerings en `/api/v1/service-offerings/{id}` |
+| PR 11 | - | Implementado; pendiente validar alcance MVP | Detalle y edicion de staff members en `/api/v1/staff-members/{id}` |
+| PR 12 | - | Implementado; pendiente validar alcance MVP | Baja de staff members en `/api/v1/staff-members/{id}` |
+| PR 13 | - | Implementado; pendiente validar alcance MVP | Lectura y reemplazo de `staff_working_hours` por profesional |
+| PR 14 | - | Implementado; pendiente validar alcance MVP | Detalle y edicion de customers en `/api/v1/customers/{id}` |
+| PR 15 | - | Implementado; pendiente validar alcance MVP | Baja de customers en `/api/v1/customers/{id}` |
+| PR 16 | TURN-53 | Completado | Datos base del negocio actual en `GET/PATCH /api/v1/business` mergeados en PR #54 |
+| PR 17 | TURN-54 | Completado | Booking settings en `GET/PATCH /api/v1/booking-settings` mergeados en PR #59 |
+| PR 18 | TURN-55 | Completado | Horarios semanales del negocio en `GET/PUT /api/v1/business-hours` mergeados en PR #60 |
 
 ## Proximo foco recomendado
 
@@ -77,20 +88,17 @@ No marcar como completos sin revisar sus criterios de aceptacion:
 
 Pendiente de implementar:
 
-- PR 8 - Availability admin.
-- PRs 9-18 - Gestion admin restante.
 - PRs 19-20 - Auth Google y proteccion admin.
 - PRs 21-24 - Booking publico y cancelacion.
 - PR 25 - Hardening operativo MVP.
 
+El codigo de PRs 8-15 esta presente en `develop`, pero debe revisarse contra su contrato y criterios Jira antes de marcar cada ticket como completado. PRs 16-18 ya estan mergeados y no deben figurar como pendientes de implementacion.
+
 ## Ramas remotas pendientes de integrar
 
-Estas ramas contienen trabajo que no forma parte de `develop` y debe revisarse antes de considerarlo disponible:
+Las ramas funcionales que antes se registraban para availability y detalle/edicion de services ya no estan pendientes: sus implementaciones estan presentes en `develop`.
 
-- `feature/admin-availability-slots-v1`.
-- `feature/admin-service-offerings-detail-edit-v1`.
-
-Las ramas de tests de customer pendientes tampoco cambian el estado funcional del MVP.
+Las ramas remotas de tests o documentacion no cambian el estado funcional del MVP hasta que se integren.
 
 ## Verificacion tecnica observada
 
@@ -102,7 +110,7 @@ Las ramas de tests de customer pendientes tampoco cambian el estado funcional de
 
 - Plan AWS (`plan-deploy-aws-mvp.md`) antes de preparar `desa`/`prod`.
 - Auth Google, que entra despues de agenda/admin inicial.
-- Algoritmo detallado de availability, que se define en implementacion con tests en PR 8/PR 22/PR 23.
+- Validar el contrato definitivo de Availability: el endpoint existe, pero su response y casos de rango deben revisarse contra `api-contracts-mvp.md` antes de dar PR 8 por cerrado.
 
 ## Nota para frontend
 
@@ -112,6 +120,9 @@ Frontend ya puede preparar UI y mocks contra:
 - staff members admin v1;
 - staff-service offerings v1;
 - customers admin v1;
+- business y booking settings;
+- horarios del negocio y de profesionales;
+- availability admin, sujeto a la validacion pendiente de su contrato;
 - appointments admin create/list base.
 
 Para conectar agenda diaria real, esperar a que `PR 5` cierre los filtros/rango de agenda y el response necesario para pintar cliente, servicio y profesional sin joins manuales en frontend.
