@@ -10,3 +10,14 @@ spring:
 
   flyway:
     enabled: true
+
+google:
+    auth:
+      client-id: ${GOOGLE_CLIENT_ID:}
+
+auth:
+    session:
+      cookie-name: turnero_session
+      ttl-days: 7
+      secure: ${AUTH_SESSION_SECURE:false}
+      same-site: Lax
