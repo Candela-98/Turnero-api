@@ -2,6 +2,7 @@ package com.turnero.api.integration;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.config.SessionProperties;
 import com.turnero.api.controller.AppointmentController;
 import com.turnero.api.dto.AppointmentCancelRequestDto;
 import com.turnero.api.dto.AppointmentRequestDto;
@@ -14,6 +15,8 @@ import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.repository.StaffMemberRepository;
+import com.turnero.api.repository.UserRepository;
+import com.turnero.api.service.SessionService;
 import net.bytebuddy.asm.Advice;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +27,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -63,6 +68,14 @@ public class AppointmentControllerIT {
 
     @Autowired
     CustomerRepository customerRepository;
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    SessionService sessionService;
+    @Autowired
+    SessionProperties sessionProperties;
+    @Autowired
+    WebApplicationContext webApplicationContext;
 
     private final static String BASE_URL = "/api/v1/appointments";
 
@@ -72,6 +85,13 @@ public class AppointmentControllerIT {
         customerRepository.deleteAll();
         staffMemberRepository.deleteAll();
         servOfferingRepository.deleteAll();
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").cookie(adminAuth().ownerSessionCookie(1L)))
+                .build();
+    }
+
+    private AdminAuthTestHelper adminAuth() {
+        return new AdminAuthTestHelper(userRepository, sessionService, sessionProperties);
     }
 
     private AppointmentRequestDto getAppointmentRequestDto() {

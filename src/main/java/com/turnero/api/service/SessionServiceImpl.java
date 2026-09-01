@@ -87,6 +87,15 @@ public class SessionServiceImpl implements SessionService{
         return session;
     }
 
+    @Override
+    public void revokeSession(String rawToken) {
+        UserSession session = validateSession(rawToken);
+
+        session.setRevokedAt(LocalDateTime.now());
+
+        userSessionRepository.save(session);
+    }
+
     private void validateActiveSession(UserSession session) {
         if (session.getRevokedAt() != null) {
             throw new UnauthorizedException("Session has been revoked");

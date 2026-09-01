@@ -2,6 +2,7 @@ package com.turnero.api.integration;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.config.SessionProperties;
 import com.turnero.api.dto.AvailabilitySlotResponseDto;
 import com.turnero.api.dto.BusinessHoursDayRequestDto;
 import com.turnero.api.dto.BusinessHoursReplaceRequestDto;
@@ -9,6 +10,8 @@ import com.turnero.api.model.*;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.repository.*;
+import com.turnero.api.service.SessionService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -17,7 +20,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -59,7 +64,30 @@ public class AvailabilityControllerIT {
     @Autowired
     BookingSettingsRepository bookingSettingsRepository;
 
+    @Autowired
+    UserRepository userRepository;
+
+    @Autowired
+    SessionService sessionService;
+
+    @Autowired
+    SessionProperties sessionProperties;
+
+    @Autowired
+    WebApplicationContext webApplicationContext;
+
     private static final String BASE_URL = "/api/v1/availability/slots";
+
+    @BeforeEach
+    void setUpAdminAuth() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").cookie(adminAuth().ownerSessionCookie(1L)))
+                .build();
+    }
+
+    private AdminAuthTestHelper adminAuth() {
+        return new AdminAuthTestHelper(userRepository, sessionService, sessionProperties);
+    }
 
     //region Helper Methods
     private ServiceOffering getServiceOfferingEntity(){

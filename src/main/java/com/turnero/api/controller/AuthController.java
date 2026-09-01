@@ -5,6 +5,7 @@ import com.turnero.api.dto.AuthMeResponseDto;
 import com.turnero.api.dto.GoogleLoginRequestDto;
 import com.turnero.api.exception.UnauthorizedException;
 import com.turnero.api.service.AuthService;
+import com.turnero.api.service.SessionService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -53,6 +54,26 @@ public class AuthController {
         return ResponseEntity.ok(
                 authService.getCurrentUser(sessionToken)
         );
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        String sessionToken = extractSessionToken(request);
+
+        authService.logout(sessionToken);
+
+        ResponseCookie expiredCookie = ResponseCookie
+                .from(sessionProperties.getCookieName(), "")
+                .httpOnly(true)
+                .secure(sessionProperties.isSecure())
+                .sameSite(sessionProperties.getSameSite())
+                .path("/")
+                .maxAge(0)
+                .build();
+
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, expiredCookie.toString())
+                .build();
     }
 
     private String extractSessionToken(HttpServletRequest request) {

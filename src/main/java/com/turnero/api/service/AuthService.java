@@ -7,4 +7,6 @@ public interface AuthService {
     String loginWithGoogle(String idToken, String ipAddress, String userAgent);
 
     AuthMeResponseDto getCurrentUser(String rawSessionToken);
+
+    void logout(String sessionToken);
 }

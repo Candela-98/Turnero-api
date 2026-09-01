@@ -5,8 +5,11 @@ import com.turnero.api.model.BookingSettings;
 import com.turnero.api.model.Business;
 import com.turnero.api.model.enums.BusinessOnboardingStatus;
 import com.turnero.api.model.enums.BusinessStatus;
+import com.turnero.api.config.SessionProperties;
 import com.turnero.api.repository.BookingSettingsRepository;
 import com.turnero.api.repository.BusinessRepository;
+import com.turnero.api.repository.UserRepository;
+import com.turnero.api.service.SessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +19,9 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -39,6 +44,10 @@ class BookingSettingsControllerIT {
     @Autowired private BookingSettingsRepository bookingSettingsRepository;
     @Autowired private BusinessRepository businessRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private UserRepository userRepository;
+    @Autowired private SessionService sessionService;
+    @Autowired private SessionProperties sessionProperties;
+    @Autowired private WebApplicationContext webApplicationContext;
 
     @BeforeEach
     void setUp() {
@@ -57,6 +66,13 @@ class BookingSettingsControllerIT {
                 .updatedAt(LocalDateTime.of(2026, 1, 1, 0, 0))
                 .build());
         bookingSettingsRepository.saveAndFlush(settings());
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").cookie(adminAuth().ownerSessionCookie(1L)))
+                .build();
+    }
+
+    private AdminAuthTestHelper adminAuth() {
+        return new AdminAuthTestHelper(userRepository, sessionService, sessionProperties);
     }
 
     @Test

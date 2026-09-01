@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.ServOfferingRequestDto;
 import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.dto.ServOfferingUpdateRequestDto;
@@ -8,6 +9,7 @@ import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.service.ServOfferingService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -35,8 +37,15 @@ public class ServiceOfferingControllerTest {
     private ServOfferingService servOfferingService;
     @MockitoBean
     private ServiceOfferingMapper sMapper;
+    @MockitoBean
+    private AdminAuthInterceptor adminAuthInterceptor;
 
     private static final String BASE_URL = "/api/v1/service-offerings";
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     private ServOfferingRequestDto getServiceOfferingDto(Long id) {
         return ServOfferingRequestDto.builder()

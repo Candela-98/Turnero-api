@@ -9,6 +9,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.config.SessionProperties;
 import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.dto.CustomerResponseDto;
 import com.turnero.api.dto.CustomerUpdateRequestDto;
@@ -19,7 +20,9 @@ import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.CustomerStatus;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.CustomerRepository;
+import com.turnero.api.repository.UserRepository;
 import com.turnero.api.service.CustomerService;
+import com.turnero.api.service.SessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +32,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -54,6 +59,14 @@ class CustomerControllerIT {
 
     @Autowired
     AppointmentRepository appointmentRepository;
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    SessionService sessionService;
+    @Autowired
+    SessionProperties sessionProperties;
+    @Autowired
+    WebApplicationContext webApplicationContext;
 
     private final static String BASE_URL = "/api/v1/customers";
 
@@ -61,6 +74,13 @@ class CustomerControllerIT {
     void cleanDb() {
         appointmentRepository.deleteAll();
         customerRepository.deleteAll();
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").cookie(adminAuth().ownerSessionCookie(1L)))
+                .build();
+    }
+
+    private AdminAuthTestHelper adminAuth() {
+        return new AdminAuthTestHelper(userRepository, sessionService, sessionProperties);
     }
 
     @Test

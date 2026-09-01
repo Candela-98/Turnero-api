@@ -215,6 +215,16 @@ class AuthServiceImplTest {
         verify(businessRepository).findById(10L);
     }
 
+    @Test
+    void logout_delegatesToSessionServiceRevokeSession() {
+        String sessionToken = "raw-session-token";
+
+        authService.logout(sessionToken);
+
+        verify(sessionService).revokeSession(sessionToken);
+        verifyNoInteractions(googleIdentityService, userRepository, businessRepository);
+    }
+
     private User user(Long id, Long businessId) {
         return User.builder()
                 .id(id)

@@ -1,7 +1,9 @@
 package com.turnero.api.controller;
 
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.AvailabilitySlotResponseDto;
 import com.turnero.api.service.AvailabilityService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -13,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -25,8 +28,15 @@ public class AvailabilityControllerTest {
 
     @MockitoBean
     private AvailabilityService availabilityService;
+    @MockitoBean
+    private AdminAuthInterceptor adminAuthInterceptor;
 
     private static final String BASE_URL = "/api/v1/availability/slots";
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     @Test
     void getAvailableSlots_withDate_shouldReturn200AndList() throws Exception {

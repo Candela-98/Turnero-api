@@ -2,6 +2,7 @@ package com.turnero.api.controller;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.AppointmentCancelRequestDto;
 import com.turnero.api.dto.AppointmentRequestDto;
 import com.turnero.api.dto.AppointmentResponseDto;
@@ -12,6 +13,7 @@ import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.service.AppointmentService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -39,8 +41,15 @@ public class AppointmentControllerTest {
     private AppointmentService appointmentService;
     @MockitoBean
     private AppointmentMapper appointmentMapper;
+    @MockitoBean
+    private AdminAuthInterceptor adminAuthInterceptor;
 
     private final static String BASE_URL = "/api/v1/appointments";
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     private AppointmentRequestDto getAppointmentDto(Long id) {
         return AppointmentRequestDto.builder()
