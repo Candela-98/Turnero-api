@@ -1,19 +1,27 @@
 -include .env
 export
 
-.PHONY: db-up db-down db-logs run test clean
+COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || command -v docker-compose 2>/dev/null || true)
 
-db-up:
-	docker compose up -d
+.PHONY: check-compose db-up db-down db-logs run test clean
 
-db-down:
-	docker compose down
+check-compose:
+	@if [ -z "$(COMPOSE)" ]; then \
+		echo "Docker Compose no está instalado. Instalá Docker Desktop o docker-compose."; \
+		exit 1; \
+	fi
 
-db-logs:
-	docker compose logs -f postgres
+db-up: check-compose
+	$(COMPOSE) up -d
+
+db-down: check-compose
+	$(COMPOSE) down
+
+db-logs: check-compose
+	$(COMPOSE) logs -f postgres
 
 run:
-	./gradlew bootRun --args='--spring.profiles.active=$${SPRING_PROFILES_ACTIVE:-dev}'
+	./gradlew bootRun --args="--spring.profiles.active=$${SPRING_PROFILES_ACTIVE:-dev}"
 
 test:
 	@docker_context="$$(docker context show 2>/dev/null || true)"; \
