@@ -113,7 +113,7 @@ Con esta arquitectura el navegador no llama cross-origin al backend y CORS no es
 
 ## Implementación actual y convergencia pendiente
 
-PRs #61 y #62 implementaron `AuthController`, validación Google, sesiones, contexto autenticado, logout y protección admin. TURN-88 registra la convergencia necesaria antes de cerrar TURN-69. El contrato objetivo vive en `../api-contracts-mvp.md`; el inventario y la prioridad se mantienen en `../deuda-tecnica-backend.md` y `../tracking-implementacion-mvp.md`.
+PRs #61 y #62 implementaron `AuthController`, validación Google, sesiones, contexto autenticado, logout y protección admin. TURN-88 registra la convergencia necesaria antes de cerrar TURN-69. El hardening posterior se divide en TURN-62 para la frontera BFF/CORS/CSRF, TURN-110 para cleanup de sesiones y TURN-116 para logs sensibles. El contrato objetivo vive en `../api-contracts-mvp.md`; el inventario y la prioridad se mantienen en `../deuda-tecnica-backend.md` y `../tracking-implementacion-mvp.md`.
 
 ## Componentes implementados
 

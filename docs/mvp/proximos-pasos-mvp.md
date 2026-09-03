@@ -27,17 +27,18 @@ Estas decisiones estan detalladas en los documentos fuente y no deben redefinirs
 ## Prioridades vigentes
 
 1. Verificar la base tecnica local y de CI con Docker/Testcontainers disponible, para que la migracion Flyway sobre PostgreSQL forme parte de una suite verde.
-2. Cerrar agenda diaria y creacion de appointments contra el contrato MVP. El alcance exacto es `PR 5` en `plan-migracion-backend-mvp.md`; el avance efectivo vive en el tracking.
-3. Revisar las ramas pendientes y abordar availability admin solo despues de fijar la agenda. El algoritmo se define durante ese trabajo con apoyo de flujos, contrato, schema y tests.
-4. Continuar la gestion admin restante segun el orden del plan de migracion.
-5. Implementar Auth Google y proteccion de endpoints admin antes de integrar booking publico real.
-6. Definir el plan AWS antes de preparar ambientes compartidos `desa` o `prod`.
+2. Converger auth y proteccion admin mediante TURN-88 y TURN-89 para desbloquear la integracion frontend.
+3. Cerrar agenda, invariantes de escritura y availability mediante TURN-90, TURN-105, TURN-109 y TURN-92.
+4. Completar el resumen operativo mediante las subtareas de TURN-93.
+5. Implementar booking publico y cancelacion mediante TURN-58 a TURN-61.
+6. Cerrar el hardening operativo de TURN-32 despues de estabilizar los flujos de los que depende. TURN-62 puede anticipar la decision BFF/CORS/CSRF; las demas subtareas respetan los bloqueos registrados en Jira y el tracking.
+7. Definir el plan AWS antes de preparar ambientes compartidos `desa` o `prod`.
 
 ## Riesgos a mantener visibles
 
 - La disponibilidad es informativa: toda creacion o edicion de appointment debe revalidarla dentro de la escritura.
-- El contexto de negocio actual en desarrollo es temporal; no reemplaza autenticacion ni autorizacion reales.
-- Las decisiones de CORS, CSRF, secretos, concurrencia, rate limiting, backups y rollback deben cerrarse antes de produccion.
+- Auth y contexto de negocio ya tienen una implementacion base, pero TURN-88 y TURN-89 deben cerrar contrato, autorizacion y proteccion antes de considerarlos definitivos.
+- Las decisiones de CORS, CSRF, secretos, concurrencia y rate limiting se cierran mediante TURN-32; backups y rollback pertenecen al plan de deploy.
 
 ## Criterio para elegir el proximo trabajo
 

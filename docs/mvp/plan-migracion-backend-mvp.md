@@ -1325,52 +1325,60 @@ Fuera de alcance:
 
 - Reprogramacion publica.
 
-## PR final de hardening MVP
+## Historia final de hardening MVP
 
-### PR 25 - Hardening operativo MVP
+### TURN-32 - Cerrar hardening operativo MVP
 
 Objetivo:
 
 Cerrar seguridad, concurrencia y operacion minima antes de declarar backend MVP listo.
 
-Tipo:
+TURN-32 es una historia contenedora, no un PR. El antiguo PR 25 se dividio para evitar mezclar decisiones de seguridad, jobs, concurrencia, persistencia y documentacion:
 
-Arquitectura/hardening. Puede superar 15 archivos si se justifica.
+| Orden | Jira | Unidad de entrega |
+| --- | --- | --- |
+| 1 | TURN-62 | Definir boundary BFF, CORS y CSRF |
+| 2 | TURN-110 | Limpiar sesiones vencidas y revocadas |
+| 3 | TURN-111 | Limpiar tokens publicos vencidos o usados |
+| 4 | TURN-112 | Incorporar rate limiting al booking publico |
+| 5 | TURN-113 | Verificar doble reserva bajo concurrencia real |
+| 6 | TURN-114 | Auditar indices de las consultas MVP |
+| 7 | TURN-116 | Auditar secretos y datos sensibles en logs |
+| 8 | TURN-115 | Cerrar el runbook operativo |
 
-Endpoints afectados:
+Criterio de entrega:
 
-- Public booking.
-- Public cancellation.
-- Auth/session.
-- Health.
+- Cada subtarea representa, en lo posible, un PR con objetivo unico y tests cuando aplica.
+- TURN-62 puede resolverse antes porque fija la frontera de seguridad.
+- Cleanup, rate limiting y auditoria de logs esperan que auth y booking publico esten estabilizados.
+- Concurrencia espera las invariantes de escritura admin y la reserva publica.
+- La auditoria de indices se realiza contra consultas finales, no contra supuestos.
+- TURN-115 es el cierre documental despues de implementar las demas subtareas.
 
-Cambios esperados:
+Tests esperados por la historia:
 
-- Rate limiting en endpoints publicos.
-- CORS final por ambiente.
-- Decision CSRF documentada e implementada si aplica.
-- Cleanup de sesiones vencidas.
-- Cleanup o invalidacion de tokens publicos vencidos.
-- Tests de concurrencia para doble reserva.
-- Revision de indices principales.
-- Documentar comandos de run/test y verificacion manual.
-
-Tests esperados:
-
-- Test de rate limiting si la libreria lo permite.
-- Test de cleanup testeable.
-- Test de doble reserva con PostgreSQL/Testcontainers.
+- Configuracion/origen segun la decision BFF, CORS y CSRF, cuando aplique.
+- Cleanup idempotente y por lotes.
+- Rate limiting con `429` y `Retry-After`.
+- Doble reserva con PostgreSQL/Testcontainers.
+- Flyway y repositories para indices modificados.
+- Captura de logs para impedir secretos.
 - `./gradlew test`.
 
-Criterios de aceptacion:
+Criterios de aceptacion de la historia:
 
 - Endpoints publicos tienen proteccion minima contra abuso.
-- No quedan tokens/cookies en logs.
-- La doble reserva esta cubierta por test.
+- No quedan tokens, cookies ni credenciales en logs.
+- La doble reserva esta cubierta sobre PostgreSQL real.
+- Sesiones y tokens vencidos tienen una politica de retencion ejecutable.
+- Los indices agregados responden a consultas concretas.
+- El runbook describe la operacion final sin duplicar fuentes.
 
 Fuera de alcance:
 
 - Backups y rollback productivo; eso vive en `plan-deploy-aws-mvp.md`.
+- Nuevas features y reprogramacion publica.
+- Infraestructura WAF/CDN y tuning de RDS.
 
 ## Checklist robustez/escalabilidad mapeado a PRs
 
@@ -1385,20 +1393,23 @@ Fuera de alcance:
 | Errores estables | A3 |
 | Logs utiles y request id | A4 |
 | Health checks | A4 |
-| No loguear tokens/cookies | A4, PR 19, PR 23, PR 24, PR 25 |
+| No loguear tokens/cookies | A4, PR 19, PR 23, PR 24, TURN-116 |
 | Agenda admin testeable con frontend | PRs 1-8 y PR 7b |
 | Ciclo de vida admin de appointments | PR 7, PR 7b |
 | Availability admin | PR 8 |
 | Availability exceptions lectura interna | A1, PR 8 |
 | Auth/session | PRs 19-20 |
-| BFF same-origin para admin frontend | TURN-69 frontend |
-| CORS para consumidores directos | Fuera del admin MVP; PR 25 si aparece el requisito |
-| CSRF segun arquitectura final | PR 25 |
+| BFF same-origin para admin frontend | TURN-97 frontend |
+| CORS para consumidores directos | Fuera del admin MVP salvo decision de TURN-62 |
+| CSRF segun arquitectura final | TURN-62 |
 | Public booking | PRs 21-23 |
 | Public cancellation token | PR 24 |
-| Rate limiting publico | PR 25 |
-| Doble reserva/concurrencia | PR 5, PR 23, PR 25 |
-| Cleanup sesiones/tokens | PR 25 |
+| Rate limiting publico | TURN-112 |
+| Doble reserva/concurrencia | TURN-105, TURN-109, PR 23, TURN-113 |
+| Cleanup sesiones | TURN-110 |
+| Cleanup tokens publicos | TURN-111 |
+| Revision de indices MVP | TURN-114 |
+| Runbook operativo | TURN-115 |
 | Backups y rollback | `plan-deploy-aws-mvp.md` |
 
 ## Fuera del MVP

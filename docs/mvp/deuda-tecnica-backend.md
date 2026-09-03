@@ -10,7 +10,7 @@ Este documento no reemplaza los contratos ni el backlog de Jira. Cada item que s
 
 ## Auth - convergencia previa a TURN-69
 
-Jira: `TURN-88` para contrato, autorizacion, cookie y logout; `TURN-89` para la proteccion de business-hours.
+Jira: `TURN-88` para contrato, autorizacion, cookie y logout; `TURN-89` para la proteccion de business-hours; `TURN-62`, `TURN-110` y `TURN-116` para boundary HTTP, cleanup y logs sensibles.
 
 ### Contrato HTTP
 
@@ -37,16 +37,20 @@ El seed usa un `auth_subject` ficticio. Hace falta un procedimiento o herramient
 
 ### Ciclo de vida de sesiones
 
-Antes del hardening final:
+Trabajo programado:
 
-- limpiar sesiones vencidas periódicamente;
+- `TURN-110`: limpiar sesiones vencidas o revocadas periodicamente.
+- `TURN-62`: cerrar la decision BFF, CORS y CSRF sin habilitar acceso cross-origin por defecto.
+- `TURN-116`: verificar que cookies, tokens y credenciales no lleguen a logs.
+
+Deuda aun no programada, fuera de esas subtareas:
+
 - actualizar `last_seen_at` con throttling;
-- definir límites o revocación global de sesiones por usuario;
-- revisar CSRF si se abandona el BFF same-origin o cambia `SameSite`.
+- definir limites o revocacion global de sesiones por usuario.
 
 ## Appointments - campos controlados por backend
 
-Jira: `TURN-90` para lectura de agenda, `TURN-91` para invariantes de escritura y `TURN-92` para availability admin.
+Jira: `TURN-90` para lectura de agenda, `TURN-91` como contenedor de `TURN-105`/`TURN-109` para invariantes de escritura y `TURN-92` para availability admin. `TURN-113` valida la invariante final bajo concurrencia real.
 
 ### Estado actual
 
@@ -90,7 +94,7 @@ Fuentes relacionadas:
 
 ## Revision transversal pendiente
 
-El resumen operativo requerido por el dashboard se implementara en `TURN-93`; su contrato debe incorporarse a `api-contracts-mvp.md` antes de desarrollar el endpoint.
+El resumen operativo requerido por el dashboard se implementara bajo `TURN-93`: `TURN-106` define el contrato, `TURN-108` entrega el resumen basico y `TURN-107` incorpora metricas y alertas.
 
 Durante las pruebas finales, revisar cada flujo MVP de punta a punta. Para cada uno, comprobar que:
 
@@ -101,3 +105,20 @@ Durante las pruebas finales, revisar cada flujo MVP de punta a punta. Para cada 
 - Las validaciones de seguridad, scoping y concurrencia se mantienen al escribir.
 
 Registrar cada hallazgo en este documento y crear el ticket Jira correspondiente cuando se programe su resolucion.
+
+## Hardening operativo programado
+
+`TURN-32` es la historia contenedora. El detalle ejecutable y sus criterios viven en Jira:
+
+| Brecha | Jira |
+| --- | --- |
+| Boundary BFF, CORS y CSRF | TURN-62 |
+| Cleanup de sesiones | TURN-110 |
+| Cleanup de tokens publicos | TURN-111 |
+| Rate limiting publico | TURN-112 |
+| Concurrencia real de reservas | TURN-113 |
+| Indices de consultas MVP | TURN-114 |
+| Datos sensibles en logs | TURN-116 |
+| Runbook operativo | TURN-115 |
+
+Este inventario enlaza responsables y no reemplaza alcance, dependencias, criterios ni estado de Jira.

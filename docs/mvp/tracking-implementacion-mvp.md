@@ -18,9 +18,9 @@ Sirve para saber rapidamente que ya esta implementado, que sigue y que no debe a
 
 El backend ya avanzo desde la base single-business/H2 hacia la base MVP con PostgreSQL, Flyway, schema MVP, errores, request id/health, recursos admin v1 y autenticacion Google con sesion propia. El contexto de business normal ya sale del usuario autenticado.
 
-Appointments admin ya tiene creacion, listado base, detalle, edicion y transiciones de estado. Sin embargo, la agenda diaria y la creacion aun no cumplen por completo el contrato MVP, por lo que `PR 5` sigue siendo la brecha funcional prioritaria.
+Appointments admin ya tiene creacion, listado base, detalle, edicion y transiciones de estado. Las brechas de lectura, escritura y availability se cerraran mediante TURN-90, TURN-105, TURN-109 y TURN-92 antes de conectar definitivamente el frontend.
 
-La fuente de este estado es `develop` en el commit `ad37752` (merge de PR #62, 2026-09-02). Las ramas remotas sin merge no se consideran implementadas en este tracking.
+La fuente de este estado es `develop` en el commit `4100520` (2026-09-03). Las ramas remotas sin merge no se consideran implementadas en este tracking.
 
 ## PRs completados y avances en develop
 
@@ -63,9 +63,9 @@ La reorganizacion de TURN-68 registro las brechas backend como trabajo separado 
 | TURN-88 | Bug | Converger auth/sesion con el contrato MVP | TURN-69 |
 | TURN-89 | Bug | Proteger business-hours con autenticacion admin | TURN-82 |
 | TURN-90 | Bug | Completar lectura de agenda y DTO enriquecido | TURN-70 y TURN-73 |
-| TURN-91 | Bug | Asegurar invariantes de creacion/edicion de appointments | TURN-72 y TURN-74 |
+| TURN-91 | Bug contenedor | Asegurar invariantes de escritura mediante TURN-105 y TURN-109 | TURN-72 y TURN-74 |
 | TURN-92 | Bug | Converger availability admin con el contrato | TURN-71, TURN-72 y TURN-74 |
-| TURN-93 | Story | Exponer resumen operativo de dashboard | TURN-87 |
+| TURN-93 | Story contenedora | Entregar dashboard mediante TURN-106, TURN-108 y TURN-107 | TURN-87 |
 
 Los tickets terminados TURN-41, TURN-55, TURN-56 y TURN-57 conservan su historial y estan relacionados con los bugs que completan sus criterios pendientes.
 
@@ -74,15 +74,19 @@ Los tickets terminados TURN-41, TURN-55, TURN-56 y TURN-57 conservan su historia
 Antes de cerrar TURN-69 frontend mediante TURN-88:
 
 - alinear request, responses, cookie y roles con el contrato canonico de `api-contracts-mvp.md`;
-- incluir `/api/v1/business-hours/**` en la proteccion admin;
 - hacer logout idempotente;
 - documentar/aplicar un aprovisionamiento local repetible para un OWNER real.
 
-Estas correcciones son acotadas y preceden a la integracion de configuracion. El siguiente foco funcional backend sigue siendo cerrar PR 5.
+TURN-89 debe incluir `/api/v1/business-hours/**` en la proteccion admin antes de TURN-82. Ambas correcciones son acotadas y pueden avanzar en paralelo a las brechas de appointments que desbloquean la agenda.
 
-### Cerrar PR 5 - Appointments admin: agenda diaria y crear turno
+### Cerrar brechas de appointments admin
 
-Jira: `TURN-41`
+Jira ejecutable:
+
+- `TURN-90`: lectura de agenda y DTO enriquecido.
+- `TURN-105`: invariantes al crear turnos admin.
+- `TURN-109`: invariantes al editar o reprogramar.
+- `TURN-92`: contrato de availability admin.
 
 Avance ya mergeado:
 
@@ -93,7 +97,7 @@ Avance ya mergeado:
 - Obtener detalle y actualizar parcialmente un turno.
 - Confirmar, cancelar, completar y marcar un turno como no-show, con transiciones de estado validadas.
 
-Pendiente para considerar `PR 5` completo:
+Pendiente para considerar el flujo admin completo:
 
 - Permitir listar agenda diaria con filtros del contrato (`date` o `from/to`, `status`, `staff_member_id`, etc.).
 - Aceptar cliente existente o cliente rapido segun contrato.
@@ -103,21 +107,38 @@ Pendiente para considerar `PR 5` completo:
 - Persistir/default `source = ADMIN` para creacion admin.
 - Alinear response de appointment con el contrato MVP si frontend necesita datos embebidos de cliente, servicio y profesional.
 
-El detalle, la edicion y las transiciones ya existen en `develop`, pero deben revisarse contra los criterios de los PRs 6, 7 y 7b antes de marcarlos como completados en Jira.
+El detalle, la edicion y las transiciones ya existen en `develop`, pero deben revisarse contra TURN-109 y los criterios de los PRs 6, 7 y 7b antes de marcarlos como completados en Jira.
+
+### Hardening operativo final
+
+TURN-32 es la historia contenedora y permanece `To Do`. No representa un unico PR. Su secuencia ejecutable es:
+
+| Jira | Unidad de entrega | Puede comenzar cuando |
+| --- | --- | --- |
+| TURN-62 | Boundary BFF, CORS y CSRF | Puede abordarse ahora |
+| TURN-110 | Cleanup de sesiones | TURN-88 cerrado |
+| TURN-111 | Cleanup de tokens publicos | TURN-61 cerrado |
+| TURN-112 | Rate limiting publico | TURN-58 a TURN-61 cerrados |
+| TURN-113 | Concurrencia real de reservas | TURN-105, TURN-109 y TURN-60 cerrados |
+| TURN-114 | Auditoria de indices | Agenda, availability, dashboard y booking estabilizados |
+| TURN-116 | Auditoria de datos sensibles en logs | TURN-88, TURN-60 y TURN-61 cerrados |
+| TURN-115 | Runbook operativo final | Las otras subtareas de TURN-32 cerradas |
+
+Cada subtarea corresponde, en lo posible, a un PR. Los criterios detallados y el estado de asignacion viven en Jira.
 
 ## No asumir todavia como completo
 
 No marcar como completos sin revisar sus criterios de aceptacion:
 
-- PR 5 - Agenda diaria y creacion de appointments contra el contrato MVP.
+- TURN-90, TURN-105, TURN-109 y TURN-92 - Agenda, escritura y availability contra el contrato MVP.
 - PR 6 - Appointments admin: detalle y edicion.
 - PR 7 - Appointments admin: confirmar y cancelar.
 - PR 7b - Appointments admin: completar y marcar no-show.
 
 Pendiente de implementar:
 
-- PRs 21-24 - Booking publico y cancelacion.
-- PR 25 - Hardening operativo MVP.
+- TURN-58 a TURN-61 - Booking publico y cancelacion.
+- TURN-32 mediante TURN-62 y TURN-110 a TURN-116 - Hardening operativo MVP.
 
 PRs 19-20 ya estan mergeados, pero conservan las brechas contractuales y de hardening registradas arriba. El codigo de PRs 8-15 esta presente en `develop`, pero debe revisarse contra su contrato y criterios Jira antes de marcar cada ticket como completado. PRs 16-18 ya estan mergeados y no deben figurar como pendientes de implementacion.
 
@@ -133,10 +154,10 @@ Las ramas remotas de tests o documentacion no cambian el estado funcional del MV
 - Los tests de aplicacion pasan; `FlywayMigrationTest` requiere un daemon Docker disponible para iniciar PostgreSQL con Testcontainers.
 - En el entorno de esta revision no habia Docker disponible, por lo que ese test no pudo completarse. Antes de marcar la base tecnica como verificada localmente o en CI, debe ejecutarse la suite con Docker activo.
 
-## Pendientes importantes no bloqueantes para PR 5
+## Pendientes importantes en paralelo
 
 - Plan AWS (`plan-deploy-aws-mvp.md`) antes de preparar `desa`/`prod`.
-- TURN-88 de convergencia auth, que bloquea TURN-69 frontend y puede resolverse en paralelo al cierre de PR 5.
+- TURN-88 de convergencia auth, que bloquea TURN-69 frontend y puede resolverse en paralelo a appointments.
 - Validar el contrato definitivo de Availability: el endpoint existe, pero su response y casos de rango deben revisarse contra `api-contracts-mvp.md` antes de dar PR 8 por cerrado.
 
 ## Nota para frontend
@@ -152,7 +173,7 @@ Frontend ya puede preparar UI y mocks contra:
 - availability admin, sujeto a la validacion pendiente de su contrato;
 - appointments admin create/list base.
 
-Para conectar agenda diaria real, esperar a que `PR 5` cierre los filtros/rango de agenda y el response necesario para pintar cliente, servicio y profesional sin joins manuales en frontend.
+Para conectar agenda diaria real, esperar a TURN-90; para crear o editar con invariantes completas, esperar a TURN-105, TURN-109 y TURN-92.
 
 ## Comandos de referencia
 
