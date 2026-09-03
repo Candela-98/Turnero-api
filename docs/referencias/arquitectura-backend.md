@@ -177,26 +177,21 @@ POST /api/v1/appointments
 Reglas:
 
 - El frontend admin nunca envia `business_id`.
-- El business se resuelve desde contexto dev al inicio y desde sesion autenticada despues.
+- El business se resuelve desde la sesion autenticada; los tests pueden reemplazar el contexto de forma explicita.
 - La validacion informativa de availability no reemplaza la validacion transaccional al crear o editar.
 
 ## Contexto de negocio y auth
 
-### Contexto dev temporal
+### Contexto autenticado vigente
 
-Antes de Google Auth, endpoints admin usan un contexto dev/test temporal.
-
-Objetivo:
-
-- Permitir implementar y probar agenda admin localmente.
-- Mantener el contrato correcto desde el inicio.
-- Evitar que el frontend envie `business_id`.
+Los endpoints admin obtienen usuario y business desde la cookie de sesion validada por `AdminAuthInterceptor`. `AuthenticatedCurrentBusinessContext` implementa `CurrentBusinessContext`, por lo que los services permanecen desacoplados del transporte HTTP.
 
 Reglas:
 
 - No hardcodear business en services de dominio.
-- Aislar el contexto para poder reemplazarlo en auth.
-- No tratarlo como auth real.
+- No aceptar `business_id` desde requests admin.
+- Reemplazar el contexto sólo de forma explicita en tests.
+- Toda nueva familia de endpoints admin debe agregarse a la proteccion y probar `401`, `403` y scoping.
 
 ### Auth real
 
@@ -258,7 +253,7 @@ Codigos frecuentes:
 - `SLOT_UNAVAILABLE`
 - `STAFF_SERVICE_MISMATCH`
 - `INVALID_STATE_TRANSITION`
-- `UNAUTHENTICATED`
+- `UNAUTHORIZED`
 - `FORBIDDEN`
 
 ## Logging y observabilidad

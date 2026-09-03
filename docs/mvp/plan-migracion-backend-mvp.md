@@ -64,7 +64,7 @@ Brechas relevantes:
 - Los PRs de features deben ser chicos: objetivo unico, aproximadamente 8 a 15 archivos, y no mas de 2 endpoints nuevos o migrados.
 - Los PRs de arquitectura pueden exceder ese limite cuando el motivo este explicitado.
 - Primero se usa un contexto dev temporal de negocio para probar endpoints admin desde frontend; Google Auth entra despues y reemplaza ese contexto.
-- La primera integracion real con frontend debe optimizar agenda admin.
+- La integracion real con frontend comienza por auth/BFF y configuracion sobre contratos estables; agenda entra cuando se cierre el contrato de appointments.
 - Las rutas se migran a `/api/v1` por recurso a medida que se toca cada feature.
 - No se mantiene doble ruta `/api` y `/api/v1`, salvo que una subtarea lo justifique explicitamente.
 - JSON `snake_case` se implementa con DTOs v1 anotados por recurso, no con un cambio global temprano de Jackson.
@@ -168,14 +168,13 @@ DB_NAME=turnero
 DB_USERNAME=turnero
 DB_PASSWORD=turnero_local
 GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-TURNERO_SESSION_COOKIE_NAME=__Host-turnero_session
-TURNERO_SESSION_TTL_DAYS=7
-TURNERO_ALLOWED_ORIGINS=http://localhost:3000
-TURNERO_COOKIE_SECURE=false
+AUTH_SESSION_COOKIE_NAME=turnero_session
+AUTH_SESSION_TTL_DAYS=7
+AUTH_SESSION_SECURE=false
+AUTH_SESSION_SAME_SITE=Lax
 ```
 
-`GOOGLE_CLIENT_SECRET` solo se usa si se adopta un flujo server-side que lo requiera.
+El MVP usa ID token y no requiere `GOOGLE_CLIENT_SECRET`. En produccion HTTPS usar `AUTH_SESSION_COOKIE_NAME=__Host-turnero_session` y `AUTH_SESSION_SECURE=true`. El admin MVP accede mediante BFF same-origin de Next, por lo que no requiere una variable CORS backend.
 
 ### Perfiles Spring
 
@@ -1078,6 +1077,8 @@ Fuera de alcance:
 
 ## PRs de auth y proteccion admin
 
+Estado: PR 19 y PR 20 ya fueron mergeados en `develop` mediante PRs #61 y #62. Este documento conserva el alcance planificado; las diferencias pendientes respecto del contrato canónico y el hardening viven en `tracking-implementacion-mvp.md` y `deuda-tecnica-backend.md`.
+
 ### PR 19 - Auth Google: login y sesion actual
 
 Objetivo:
@@ -1390,8 +1391,9 @@ Fuera de alcance:
 | Availability admin | PR 8 |
 | Availability exceptions lectura interna | A1, PR 8 |
 | Auth/session | PRs 19-20 |
-| CORS por ambiente | PR 20, PR 25 |
-| CSRF si aplica | PR 20, PR 25 |
+| BFF same-origin para admin frontend | TURN-69 frontend |
+| CORS para consumidores directos | Fuera del admin MVP; PR 25 si aparece el requisito |
+| CSRF segun arquitectura final | PR 25 |
 | Public booking | PRs 21-23 |
 | Public cancellation token | PR 24 |
 | Rate limiting publico | PR 25 |

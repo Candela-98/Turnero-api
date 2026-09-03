@@ -73,9 +73,11 @@ Fuente para implementacion de auth:
 - `auth_provider` y `auth_subject`.
 - Validacion de `email_verified`.
 - Sesion opaca propia de Turnero.
-- Cookie HTTP-only, Secure y SameSite.
-- Logout y validacion de requests admin.
-- Camino post-MVP a Auth0 u otra plataforma.
+- Flujo, configuracion local y aprovisionamiento.
+- Cookie por ambiente y arquitectura BFF con Next.
+- Implementacion actual y enlaces a brechas pendientes.
+
+El wire contract de auth no vive aqui: pertenece a `mvp/api-contracts-mvp.md`.
 
 ### `mvp/api-contracts-mvp.md`
 
@@ -87,6 +89,7 @@ Fuente para contratos HTTP MVP:
 - Filtros, paginacion y formato de errores.
 - Reglas de scoping por `business_id`.
 - Estados HTTP y notas de seguridad/autorizacion por endpoint.
+- Wire contract canonico de auth, incluida la cookie por ambiente.
 
 ### `mvp/proximos-pasos-mvp.md`
 
@@ -105,6 +108,13 @@ Fuente para estado real de implementacion:
 - PRs del plan ya mergeados en `develop`.
 - Proximo PR recomendado.
 - Alcances que no deben asumirse como completos todavia.
+
+### `mvp/deuda-tecnica-backend.md`
+
+Registro de brechas tecnicas diferidas para validar y resolver antes de cerrar el MVP.
+
+Cada brecha ejecutable debe tener ticket Jira; este documento no reemplaza el backlog.
+
 
 ### `mvp/plan-migracion-backend-mvp.md`
 

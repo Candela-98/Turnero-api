@@ -309,7 +309,7 @@ Antes de implementar un endpoint:
 Codigos de error relevantes:
 
 - `VALIDATION_ERROR`
-- `UNAUTHENTICATED`
+- `UNAUTHORIZED`
 - `FORBIDDEN`
 - `NOT_FOUND`
 - `CONFLICT`

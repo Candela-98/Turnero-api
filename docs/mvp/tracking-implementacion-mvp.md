@@ -1,6 +1,6 @@
 # Tracking de Implementacion Backend MVP
 
-Actualizado: 2026-08-31
+Actualizado: 2026-09-03
 
 ## Proposito
 
@@ -16,11 +16,11 @@ Sirve para saber rapidamente que ya esta implementado, que sigue y que no debe a
 
 ## Estado general
 
-El backend ya avanzo desde la base single-business/H2 hacia la base MVP con PostgreSQL, Flyway, schema MVP, contexto dev, errores, request id/health y recursos admin v1.
+El backend ya avanzo desde la base single-business/H2 hacia la base MVP con PostgreSQL, Flyway, schema MVP, errores, request id/health, recursos admin v1 y autenticacion Google con sesion propia. El contexto de business normal ya sale del usuario autenticado.
 
 Appointments admin ya tiene creacion, listado base, detalle, edicion y transiciones de estado. Sin embargo, la agenda diaria y la creacion aun no cumplen por completo el contrato MVP, por lo que `PR 5` sigue siendo la brecha funcional prioritaria.
 
-La fuente de este estado es `develop` en el commit `69c51b1` (merge de PR #60, 2026-08-31). Las ramas remotas sin merge no se consideran implementadas en este tracking.
+La fuente de este estado es `develop` en el commit `ad37752` (merge de PR #62, 2026-09-02). Las ramas remotas sin merge no se consideran implementadas en este tracking.
 
 ## PRs completados y avances en develop
 
@@ -49,8 +49,36 @@ La fuente de este estado es `develop` en el commit `69c51b1` (merge de PR #60, 2
 | PR 16 | TURN-53 | Completado | Datos base del negocio actual en `GET/PATCH /api/v1/business` mergeados en PR #54 |
 | PR 17 | TURN-54 | Completado | Booking settings en `GET/PATCH /api/v1/booking-settings` mergeados en PR #59 |
 | PR 18 | TURN-55 | Completado | Horarios semanales del negocio en `GET/PUT /api/v1/business-hours` mergeados en PR #60 |
+| PR 19 | - | Implementado; pendiente converger contrato | Login Google, sesion propia y `/auth/me` mergeados en PR #61; el wire contract actual difiere de `api-contracts-mvp.md` |
+| PR 20 | - | Implementado; pendiente hardening | Logout, interceptor admin y business desde usuario autenticado mergeados en PR #62; falta proteger `business-hours` y cerrar logout idempotente |
 
 ## Proximo foco recomendado
+
+### Dependencias Jira creadas para integracion frontend
+
+La reorganizacion de TURN-68 registro las brechas backend como trabajo separado bajo la epica TURN-1:
+
+| Jira | Tipo | Objetivo | Bloquea |
+| --- | --- | --- | --- |
+| TURN-88 | Bug | Converger auth/sesion con el contrato MVP | TURN-69 |
+| TURN-89 | Bug | Proteger business-hours con autenticacion admin | TURN-82 |
+| TURN-90 | Bug | Completar lectura de agenda y DTO enriquecido | TURN-70 y TURN-73 |
+| TURN-91 | Bug | Asegurar invariantes de creacion/edicion de appointments | TURN-72 y TURN-74 |
+| TURN-92 | Bug | Converger availability admin con el contrato | TURN-71, TURN-72 y TURN-74 |
+| TURN-93 | Story | Exponer resumen operativo de dashboard | TURN-87 |
+
+Los tickets terminados TURN-41, TURN-55, TURN-56 y TURN-57 conservan su historial y estan relacionados con los bugs que completan sus criterios pendientes.
+
+### Desbloquear integracion frontend de auth
+
+Antes de cerrar TURN-69 frontend mediante TURN-88:
+
+- alinear request, responses, cookie y roles con el contrato canonico de `api-contracts-mvp.md`;
+- incluir `/api/v1/business-hours/**` en la proteccion admin;
+- hacer logout idempotente;
+- documentar/aplicar un aprovisionamiento local repetible para un OWNER real.
+
+Estas correcciones son acotadas y preceden a la integracion de configuracion. El siguiente foco funcional backend sigue siendo cerrar PR 5.
 
 ### Cerrar PR 5 - Appointments admin: agenda diaria y crear turno
 
@@ -88,11 +116,10 @@ No marcar como completos sin revisar sus criterios de aceptacion:
 
 Pendiente de implementar:
 
-- PRs 19-20 - Auth Google y proteccion admin.
 - PRs 21-24 - Booking publico y cancelacion.
 - PR 25 - Hardening operativo MVP.
 
-El codigo de PRs 8-15 esta presente en `develop`, pero debe revisarse contra su contrato y criterios Jira antes de marcar cada ticket como completado. PRs 16-18 ya estan mergeados y no deben figurar como pendientes de implementacion.
+PRs 19-20 ya estan mergeados, pero conservan las brechas contractuales y de hardening registradas arriba. El codigo de PRs 8-15 esta presente en `develop`, pero debe revisarse contra su contrato y criterios Jira antes de marcar cada ticket como completado. PRs 16-18 ya estan mergeados y no deben figurar como pendientes de implementacion.
 
 ## Ramas remotas pendientes de integrar
 
@@ -109,7 +136,7 @@ Las ramas remotas de tests o documentacion no cambian el estado funcional del MV
 ## Pendientes importantes no bloqueantes para PR 5
 
 - Plan AWS (`plan-deploy-aws-mvp.md`) antes de preparar `desa`/`prod`.
-- Auth Google, que entra despues de agenda/admin inicial.
+- TURN-88 de convergencia auth, que bloquea TURN-69 frontend y puede resolverse en paralelo al cierre de PR 5.
 - Validar el contrato definitivo de Availability: el endpoint existe, pero su response y casos de rango deben revisarse contra `api-contracts-mvp.md` antes de dar PR 8 por cerrado.
 
 ## Nota para frontend

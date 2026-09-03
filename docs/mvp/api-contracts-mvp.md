@@ -1,5 +1,7 @@
 # Turnero API - Contratos HTTP MVP
 
+Actualizado: 2026-09-03
+
 ## Proposito
 
 Este documento define los contratos HTTP del MVP antes de implementar controllers.
@@ -51,7 +53,7 @@ Endpoints bajo estas familias requieren cookie de sesion Turnero:
 
 Reglas:
 
-- Autenticacion por cookie HTTP-only `__Host-turnero_session`.
+- Autenticacion por cookie HTTP-only. En local se usa `turnero_session`; en HTTPS productivo, `__Host-turnero_session`.
 - El backend valida `user_sessions` y carga `users.business_id`.
 - El request no puede elegir `business_id`.
 - Todo read/write se filtra por `business_id` del usuario.
@@ -112,7 +114,7 @@ Codigos recomendados:
 
 ```text
 VALIDATION_ERROR
-UNAUTHENTICATED
+UNAUTHORIZED
 FORBIDDEN
 NOT_FOUND
 CONFLICT
@@ -291,8 +293,8 @@ Set-Cookie: __Host-turnero_session=<token>; HttpOnly; Secure; SameSite=Lax; Path
 
 Errores:
 
-- `401 UNAUTHENTICATED`: token Google invalido o `email_verified = false`.
-- `403 FORBIDDEN`: usuario sin `business_id` o rol no permitido.
+- `401 UNAUTHORIZED`: token Google invalido, `email_verified = false` o usuario no aprovisionado.
+- `403 FORBIDDEN`: usuario sin `business_id` o con rol no permitido.
 
 ### GET `/api/v1/auth/me`
 
@@ -302,11 +304,11 @@ Response `200 OK`: mismo body que login.
 
 Errores:
 
-- `401 UNAUTHENTICATED`: sin cookie, sesion vencida o revocada.
+- `401 UNAUTHORIZED`: sin cookie, sesion vencida o revocada.
 
 ### POST `/api/v1/auth/logout`
 
-Admin autenticado. Revoca sesion actual.
+Admin autenticado. Revoca la sesion actual. El logout es idempotente: si la cookie no existe o la sesion ya no es valida, igualmente expira la cookie y responde `204`.
 
 Response `204 No Content`.
 
@@ -315,6 +317,19 @@ Headers:
 ```http
 Set-Cookie: __Host-turnero_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0
 ```
+
+### Cookie por ambiente
+
+```text
+local:      turnero_session; HttpOnly; SameSite=Lax; Path=/
+produccion: __Host-turnero_session; HttpOnly; Secure; SameSite=Lax; Path=/
+```
+
+El nombre, TTL, `Secure` y `SameSite` se configuran por ambiente. El frontend no lee la cookie ni persiste tokens en JavaScript.
+
+### Estado de implementacion al 2026-09-03
+
+El contrato anterior es el objetivo canonico. El codigo mergeado en `develop` todavia debe converger antes de integrar TURN-69; el detalle ejecutable vive en `deuda-tecnica-backend.md` y el estado resumido en `tracking-implementacion-mvp.md`.
 
 ## Business/configuracion
 
@@ -464,7 +479,7 @@ Response `200 OK`: semana completa actualizada.
 
 Reglas:
 
-- Deben existir los 7 dias o el backend completa los faltantes con cerrado. Decision recomendada: exigir 7 dias para evitar ambiguedad.
+- Deben enviarse exactamente los 7 dias, sin faltantes ni duplicados.
 - Si `is_closed = false`, `opens_at` y `closes_at` son obligatorios.
 - `opens_at` debe ser menor que `closes_at`.
 
@@ -609,6 +624,7 @@ Response `200 OK`: semana completa actualizada.
 Reglas:
 
 - `staff_member_id` debe pertenecer al negocio autenticado.
+- Deben enviarse exactamente los 7 dias, sin faltantes ni duplicados.
 - Si `is_available = true`, `starts_at` y `ends_at` son obligatorios.
 - `starts_at` debe ser menor que `ends_at`.
 

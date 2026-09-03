@@ -1,375 +1,130 @@
-# Turnero API - Google Auth MVP
+# Turnero API — Google Auth MVP
 
-## Proposito
+Actualizado: 2026-09-03
 
-Este documento define como implementar login con Google en el MVP de Turnero sin depender todavia de Auth0 u otra plataforma externa.
+## Propósito y ownership
 
-Objetivos:
+Este documento explica la arquitectura, implementación y operación de Google Auth en Turnero. El wire contract canónico —payloads, respuestas, códigos y cookie por ambiente— vive únicamente en `../api-contracts-mvp.md`, sección `Auth/session`.
 
-- Aprender e implementar el flujo de autenticacion propio de forma controlada.
-- Usar Google solo como proveedor de identidad.
-- Emitir una sesion propia de Turnero para acceder al admin.
-- Mantener el modelo preparado para migrar post-MVP a Auth0 u otra plataforma.
+El estado de entrega vive en `../tracking-implementacion-mvp.md` y las mejoras pendientes en `../deuda-tecnica-backend.md`. Este archivo no duplica esos backlogs.
 
-No reemplaza a:
-
-- `../schema-db-mvp.md`
-- `../flujos-funcionales-mvp.md`
-- `../api-contracts-mvp.md`
-
-## Decision MVP
-
-Turnero implementa:
+## Decisión MVP
 
 ```text
-Google Identity Services -> backend valida identidad -> users -> user_sessions -> cookie HTTP-only
+Google Identity Services -> Turnero valida identidad -> user aprovisionado
+-> sesión opaca propia -> cookie HTTP-only -> autorización por business y rol
 ```
 
-Google no es la sesion interna de Turnero.
-
-El token de Google se usa una sola vez para probar identidad. Despues, Turnero crea una sesion propia, guarda su hash en DB y envia al navegador una cookie segura.
-
-## Modelo de datos involucrado
-
-El modelo de datos canonical vive en `../schema-db-mvp.md`.
-
-Este flujo usa principalmente:
-
-- `users.auth_provider`
-- `users.auth_subject`
-- `users.business_id`
-- `users.role`
-- `user_sessions.session_token_hash`
-- `user_sessions.expires_at`
-- `user_sessions.revoked_at`
-
-Reglas de auth relevantes:
-
-- `auth_provider = GOOGLE` en MVP.
-- `auth_subject` guarda el `sub` del ID token validado por Google.
-- El backend debe exigir `email_verified = true` antes de crear o autenticar un user.
-- `users.id` es el identificador interno estable de Turnero.
-- La sesion se guarda hasheada en `user_sessions`; el token plano vive solo en la cookie del navegador.
-
-## Flujo recomendado
-
-### 1. Frontend inicia Google Sign-In
-
-El frontend usa Google Identity Services.
-
-Para MVP, alcanza con obtener un ID token y enviarlo al backend por HTTPS.
-
-Request sugerido:
-
-```http
-POST /api/v1/auth/google
-Content-Type: application/json
-
-{
-  "id_token": "eyJ..."
-}
-```
-
-Post-MVP, si Turnero necesita acceder a APIs de Google en nombre del usuario, se puede evaluar authorization code flow. Para el login admin inicial, el ID token alcanza porque solo se necesita identidad.
-
-### 2. Backend valida el ID token
-
-El backend debe validar:
-
-- Firma del token usando claves publicas de Google o libreria oficial.
-- `aud` coincide con el Google Client ID de Turnero.
-- `iss` es Google.
-- `exp` no vencio.
-- `sub` existe.
-- `email_verified = true`.
-
-Turnero no envia emails de verificacion en MVP. La verificacion del email se delega en Google y el backend solo confia en cuentas cuyo ID token indique `email_verified = true`.
-
-Claims usados:
-
-```text
-sub -> users.auth_subject
-email -> users.email
-name -> users.name
-picture -> users.avatar_url
-```
-
-No usar:
-
-- Google access token como sesion interna.
-- ID token de Google para autorizar endpoints admin.
-- `email` como identificador principal si existe `sub`.
-
-### 3. Backend resuelve user local
-
-Busqueda:
-
-```text
-auth_provider = GOOGLE
-auth_subject = google.sub
-```
-
-Si existe:
-
-- Actualizar datos blandos si corresponde: `name`, `email`, `avatar_url`.
-- Validar que tenga `business_id`.
-- Validar que tenga rol permitido para admin.
-
-Si no existe:
-
-- Crear o dejar preparado `users` segun provisioning controlado.
-- En MVP no hay registro publico self-service.
-- Si no hay `business_id`, responder error de usuario sin negocio asignado.
-
-### 4. Backend crea sesion Turnero
-
-Generar token aleatorio fuerte:
-
-```text
-session_token = base64url(random 32 bytes or more)
-session_token_hash = sha256(session_token)
-```
-
-Persistir:
-
-```text
-user_id
-session_token_hash
-created_at
-expires_at
-last_seen_at
-ip_address
-user_agent
-```
-
-Duracion sugerida MVP:
-
-```text
-expires_at = now + 7 days
-```
-
-Esto puede ajustarse despues segun politica de seguridad.
-
-### 5. Backend devuelve cookie segura
-
-Header sugerido:
-
-```http
-Set-Cookie: __Host-turnero_session=<session_token>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800
-```
-
-Reglas:
-
-- `HttpOnly`: JavaScript no puede leer la cookie.
-- `Secure`: solo via HTTPS.
-- `SameSite=Lax`: reduce riesgo CSRF en navegacion normal.
-- `Path=/`: cookie disponible para la app.
-- Prefijo `__Host-`: exige `Secure`, `Path=/` y sin `Domain`, lo que reduce configuraciones inseguras.
-
-En desarrollo local puede hacer falta una configuracion especial porque `Secure` requiere HTTPS. Esa excepcion debe quedar limitada al perfil local.
-
-### 6. Frontend consulta sesion actual
-
-Endpoint sugerido:
-
-```http
-GET /api/v1/auth/me
-```
-
-Response sugerida:
-
-```json
-{
-  "user": {
-    "id": 1,
-    "name": "Mateo Ruiz",
-    "email": "mateo@barberstudio.demo",
-    "role": "OWNER",
-    "avatar_url": "https://..."
-  },
-  "business": {
-    "id": 1,
-    "name": "Barber Studio",
-    "slug": "barber-studio",
-    "onboarding_status": "PENDING_SETUP"
-  }
-}
-```
-
-El frontend no necesita leer la cookie. El navegador la envia automaticamente.
-
-### 7. Backend valida requests admin
-
-En cada endpoint admin:
-
-1. Leer cookie `__Host-turnero_session`.
-2. Hashear token recibido.
-3. Buscar `user_sessions.session_token_hash`.
-4. Validar que exista.
-5. Validar `expires_at > now`.
-6. Validar `revoked_at is null`.
-7. Cargar `users`.
-8. Autorizar por `users.business_id` y `users.role`.
-9. Actualizar `last_seen_at` con throttling razonable para no escribir en DB en cada request si no hace falta.
-
-## Logout
-
-Endpoint sugerido:
-
-```http
-POST /api/v1/auth/logout
-```
-
-Comportamiento:
-
-- Leer cookie.
-- Buscar sesion activa.
-- Completar `revoked_at`.
-- Devolver cookie expirada.
-
-Header sugerido:
-
-```http
-Set-Cookie: __Host-turnero_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0
-```
-
-## Errores esperados
-
-### Google token invalido
-
-```http
-401 Unauthorized
-```
-
-```json
-{
-  "status": 401,
-  "error": "Unauthorized",
-  "message": "No pudimos validar tu cuenta de Google"
-}
-```
-
-### Usuario sin negocio asignado
-
-```http
-403 Forbidden
-```
-
-```json
-{
-  "status": 403,
-  "error": "Forbidden",
-  "message": "Tu usuario todavia no tiene un negocio asignado"
-}
-```
-
-### Sesion vencida o revocada
-
-```http
-401 Unauthorized
-```
-
-```json
-{
-  "status": 401,
-  "error": "Unauthorized",
-  "message": "Tu sesion vencio. Inicia sesion nuevamente"
-}
-```
-
-## Seguridad
+- Google prueba identidad; no funciona como sesión interna.
+- El backend usa el ID token una sola vez y nunca lo usa para autorizar APIs admin.
+- Turnero genera un token aleatorio, persiste sólo su hash SHA-256 y entrega el token plano en una cookie HTTP-only.
+- No existe registro público ni aprovisionamiento automático.
+- Para el MVP administrativo, el usuario debe pertenecer a un business y tener rol `OWNER`.
+
+## Flujo funcional
+
+1. El frontend obtiene un ID token mediante Google Identity Services.
+2. Lo intercambia en `POST /api/v1/auth/google` según el contrato canónico.
+3. El backend valida firma, audiencia, emisor, expiración y `email_verified`.
+4. Resuelve al usuario por `auth_provider = GOOGLE` y `auth_subject = sub`.
+5. Verifica business y rol permitidos.
+6. Crea `user_sessions`, responde el contexto de usuario/business y setea la cookie.
+7. El frontend consulta `GET /api/v1/auth/me` al restaurar la aplicación.
+8. `POST /api/v1/auth/logout` revoca la sesión y expira la cookie.
+
+## Sesión y autorización
+
+La sesión contiene un token opaco de 32 bytes codificado en Base64 URL-safe. En base de datos sólo se guarda su hash junto con usuario, creación, expiración, revocación, IP y user-agent.
 
 Reglas MVP:
 
-- Usar HTTPS fuera de desarrollo local.
-- No guardar tokens en `localStorage`.
-- No guardar tokens de sesion planos en DB.
-- No loguear ID tokens, session tokens ni cookies.
-- Configurar CORS con origins explicitos.
-- Usar cookies `HttpOnly`, `Secure`, `SameSite`.
-- Validar CSRF si se usan cookies para requests mutantes desde un frontend separado o si `SameSite` no alcanza para la arquitectura final.
-- Mantener secretos y Google Client ID/Client Secret fuera del repo.
-- Revocar sesiones en logout.
-- Limpiar sesiones vencidas con job periodico.
+- TTL fijo de siete días; no hay refresh ni expiración deslizante.
+- Pueden coexistir varias sesiones del mismo usuario.
+- `AuthenticatedUserContext` vive por request.
+- `AuthenticatedCurrentBusinessContext` obtiene el business desde el usuario autenticado.
+- Los endpoints admin no aceptan `business_id` elegido por el cliente.
+- `401` representa ausencia o invalidez de sesión; `403`, identidad válida sin autorización suficiente.
 
-## Variables de entorno sugeridas
+## Cookie por ambiente
 
-```text
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-TURNERO_SESSION_COOKIE_NAME=__Host-turnero_session
-TURNERO_SESSION_TTL_DAYS=7
-TURNERO_ALLOWED_ORIGINS=http://localhost:3000
-```
+- Local: `turnero_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure=false`.
+- Producción HTTPS: `__Host-turnero_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/` y sin `Domain`.
 
-`GOOGLE_CLIENT_SECRET` solo es necesario si se usa un flujo con intercambio server-side. Si el MVP usa solo ID token emitido por Google Identity Services, el backend necesita principalmente validar contra `GOOGLE_CLIENT_ID`.
-
-## Componentes backend sugeridos
+Propiedades configurables:
 
 ```text
-AuthController
-GoogleIdentityService
-UserProvisioningService
-SessionService
-CurrentUserResolver
-AuthFilter
+AUTH_SESSION_COOKIE_NAME=turnero_session
+AUTH_SESSION_TTL_DAYS=7
+AUTH_SESSION_SECURE=false
+AUTH_SESSION_SAME_SITE=Lax
 ```
 
-Responsabilidades:
+Fuera de desarrollo se debe usar `AUTH_SESSION_COOKIE_NAME=__Host-turnero_session` y `AUTH_SESSION_SECURE=true`.
 
-- `AuthController`: endpoints `/auth/google`, `/auth/me`, `/auth/logout`.
-- `GoogleIdentityService`: valida ID token y devuelve identidad externa normalizada.
-- `UserProvisioningService`: busca/crea user local y valida business/role.
-- `SessionService`: crea, valida y revoca sesiones.
-- `CurrentUserResolver`: expone el usuario autenticado a services/controllers.
-- `AuthFilter`: valida cookie en endpoints protegidos.
+## Configuración de Google
 
-## Identidad externa normalizada
-
-Modelo conceptual:
+Backend y frontend deben usar el mismo OAuth 2.0 Client ID web.
 
 ```text
-ExternalIdentity
-- provider
-- subject
-- email
-- email_verified
-- name
-- avatar_url
+backend:  GOOGLE_CLIENT_ID=<client-id-web>
+frontend: NEXT_PUBLIC_GOOGLE_CLIENT_ID=<mismo-client-id-web>
 ```
 
-Hoy lo produce Google.
+En Google Cloud, el cliente web debe incluir el origen real del frontend; para desarrollo, por ejemplo `http://localhost:3000`. El MVP usa ID token y no necesita `GOOGLE_CLIENT_SECRET`.
 
-Post-MVP podria producirlo Auth0.
+No registrar ID tokens, cookies ni tokens de sesión en logs, errores, analytics o fixtures.
 
-El resto del sistema deberia trabajar con `users.id`, `users.business_id` y `users.role`, no con detalles propios del proveedor.
+## Aprovisionamiento local
 
-## Migracion futura a Auth0 u otra plataforma
+El seed local crea un OWNER con `auth_subject = google-demo-owner-mateo-ruiz`, que es un valor ficticio. Una cuenta Google real no puede iniciar sesión hasta que su `sub` sea aprovisionado.
 
-La migracion deberia afectar principalmente:
+Para una prueba local controlada:
 
-- `GoogleIdentityService`, que se reemplazaria o complementaria por un validador Auth0/OIDC.
-- El valor de `users.auth_provider`.
-- El mapeo de `auth_subject`.
+1. Obtener el `sub` verificado de la cuenta de desarrollo sin persistir el ID token.
+2. Actualizar sólo la base local para asociar ese `sub` al usuario OWNER demo.
+3. No versionar identificadores personales ni reemplazar el seed compartido con datos reales.
+4. Para ambientes compartidos, usar un mecanismo de aprovisionamiento administrativo; no SQL manual ni registro público.
 
-El dominio operativo no deberia cambiar:
+Ejemplo exclusivo para la base local:
 
-- Customers.
-- Staff members.
-- Appointments.
-- Service offerings.
-- Business settings.
+```sql
+UPDATE users
+SET auth_subject = '<google-sub-de-desarrollo>',
+    email = '<email-de-desarrollo>'
+WHERE id = 1 AND auth_provider = 'GOOGLE' AND role = 'OWNER';
+```
 
-Riesgo principal:
+## Integración con Next.js
 
-Si Auth0 emite un `sub` distinto al `sub` directo de Google, habra que mapear identidades. Para eso se puede:
+La decisión MVP es usar un BFF/proxy same-origin de Next. El navegador llama al BFF y el BFF llama a Turnero API.
 
-- Migrar por email verificado con revision controlada.
-- Agregar post-MVP una tabla `user_identities`.
-- Mantener ambos proveedores asociados al mismo `users.id`.
+El BFF debe:
+
+- usar una URL backend server-only;
+- reenviar método, body, `Content-Type`, `Accept` y `Cookie`;
+- reenviar al navegador el header `Set-Cookie` de login/logout;
+- conservar status y formato de error de la API;
+- no cachear auth ni mutaciones;
+- limitar el proxy a rutas `/api/v1` conocidas, sin aceptar destinos arbitrarios.
+
+El frontend hidrata sesión con `/auth/me`, limpia estado local ante `401` y muestra acceso denegado ante `403`. El logout local debe completarse aunque la sesión backend ya haya vencido.
+
+Con esta arquitectura el navegador no llama cross-origin al backend y CORS no es requisito para el admin MVP. Si se cambia a acceso directo, debe abrirse una decisión nueva sobre CORS con credentials y CSRF.
+
+## Implementación actual y convergencia pendiente
+
+PRs #61 y #62 implementaron `AuthController`, validación Google, sesiones, contexto autenticado, logout y protección admin. TURN-88 registra la convergencia necesaria antes de cerrar TURN-69. El contrato objetivo vive en `../api-contracts-mvp.md`; el inventario y la prioridad se mantienen en `../deuda-tecnica-backend.md` y `../tracking-implementacion-mvp.md`.
+
+## Componentes implementados
+
+- `AuthController`: login, sesión actual y logout.
+- `GoogleIdentityService`: validación del ID token.
+- `AuthService`: usuario local, business y contexto de respuesta.
+- `SessionService`: creación, hash, validación y revocación.
+- `AdminAuthInterceptor`: autenticación y autorización admin.
+- `AuthenticatedUserContext` y `AuthenticatedCurrentBusinessContext`: identidad por request.
 
 ## Referencias
 
 - Google OpenID Connect: https://developers.google.com/identity/openid-connect/openid-connect
 - Google backend auth con ID token: https://developers.google.com/identity/sign-in/web/backend-auth
-- Google authorization code model: https://developers.google.com/identity/oauth2/web/guides/use-code-model
