@@ -11,5 +11,7 @@ public interface StaffMemberRepository extends JpaRepository<StaffMember, Long> 
 
     Optional<StaffMember> findByIdAndBusinessId(Long id, Long businessId);
 
+    List<StaffMember> findAllByIdInAndBusinessId(List<Long> ids, Long businessId);
+
     boolean existsByIdAndBusinessId(Long id, Long businessId);
 }

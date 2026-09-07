@@ -1,6 +1,7 @@
 package com.turnero.api.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.config.SessionProperties;
 import com.turnero.api.dto.BusinessHoursDayRequestDto;
 import com.turnero.api.dto.BusinessHoursReplaceRequestDto;
 import com.turnero.api.model.Business;
@@ -10,6 +11,8 @@ import com.turnero.api.model.enums.BusinessStatus;
 import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.BusinessRepository;
+import com.turnero.api.repository.UserRepository;
+import com.turnero.api.service.SessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +22,9 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -43,6 +48,10 @@ class BusinessHoursControllerIT {
     @Autowired private BusinessRepository businessRepository;
     @Autowired private BusinessHoursRepository businessHoursRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private UserRepository userRepository;
+    @Autowired private SessionService sessionService;
+    @Autowired private SessionProperties sessionProperties;
+    @Autowired private WebApplicationContext webApplicationContext;
 
     @BeforeEach
     void setUp() {
@@ -52,6 +61,13 @@ class BusinessHoursControllerIT {
         jdbcTemplate.execute("ALTER TABLE businesses ALTER COLUMN id RESTART WITH 1");
         jdbcTemplate.execute("ALTER TABLE business_hours ALTER COLUMN id RESTART WITH 1");
         businessRepository.saveAllAndFlush(List.of(business("one"), business("two")));
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").cookie(adminAuth().ownerSessionCookie(1L)))
+                .build();
+    }
+
+    private AdminAuthTestHelper adminAuth() {
+        return new AdminAuthTestHelper(userRepository, sessionService, sessionProperties);
     }
 
     @Test

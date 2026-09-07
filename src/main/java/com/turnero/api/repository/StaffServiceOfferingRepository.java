@@ -8,5 +8,7 @@ import java.util.List;
 public interface StaffServiceOfferingRepository extends JpaRepository<StaffServiceOffering, Long> {
     List<StaffServiceOffering> findAllByStaffMemberId(Long staffMemberId);
 
+    List<StaffServiceOffering> findAllByServiceOfferingId(Long serviceOfferingId);
+
     void deleteAllByStaffMemberId(Long staffMemberId);
 }
