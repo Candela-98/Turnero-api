@@ -80,19 +80,11 @@ El seed local crea un OWNER con `auth_subject = google-demo-owner-mateo-ruiz`, q
 
 Para una prueba local controlada:
 
-1. Obtener el `sub` verificado de la cuenta de desarrollo sin persistir el ID token.
-2. Actualizar sólo la base local para asociar ese `sub` al usuario OWNER demo.
-3. No versionar identificadores personales ni reemplazar el seed compartido con datos reales.
-4. Para ambientes compartidos, usar un mecanismo de aprovisionamiento administrativo; no SQL manual ni registro público.
-
-Ejemplo exclusivo para la base local:
-
-```sql
-UPDATE users
-SET auth_subject = '<google-sub-de-desarrollo>',
-    email = '<email-de-desarrollo>'
-WHERE id = 1 AND auth_provider = 'GOOGLE' AND role = 'OWNER';
-```
+1. Obtener el `sub` y email verificados de la cuenta de desarrollo sin persistir el ID token.
+2. Ejecutar `GOOGLE_OWNER_SUB='<sub>' GOOGLE_OWNER_EMAIL='<email>' make provision-local-owner`.
+3. El comando sólo acepta el perfil `dev` y una base en `localhost` o `127.0.0.1`; actualiza exclusivamente el OWNER demo local.
+4. No versionar identificadores personales ni reemplazar el seed compartido con datos reales.
+5. Para ambientes compartidos, usar un mecanismo de aprovisionamiento administrativo; no SQL manual ni registro público.
 
 ## Integración con Next.js
 

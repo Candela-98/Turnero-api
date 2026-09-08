@@ -1,12 +1,12 @@
 package com.turnero.api.service;
 
-import com.turnero.api.dto.AuthMeResponseDto;
+import com.turnero.api.dto.AuthSessionResponseDto;
 
 public interface AuthService {
 
-    String loginWithGoogle(String idToken, String ipAddress, String userAgent);
+    AuthLoginResult loginWithGoogle(String idToken, String ipAddress, String userAgent);
 
-    AuthMeResponseDto getCurrentUser(String rawSessionToken);
+    AuthSessionResponseDto getCurrentUser(String rawSessionToken);
 
     void logout(String sessionToken);
 }

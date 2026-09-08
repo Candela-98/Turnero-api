@@ -1,6 +1,6 @@
 package com.turnero.api.service;
 
-import com.turnero.api.dto.AuthMeResponseDto;
+import com.turnero.api.dto.AuthSessionResponseDto;
 import com.turnero.api.dto.GoogleIdentityDto;
 import com.turnero.api.exception.ForbiddenException;
 import com.turnero.api.exception.UnauthorizedException;
@@ -9,6 +9,7 @@ import com.turnero.api.model.User;
 import com.turnero.api.model.UserSession;
 import com.turnero.api.model.enums.AuthProvider;
 import com.turnero.api.model.enums.UserRole;
+import com.turnero.api.model.enums.BusinessOnboardingStatus;
 import com.turnero.api.repository.BusinessRepository;
 import com.turnero.api.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -50,13 +51,17 @@ class AuthServiceImplTest {
         String userAgent = "Mozilla/5.0";
         GoogleIdentityDto identity = new GoogleIdentityDto("google-subject", "user@example.com", true);
         User user = user(1L, 10L);
+        Business business = business(10L);
         given(googleIdentityService.verify(idToken)).willReturn(identity);
         given(userRepository.findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject")).willReturn(Optional.of(user));
+        given(businessRepository.findById(10L)).willReturn(Optional.of(business));
         given(sessionService.createSession(1L, ipAddress, userAgent)).willReturn("generated-session-token");
 
-        String result = authService.loginWithGoogle(idToken, ipAddress, userAgent);
+        AuthLoginResult result = authService.loginWithGoogle(idToken, ipAddress, userAgent);
 
-        assertThat(result).isEqualTo("generated-session-token");
+        assertThat(result.sessionToken()).isEqualTo("generated-session-token");
+        assertThat(result.session().user().role()).isEqualTo(UserRole.OWNER);
+        assertThat(result.session().business().onboardingStatus()).isEqualTo(BusinessOnboardingStatus.READY);
         verify(googleIdentityService).verify(idToken);
         verify(userRepository).findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject");
         verify(sessionService).createSession(1L, ipAddress, userAgent);
@@ -119,26 +124,30 @@ class AuthServiceImplTest {
                 .businessId(10L)
                 .name("Juan Perez")
                 .email("juan@example.com")
-                .role(UserRole.ADMIN)
+                .role(UserRole.OWNER)
+                .avatarUrl("https://example.com/avatar.png")
                 .build();
         Business business = Business.builder()
                 .id(10L)
                 .name("Barber Studio")
                 .slug("barber-studio")
+                .onboardingStatus(BusinessOnboardingStatus.READY)
                 .build();
         given(sessionService.validateSession(rawSessionToken)).willReturn(session);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(businessRepository.findById(10L)).willReturn(Optional.of(business));
 
-        AuthMeResponseDto result = authService.getCurrentUser(rawSessionToken);
+        AuthSessionResponseDto result = authService.getCurrentUser(rawSessionToken);
 
-        assertThat(result.userId()).isEqualTo(1L);
-        assertThat(result.name()).isEqualTo("Juan Perez");
-        assertThat(result.email()).isEqualTo("juan@example.com");
-        assertThat(result.role()).isEqualTo(UserRole.ADMIN);
-        assertThat(result.businessId()).isEqualTo(10L);
-        assertThat(result.businessName()).isEqualTo("Barber Studio");
-        assertThat(result.businessSlug()).isEqualTo("barber-studio");
+        assertThat(result.user().id()).isEqualTo(1L);
+        assertThat(result.user().name()).isEqualTo("Juan Perez");
+        assertThat(result.user().email()).isEqualTo("juan@example.com");
+        assertThat(result.user().role()).isEqualTo(UserRole.OWNER);
+        assertThat(result.user().avatarUrl()).isEqualTo("https://example.com/avatar.png");
+        assertThat(result.business().id()).isEqualTo(10L);
+        assertThat(result.business().name()).isEqualTo("Barber Studio");
+        assertThat(result.business().slug()).isEqualTo("barber-studio");
+        assertThat(result.business().onboardingStatus()).isEqualTo(BusinessOnboardingStatus.READY);
         verify(sessionService).validateSession(rawSessionToken);
         verify(userRepository).findById(1L);
         verify(businessRepository).findById(10L);
@@ -196,6 +205,22 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void getCurrentUser_whenUserIsNotOwner_throwsForbiddenWithoutLookingUpBusiness() {
+        String rawSessionToken = "raw-session-token";
+        UserSession session = UserSession.builder().userId(1L).build();
+        User user = user(1L, 10L);
+        user.setRole(UserRole.ADMIN);
+        given(sessionService.validateSession(rawSessionToken)).willReturn(session);
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.getCurrentUser(rawSessionToken))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("User is not allowed to access admin endpoints");
+
+        verifyNoInteractions(businessRepository);
+    }
+
+    @Test
     void getCurrentUser_whenBusinessDoesNotExist_throwsForbidden() {
         String rawSessionToken = "raw-session-token";
         UserSession session = UserSession.builder()
@@ -225,10 +250,39 @@ class AuthServiceImplTest {
         verifyNoInteractions(googleIdentityService, userRepository, businessRepository);
     }
 
+    @Test
+    void loginWithGoogle_whenUserIsNotOwner_throwsForbiddenWithoutCreatingSession() {
+        String idToken = "valid-id-token";
+        GoogleIdentityDto identity = new GoogleIdentityDto("google-subject", "user@example.com", true);
+        User user = user(1L, 10L);
+        user.setRole(UserRole.ADMIN);
+        given(googleIdentityService.verify(idToken)).willReturn(identity);
+        given(userRepository.findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject"))
+                .willReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.loginWithGoogle(idToken, "127.0.0.1", "Mozilla/5.0"))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("User is not allowed to access admin endpoints");
+
+        verifyNoInteractions(sessionService, businessRepository);
+    }
+
     private User user(Long id, Long businessId) {
         return User.builder()
                 .id(id)
                 .businessId(businessId)
+                .name("Juan Perez")
+                .email("juan@example.com")
+                .role(UserRole.OWNER)
+                .build();
+    }
+
+    private Business business(Long id) {
+        return Business.builder()
+                .id(id)
+                .name("Barber Studio")
+                .slug("barber-studio")
+                .onboardingStatus(BusinessOnboardingStatus.READY)
                 .build();
     }
 }

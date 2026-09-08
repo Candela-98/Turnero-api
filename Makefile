@@ -3,7 +3,7 @@ export
 
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || command -v docker-compose 2>/dev/null || true)
 
-.PHONY: check-compose db-up db-down db-logs run test clean
+.PHONY: check-compose db-up db-down db-logs run test clean provision-local-owner
 
 check-compose:
 	@if [ -z "$(COMPOSE)" ]; then \
@@ -31,6 +31,9 @@ test:
 	else \
 		./gradlew test; \
 	fi
+
+provision-local-owner:
+	bash ./scripts/provision-local-owner.sh
 
 clean:
 	./gradlew clean

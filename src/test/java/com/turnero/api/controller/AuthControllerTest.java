@@ -3,11 +3,16 @@ package com.turnero.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.config.SessionProperties;
-import com.turnero.api.dto.AuthMeResponseDto;
+import com.turnero.api.dto.AuthBusinessResponseDto;
+import com.turnero.api.dto.AuthSessionResponseDto;
+import com.turnero.api.dto.AuthUserResponseDto;
 import com.turnero.api.dto.GoogleLoginRequestDto;
 import com.turnero.api.exception.UnauthorizedException;
+import com.turnero.api.exception.ForbiddenException;
 import com.turnero.api.model.enums.UserRole;
+import com.turnero.api.model.enums.BusinessOnboardingStatus;
 import com.turnero.api.service.AuthService;
+import com.turnero.api.service.AuthLoginResult;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,7 +61,8 @@ class AuthControllerTest {
         String ipAddress = "203.0.113.10";
         String userAgent = "Mozilla/5.0";
 
-        given(authService.loginWithGoogle(idToken, ipAddress, userAgent)).willReturn(sessionToken);
+        given(authService.loginWithGoogle(idToken, ipAddress, userAgent))
+                .willReturn(new AuthLoginResult(sessionToken, authSession()));
         given(sessionProperties.getCookieName()).willReturn("turnero_session");
         given(sessionProperties.isSecure()).willReturn(true);
         given(sessionProperties.getSameSite()).willReturn("Strict");
@@ -71,7 +77,11 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new GoogleLoginRequestDto(idToken))))
                 .andExpect(status().isOk())
-                .andExpect(content().string(""))
+                .andExpect(jsonPath("$.user.id").value(1))
+                .andExpect(jsonPath("$.user.role").value("OWNER"))
+                .andExpect(jsonPath("$.user.avatar_url").value("https://example.com/avatar.png"))
+                .andExpect(jsonPath("$.business.id").value(10))
+                .andExpect(jsonPath("$.business.onboarding_status").value("READY"))
                 .andReturn();
 
         String setCookie = result.getResponse().getHeader(HttpHeaders.SET_COOKIE);
@@ -125,17 +135,24 @@ class AuthControllerTest {
     }
 
     @Test
+    void loginWithGoogle_whenUserIsNotAllowed_returns403WithoutCookie() throws Exception {
+        String idToken = "valid-id-token";
+        given(authService.loginWithGoogle(idToken, "127.0.0.1", null))
+                .willThrow(new ForbiddenException("User is not allowed to access admin endpoints"));
+
+        mockMvc.perform(post(GOOGLE_LOGIN_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"id_token\":\"valid-id-token\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("User is not allowed to access admin endpoints"))
+                .andExpect(result -> assertThat(result.getResponse().getHeader(HttpHeaders.SET_COOKIE)).isNull());
+    }
+
+    @Test
     void me_whenSessionCookieIsValid_returnsCurrentUser() throws Exception {
         String sessionToken = "raw-session-token";
-        AuthMeResponseDto response = new AuthMeResponseDto(
-                1L,
-                "Juan Perez",
-                "juan@example.com",
-                UserRole.ADMIN,
-                10L,
-                "Barber Studio",
-                "barber-studio"
-        );
+        AuthSessionResponseDto response = authSession();
         given(sessionProperties.getCookieName()).willReturn("turnero_session");
         given(authService.getCurrentUser(sessionToken)).willReturn(response);
 
@@ -147,13 +164,15 @@ class AuthControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.userId").value(1))
-                .andExpect(jsonPath("$.name").value("Juan Perez"))
-                .andExpect(jsonPath("$.email").value("juan@example.com"))
-                .andExpect(jsonPath("$.role").value("ADMIN"))
-                .andExpect(jsonPath("$.businessId").value(10))
-                .andExpect(jsonPath("$.businessName").value("Barber Studio"))
-                .andExpect(jsonPath("$.businessSlug").value("barber-studio"));
+                .andExpect(jsonPath("$.user.id").value(1))
+                .andExpect(jsonPath("$.user.name").value("Juan Perez"))
+                .andExpect(jsonPath("$.user.email").value("juan@example.com"))
+                .andExpect(jsonPath("$.user.role").value("OWNER"))
+                .andExpect(jsonPath("$.user.avatar_url").value("https://example.com/avatar.png"))
+                .andExpect(jsonPath("$.business.id").value(10))
+                .andExpect(jsonPath("$.business.name").value("Barber Studio"))
+                .andExpect(jsonPath("$.business.slug").value("barber-studio"))
+                .andExpect(jsonPath("$.business.onboarding_status").value("READY"));
 
         then(authService).should().getCurrentUser(sessionToken);
     }
@@ -235,6 +254,18 @@ class AuthControllerTest {
     }
 
     @Test
+    void me_whenSessionUserIsNotOwner_returns403() throws Exception {
+        String sessionToken = "valid-session-token";
+        given(sessionProperties.getCookieName()).willReturn("turnero_session");
+        given(authService.getCurrentUser(sessionToken))
+                .willThrow(new ForbiddenException("User is not allowed to access admin endpoints"));
+
+        mockMvc.perform(get(ME_URL).cookie(new Cookie("turnero_session", sessionToken)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
     void logout_whenSessionCookieIsValid_returns204AndExpiresSessionCookie() throws Exception {
         String sessionToken = "raw-session-token";
         given(sessionProperties.getCookieName()).willReturn("turnero_session");
@@ -285,42 +316,35 @@ class AuthControllerTest {
     }
 
     @Test
-    void logout_whenRequestHasNoCookies_returns401WithoutCallingAuthService() throws Exception {
+    void logout_whenRequestHasNoCookies_returns204AndExpiresCookie() throws Exception {
+        given(sessionProperties.getCookieName()).willReturn("turnero_session");
+        given(sessionProperties.isSecure()).willReturn(false);
+        given(sessionProperties.getSameSite()).willReturn("Lax");
+
         mockMvc.perform(post(LOGOUT_URL)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.error").value("Unauthorized"))
-                .andExpect(jsonPath("$.message").value("Session token is required"))
-                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
-                .andExpect(jsonPath("$.path").value(LOGOUT_URL))
-                .andExpect(jsonPath("$.timestamp").exists());
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
 
         then(authService).shouldHaveNoInteractions();
     }
 
     @Test
-    void logout_whenCookiesDoNotContainSessionCookie_returns401WithoutCallingAuthService() throws Exception {
+    void logout_whenCookiesDoNotContainSessionCookie_returns204WithoutCallingAuthService() throws Exception {
         given(sessionProperties.getCookieName()).willReturn("turnero_session");
+        given(sessionProperties.isSecure()).willReturn(false);
+        given(sessionProperties.getSameSite()).willReturn("Lax");
 
         mockMvc.perform(post(LOGOUT_URL)
                         .cookie(new Cookie("other_session", "wrong-token"))
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.error").value("Unauthorized"))
-                .andExpect(jsonPath("$.message").value("Session token is required"))
-                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
-                .andExpect(jsonPath("$.path").value(LOGOUT_URL))
-                .andExpect(jsonPath("$.timestamp").exists());
+                .andExpect(status().isNoContent());
 
         then(authService).shouldHaveNoInteractions();
     }
 
     @Test
-    void logout_whenAuthServiceThrowsUnauthorized_returns401() throws Exception {
+    void logout_whenAuthServiceThrowsUnauthorized_returns204() throws Exception {
         String sessionToken = "invalid-session-token";
         given(sessionProperties.getCookieName()).willReturn("turnero_session");
         willThrow(new UnauthorizedException("Invalid session"))
@@ -330,15 +354,15 @@ class AuthControllerTest {
         mockMvc.perform(post(LOGOUT_URL)
                         .cookie(new Cookie("turnero_session", sessionToken))
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.error").value("Unauthorized"))
-                .andExpect(jsonPath("$.message").value("Invalid session"))
-                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
-                .andExpect(jsonPath("$.path").value(LOGOUT_URL))
-                .andExpect(jsonPath("$.timestamp").exists());
+                .andExpect(status().isNoContent());
 
         then(authService).should().logout(sessionToken);
+    }
+
+    private AuthSessionResponseDto authSession() {
+        return new AuthSessionResponseDto(
+                new AuthUserResponseDto(1L, "Juan Perez", "juan@example.com", UserRole.OWNER, "https://example.com/avatar.png"),
+                new AuthBusinessResponseDto(10L, "Barber Studio", "barber-studio", BusinessOnboardingStatus.READY)
+        );
     }
 }

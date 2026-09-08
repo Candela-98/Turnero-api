@@ -23,3 +23,9 @@ spring:
     endpoint:
       health:
         show-details: never
+
+auth:
+  session:
+    cookie-name: ${AUTH_SESSION_COOKIE_NAME:__Host-turnero_session}
+    secure: ${AUTH_SESSION_SECURE:true}
+    same-site: ${AUTH_SESSION_SAME_SITE:Lax}
