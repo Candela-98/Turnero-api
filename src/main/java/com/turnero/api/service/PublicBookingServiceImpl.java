@@ -43,7 +43,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
 
         PublicBookingSettingsResponseDto publicBookingSettings =
                 PublicBookingSettingsResponseDto.builder()
-                        .publicBookingEnabled(bookingSettings.isPublicBookingEnabled())
+                        .isPublicBookingEnabled(bookingSettings.isPublicBookingEnabled())
                         .bookingWindowDays(bookingSettings.getBookingWindowDays())
                         .minNoticeHours(bookingSettings.getMinNoticeHours())
                         .slotIntervalMinutes(bookingSettings.getSlotIntervalMinutes())
@@ -109,7 +109,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
                 .toList();
 
         return PublicServiceOfferingListResponseDto.builder()
-                .data(publicServices)
+                .services(publicServices)
                 .build();
     }
 

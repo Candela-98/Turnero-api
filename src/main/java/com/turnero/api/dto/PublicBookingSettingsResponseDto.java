@@ -13,7 +13,7 @@ import lombok.Data;
 public class PublicBookingSettingsResponseDto {
 
     @Schema(description = "Indicates whether the business accepts public reservations.", example = "true")
-    private boolean publicBookingEnabled;
+    private boolean isPublicBookingEnabled;
 
     @Schema(description = "Indicates how many days in advance you can make a reservation.", example = "7")
     private int bookingWindowDays;

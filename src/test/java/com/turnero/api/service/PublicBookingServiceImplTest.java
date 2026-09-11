@@ -131,12 +131,12 @@ class PublicBookingServiceImplTest {
 
         PublicServiceOfferingListResponseDto response = publicBookingService.getPublicServices(BUSINESS_SLUG);
 
-        assertThat(response.getData()).hasSize(1);
-        assertThat(response.getData().getFirst().getId()).isEqualTo(10L);
-        assertThat(response.getData().getFirst().getName()).isEqualTo("Haircut");
-        assertThat(response.getData().getFirst().getStaffMembers()).hasSize(1);
-        assertThat(response.getData().getFirst().getStaffMembers().getFirst().getId()).isEqualTo(100L);
-        assertThat(response.getData().getFirst().getStaffMembers().getFirst().getName()).isEqualTo("John Doe");
+        assertThat(response.getServices()).hasSize(1);
+        assertThat(response.getServices().getFirst().getId()).isEqualTo(10L);
+        assertThat(response.getServices().getFirst().getName()).isEqualTo("Haircut");
+        assertThat(response.getServices().getFirst().getStaffMembers()).hasSize(1);
+        assertThat(response.getServices().getFirst().getStaffMembers().getFirst().getId()).isEqualTo(100L);
+        assertThat(response.getServices().getFirst().getStaffMembers().getFirst().getName()).isEqualTo("John Doe");
 
         verify(staffServiceOfferingRepository, never()).findAllByServiceOfferingId(40L);
     }
