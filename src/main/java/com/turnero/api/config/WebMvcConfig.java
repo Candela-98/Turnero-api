@@ -19,6 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns(
                         "/api/v1/business/**",
                         "/api/v1/booking-settings/**",
+                        "/api/v1/business-hours/**",
                         "/api/v1/customers/**",
                         "/api/v1/service-offerings/**",
                         "/api/v1/staff-members/**",

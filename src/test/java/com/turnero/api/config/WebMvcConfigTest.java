@@ -64,6 +64,15 @@ class WebMvcConfigTest {
         then(adminAuthInterceptor).should().preHandle(any(), any(), any());
     }
 
+    @Test
+    void businessHoursEndpoint_passesThroughAdminAuthInterceptor() throws Exception {
+        mockMvc.perform(get("/api/v1/business-hours"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("business-hours"));
+
+        then(adminAuthInterceptor).should().preHandle(any(), any(), any());
+    }
+
     @RestController
     static class TestController {
 
@@ -80,6 +89,11 @@ class WebMvcConfigTest {
         @GetMapping("/api/v1/availability/slots")
         String availability() {
             return "availability";
+        }
+
+        @GetMapping("/api/v1/business-hours")
+        String businessHours() {
+            return "business-hours";
         }
     }
 }

@@ -229,6 +229,7 @@ public class AvailabilityControllerIT {
 
         mockMvc.perform(put("/api/v1/business-hours")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .cookie(adminAuth().ownerSessionCookie(1L))
                         .content(objectMapper.writeValueAsString(fullWeekWithMondayClosed())))
                 .andExpect(status().isOk());
 

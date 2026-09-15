@@ -1,12 +1,14 @@
 package com.turnero.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.BusinessHoursDayRequestDto;
 import com.turnero.api.dto.BusinessHoursReplaceRequestDto;
 import com.turnero.api.mapper.BusinessHoursMapper;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.enums.DayOfWeek;
 import com.turnero.api.service.BusinessHoursService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -33,6 +35,12 @@ class BusinessHoursControllerTest {
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private BusinessHoursService businessHoursService;
     @MockitoBean private BusinessHoursMapper businessHoursMapper;
+    @MockitoBean private AdminAuthInterceptor adminAuthInterceptor;
+
+    @BeforeEach
+    void allowAdminRequests() throws Exception {
+        given(adminAuthInterceptor.preHandle(any(), any(), any())).willReturn(true);
+    }
 
     @Test
     void getBusinessHours_returnsContractWrapper() throws Exception {
