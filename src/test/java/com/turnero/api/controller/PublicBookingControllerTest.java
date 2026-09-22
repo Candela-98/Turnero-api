@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -142,7 +143,7 @@ class PublicBookingControllerTest {
         LocalDate from = LocalDate.of(2026, 9, 15);
         LocalDate to = LocalDate.of(2026, 9, 15);
         Long serviceOfferingId = 10L;
-        String staffMemberId = "100";
+        Long staffMemberId = 100L;
 
         given(publicBookingService.getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, staffMemberId))
                 .willReturn(List.of(availabilitySlot(
@@ -176,7 +177,7 @@ class PublicBookingControllerTest {
         LocalDate to = LocalDate.of(2026, 9, 15);
         Long serviceOfferingId = 10L;
 
-        given(publicBookingService.getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, "any"))
+        given(publicBookingService.getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, null))
                 .willReturn(List.of(availabilitySlot(
                         LocalDateTime.of(2026, 9, 15, 10, 0),
                         LocalDateTime.of(2026, 9, 15, 10, 30),
@@ -196,7 +197,25 @@ class PublicBookingControllerTest {
                 .andExpect(jsonPath("$[0].available_staff_member_ids[1]").value(200));
 
         then(publicBookingService).should()
-                .getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, "any");
+                .getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, null);
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void getAvailability_whenStaffMemberIdIsInvalid_rejectsRequestBeforeCallingService() throws Exception {
+        mockMvc.perform(get(AVAILABILITY_URL, BUSINESS_SLUG)
+                        .param("from", "2026-09-15")
+                        .param("to", "2026-09-15")
+                        .param("service_offering_id", "10")
+                        .param("staff_member_id", "not-a-number"))
+                .andExpect(status().isBadRequest());
+
+        then(publicBookingService).should(never())
+                .getPublicAvailability(org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(LocalDate.class),
+                        org.mockito.ArgumentMatchers.any(LocalDate.class),
+                        org.mockito.ArgumentMatchers.anyLong(),
+                        org.mockito.ArgumentMatchers.any());
         then(adminAuthInterceptor).shouldHaveNoInteractions();
     }
 

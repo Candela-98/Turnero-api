@@ -12,7 +12,7 @@ public interface PublicBookingService {
     PublicServiceOfferingListResponseDto getPublicServices(String businessSlug);
 
     List<PublicAvailabilitySlotResponseDto> getPublicAvailability(String businessSlug, LocalDate from,
-            LocalDate to, Long serviceOfferingId, String staffMemberId);
+            LocalDate to, Long serviceOfferingId, Long staffMemberId);
 
     PublicAppointmentResponseDto createPublicAppointment(String businessSlug, PublicAppointmentRequestDto request);
 }

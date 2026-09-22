@@ -1,6 +1,7 @@
 package com.turnero.api.repository;
 
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.enums.StaffMemberStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
@@ -16,6 +17,8 @@ public interface StaffMemberRepository extends JpaRepository<StaffMember, Long> 
     Optional<StaffMember> findByIdAndBusinessId(Long id, Long businessId);
 
     List<StaffMember> findAllByIdInAndBusinessId(List<Long> ids, Long businessId);
+
+    List<StaffMember> findAllByIdInAndBusinessIdAndStatus(List<Long> ids, Long businessId, StaffMemberStatus status);
 
     boolean existsByIdAndBusinessId(Long id, Long businessId);
 
