@@ -8,8 +8,11 @@ import com.turnero.api.dto.PublicBusinessResponseDto;
 import com.turnero.api.dto.PublicServiceOfferingListResponseDto;
 import com.turnero.api.dto.PublicServiceOfferingResponseDto;
 import com.turnero.api.dto.PublicStaffMemberResponseDto;
+import com.turnero.api.dto.PublicAppointmentResponseDto;
+import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ForbiddenException;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.service.PublicBookingService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,12 +23,16 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +44,7 @@ class PublicBookingControllerTest {
     private static final String PROFILE_URL = "/api/v1/public/businesses/{businessSlug}/booking-profile";
     private static final String SERVICES_URL = "/api/v1/public/businesses/{businessSlug}/services";
     private static final String AVAILABILITY_URL = "/api/v1/public/businesses/{businessSlug}/availability";
+    private static final String APPOINTMENTS_URL = "/api/v1/public/businesses/{businessSlug}/appointments";
 
     @Autowired private MockMvc mockMvc;
 
@@ -211,6 +219,56 @@ class PublicBookingControllerTest {
         then(adminAuthInterceptor).shouldHaveNoInteractions();
     }
 
+    @Test
+    void createAppointment_withoutAdminSession_returnsCreatedPublicAppointmentWithSnakeCaseContract() throws Exception {
+        LocalDateTime startsAt = LocalDate.now().plusDays(3).atTime(10, 0,0);
+        LocalDateTime endsAt = startsAt.plusMinutes(45);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+
+        given(publicBookingService.createPublicAppointment(eq(BUSINESS_SLUG), any()))
+                .willReturn(publicAppointmentResponse(startsAt, endsAt, AppointmentStatus.PENDING));
+
+        mockMvc.perform(post(APPOINTMENTS_URL, BUSINESS_SLUG)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(publicAppointmentRequest(startsAt, "100")))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.appointment_id").value(900))
+                .andExpect(jsonPath("$.service_offering_id").value(10))
+                .andExpect(jsonPath("$.staff_member_id").value(100))
+                .andExpect(jsonPath("$.starts_at").value(startsAt.format(formatter)))
+                .andExpect(jsonPath("$.ends_at").value(endsAt.format(formatter)))
+                .andExpect(jsonPath("$.duration_minutes").value(45))
+                .andExpect(jsonPath("$.price_cents").value(32000))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.cancel_token").value("plain-cancel-token"))
+                .andExpect(jsonPath("$.appointmentId").doesNotExist())
+                .andExpect(jsonPath("$.serviceOfferingId").doesNotExist())
+                .andExpect(jsonPath("$.staffMemberId").doesNotExist())
+                .andExpect(jsonPath("$.cancelToken").doesNotExist());
+
+        then(publicBookingService).should().createPublicAppointment(eq(BUSINESS_SLUG), any());
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void createAppointment_whenSlotIsOccupied_returnsConflict() throws Exception {
+        LocalDateTime startsAt = LocalDate.now().plusDays(3).atTime(10, 0);
+
+        given(publicBookingService.createPublicAppointment(eq(BUSINESS_SLUG), any()))
+                .willThrow(new AppointmentOverlapException("The selected slot is not available"));
+
+        mockMvc.perform(post(APPOINTMENTS_URL, BUSINESS_SLUG)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(publicAppointmentRequest(startsAt, "any")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.code").value("CONFLICT"))
+                .andExpect(jsonPath("$.message").value("The selected slot is not available"));
+
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
     private PublicBookingProfileResponseDto profileResponse() {
         return PublicBookingProfileResponseDto.builder()
                 .business(PublicBusinessResponseDto.builder()
@@ -255,5 +313,36 @@ class PublicBookingControllerTest {
                 .endsAt(endsAt)
                 .availableStaffMemberIds(availableStaffMemberIds)
                 .build();
+    }
+
+    private PublicAppointmentResponseDto publicAppointmentResponse(LocalDateTime startsAt, LocalDateTime endsAt,
+            AppointmentStatus status) {
+        return PublicAppointmentResponseDto.builder()
+                .appointmentId(900L)
+                .serviceOfferingId(10L)
+                .staffMemberId(100L)
+                .startsAt(startsAt)
+                .endsAt(endsAt)
+                .durationMinutes(45)
+                .priceCents(32000)
+                .status(status)
+                .cancelToken("plain-cancel-token")
+                .build();
+    }
+
+    private String publicAppointmentRequest(LocalDateTime startsAt, String staffMemberId) {
+        return """
+                {
+                  "service_offering_id": 10,
+                  "staff_member_id": "%s",
+                  "starts_at": "%s",
+                  "customer": {
+                    "name": "Candela",
+                    "email": "candela@email.com",
+                    "phone_number": "1123456789"
+                  },
+                  "customer_notes": "Comentario opcional"
+                }
+                """.formatted(staffMemberId, startsAt);
     }
 }
