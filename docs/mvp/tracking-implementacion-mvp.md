@@ -1,6 +1,6 @@
 # Tracking de Implementacion Backend MVP
 
-Actualizado: 2026-09-03
+Actualizado: 2026-09-22
 
 ## Proposito
 
@@ -20,7 +20,7 @@ El backend ya avanzo desde la base single-business/H2 hacia la base MVP con Post
 
 Appointments admin ya tiene creacion, listado base, detalle, edicion y transiciones de estado. Las brechas de lectura, escritura y availability se cerraran mediante TURN-90, TURN-105, TURN-109 y TURN-92 antes de conectar definitivamente el frontend.
 
-La fuente de este estado es `develop` en el commit `4100520` (2026-09-03). Las ramas remotas sin merge no se consideran implementadas en este tracking.
+La fuente de este estado es `develop` en el commit `61596d3` (2026-09-22). Las ramas remotas sin merge no se consideran implementadas en este tracking.
 
 ## PRs completados y avances en develop
 
@@ -49,8 +49,9 @@ La fuente de este estado es `develop` en el commit `4100520` (2026-09-03). Las r
 | PR 16 | TURN-53 | Completado | Datos base del negocio actual en `GET/PATCH /api/v1/business` mergeados en PR #54 |
 | PR 17 | TURN-54 | Completado | Booking settings en `GET/PATCH /api/v1/booking-settings` mergeados en PR #59 |
 | PR 18 | TURN-55 | Completado | Horarios semanales del negocio en `GET/PUT /api/v1/business-hours` mergeados en PR #60 |
-| PR 19 | - | Implementado; pendiente converger contrato | Login Google, sesion propia y `/auth/me` mergeados en PR #61; el wire contract actual difiere de `api-contracts-mvp.md` |
-| PR 20 | - | Implementado; pendiente hardening | Logout, interceptor admin y business desde usuario autenticado mergeados en PR #62; `business-hours` ya atraviesa la protección admin y tiene cobertura de sesión, rol y scoping; queda cerrar logout idempotente |
+| PR 19 | TURN-88 | Completado | Login Google, sesión propia y `/auth/me` mergeados en PR #61; contrato canónico alineado en `3533fe7` y aprovisionamiento local repetible mergeado en PR #65 |
+| PR 20 | TURN-89 | Completado | Logout, interceptor admin y business desde usuario autenticado mergeados en PR #62; `business-hours` atraviesa la protección admin y tiene cobertura de sesión, rol y scoping |
+| PR 21 | TURN-58 | Completado | Perfil público y servicios reservables expuestos en PR #63 |
 
 ## Proximo foco recomendado
 
@@ -60,7 +61,7 @@ La reorganizacion de TURN-68 registro las brechas backend como trabajo separado 
 
 | Jira | Tipo | Objetivo | Bloquea |
 | --- | --- | --- | --- |
-| TURN-88 | Bug | Converger auth/sesion con el contrato MVP | TURN-69 |
+| TURN-88 | Completado | Converger auth/sesion con el contrato MVP | TURN-69 |
 | TURN-89 | Completado | Proteger business-hours con autenticacion admin | TURN-82 |
 | TURN-90 | Bug | Completar lectura de agenda y DTO enriquecido | TURN-70 y TURN-73 |
 | TURN-91 | Bug contenedor | Asegurar invariantes de escritura mediante TURN-105 y TURN-109 | TURN-72 y TURN-74 |
@@ -69,13 +70,9 @@ La reorganizacion de TURN-68 registro las brechas backend como trabajo separado 
 
 Los tickets terminados TURN-41, TURN-55, TURN-56 y TURN-57 conservan su historial y estan relacionados con los bugs que completan sus criterios pendientes.
 
-### Desbloquear integracion frontend de auth
+### Integracion frontend de auth y horarios
 
-Antes de cerrar TURN-69 frontend mediante TURN-88:
-
-- alinear request, responses, cookie y roles con el contrato canonico de `api-contracts-mvp.md`;
-- hacer logout idempotente;
-- documentar/aplicar un aprovisionamiento local repetible para un OWNER real.
+TURN-88 alineó request, responses, cookie y roles con el contrato canónico. El aprovisionamiento local de un OWNER real quedó mergeado en PR #65; el logout idempotente permanece como hardening separado.
 
 TURN-89 incorporó `/api/v1/business-hours/**` a la protección admin y verifica sesión, rol OWNER y scoping entre negocios. TURN-82 queda desbloqueado por este lado.
 
@@ -137,7 +134,7 @@ No marcar como completos sin revisar sus criterios de aceptacion:
 
 Pendiente de implementar:
 
-- TURN-58 a TURN-61 - Booking publico y cancelacion.
+- TURN-59 a TURN-61 - Availability, creación y cancelación de booking público.
 - TURN-32 mediante TURN-62 y TURN-110 a TURN-116 - Hardening operativo MVP.
 
 PRs 19-20 ya estan mergeados, pero conservan las brechas contractuales y de hardening registradas arriba. El codigo de PRs 8-15 esta presente en `develop`, pero debe revisarse contra su contrato y criterios Jira antes de marcar cada ticket como completado. PRs 16-18 ya estan mergeados y no deben figurar como pendientes de implementacion.
@@ -157,7 +154,6 @@ Las ramas remotas de tests o documentacion no cambian el estado funcional del MV
 ## Pendientes importantes en paralelo
 
 - Plan AWS (`plan-deploy-aws-mvp.md`) antes de preparar `desa`/`prod`.
-- TURN-88 de convergencia auth, que bloquea TURN-69 frontend y puede resolverse en paralelo a appointments.
 - Validar el contrato definitivo de Availability: el endpoint existe, pero su response y casos de rango deben revisarse contra `api-contracts-mvp.md` antes de dar PR 8 por cerrado.
 
 ## Nota para frontend
