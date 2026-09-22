@@ -9,10 +9,12 @@ import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.enums.BusinessOnboardingStatus;
 import com.turnero.api.model.enums.BusinessStatus;
 import com.turnero.api.model.enums.DayOfWeek;
+import com.turnero.api.model.enums.UserRole;
 import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.BusinessRepository;
 import com.turnero.api.repository.UserRepository;
 import com.turnero.api.service.SessionService;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,9 +63,7 @@ class BusinessHoursControllerIT {
         jdbcTemplate.execute("ALTER TABLE businesses ALTER COLUMN id RESTART WITH 1");
         jdbcTemplate.execute("ALTER TABLE business_hours ALTER COLUMN id RESTART WITH 1");
         businessRepository.saveAllAndFlush(List.of(business("one"), business("two")));
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                .defaultRequest(get("/").cookie(adminAuth().ownerSessionCookie(1L)))
-                .build();
+        mockMvc = mockMvcFor(adminAuth().ownerSessionCookie(1L));
     }
 
     private AdminAuthTestHelper adminAuth() {
@@ -115,6 +115,48 @@ class BusinessHoursControllerIT {
         assertThat(businessHoursRepository.findAllByBusinessId(1L))
                 .hasSize(7)
                 .allMatch(hour -> hour.getOpensAt().equals(LocalTime.of(9, 0)));
+    }
+
+    @Test
+    void businessHours_withoutSession_returnsUnauthorizedAndDoesNotModifyHours() throws Exception {
+        businessHoursRepository.saveAll(fullWeekEntities(1L, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        MockMvc unauthenticatedMockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+
+        unauthenticatedMockMvc.perform(get(BASE_URL))
+                .andExpect(status().isUnauthorized());
+
+        unauthenticatedMockMvc.perform(put(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(fullWeekRequest(LocalTime.of(10, 0), LocalTime.of(16, 0)))))
+                .andExpect(status().isUnauthorized());
+
+        assertThat(businessHoursRepository.findAllByBusinessId(1L))
+                .hasSize(7)
+                .allMatch(hour -> hour.getOpensAt().equals(LocalTime.of(9, 0)));
+    }
+
+    @Test
+    void businessHours_withNonOwnerSession_returnsForbiddenAndDoesNotModifyHours() throws Exception {
+        businessHoursRepository.saveAll(fullWeekEntities(1L, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        MockMvc nonOwnerMockMvc = mockMvcFor(adminAuth().sessionCookie(1L, UserRole.ADMIN));
+
+        nonOwnerMockMvc.perform(get(BASE_URL))
+                .andExpect(status().isForbidden());
+
+        nonOwnerMockMvc.perform(put(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(fullWeekRequest(LocalTime.of(10, 0), LocalTime.of(16, 0)))))
+                .andExpect(status().isForbidden());
+
+        assertThat(businessHoursRepository.findAllByBusinessId(1L))
+                .hasSize(7)
+                .allMatch(hour -> hour.getOpensAt().equals(LocalTime.of(9, 0)));
+    }
+
+    private MockMvc mockMvcFor(Cookie sessionCookie) {
+        return MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").cookie(sessionCookie))
+                .build();
     }
 
     private Business business(String suffix) {

@@ -50,7 +50,7 @@ La fuente de este estado es `develop` en el commit `4100520` (2026-09-03). Las r
 | PR 17 | TURN-54 | Completado | Booking settings en `GET/PATCH /api/v1/booking-settings` mergeados en PR #59 |
 | PR 18 | TURN-55 | Completado | Horarios semanales del negocio en `GET/PUT /api/v1/business-hours` mergeados en PR #60 |
 | PR 19 | - | Implementado; pendiente converger contrato | Login Google, sesion propia y `/auth/me` mergeados en PR #61; el wire contract actual difiere de `api-contracts-mvp.md` |
-| PR 20 | - | Implementado; pendiente hardening | Logout, interceptor admin y business desde usuario autenticado mergeados en PR #62; falta proteger `business-hours` y cerrar logout idempotente |
+| PR 20 | - | Implementado; pendiente hardening | Logout, interceptor admin y business desde usuario autenticado mergeados en PR #62; `business-hours` ya atraviesa la protección admin y tiene cobertura de sesión, rol y scoping; queda cerrar logout idempotente |
 
 ## Proximo foco recomendado
 
@@ -61,7 +61,7 @@ La reorganizacion de TURN-68 registro las brechas backend como trabajo separado 
 | Jira | Tipo | Objetivo | Bloquea |
 | --- | --- | --- | --- |
 | TURN-88 | Bug | Converger auth/sesion con el contrato MVP | TURN-69 |
-| TURN-89 | Bug | Proteger business-hours con autenticacion admin | TURN-82 |
+| TURN-89 | Completado | Proteger business-hours con autenticacion admin | TURN-82 |
 | TURN-90 | Bug | Completar lectura de agenda y DTO enriquecido | TURN-70 y TURN-73 |
 | TURN-91 | Bug contenedor | Asegurar invariantes de escritura mediante TURN-105 y TURN-109 | TURN-72 y TURN-74 |
 | TURN-92 | Bug | Converger availability admin con el contrato | TURN-71, TURN-72 y TURN-74 |
@@ -77,7 +77,7 @@ Antes de cerrar TURN-69 frontend mediante TURN-88:
 - hacer logout idempotente;
 - documentar/aplicar un aprovisionamiento local repetible para un OWNER real.
 
-TURN-89 debe incluir `/api/v1/business-hours/**` en la proteccion admin antes de TURN-82. Ambas correcciones son acotadas y pueden avanzar en paralelo a las brechas de appointments que desbloquean la agenda.
+TURN-89 incorporó `/api/v1/business-hours/**` a la protección admin y verifica sesión, rol OWNER y scoping entre negocios. TURN-82 queda desbloqueado por este lado.
 
 ### Cerrar brechas de appointments admin
 

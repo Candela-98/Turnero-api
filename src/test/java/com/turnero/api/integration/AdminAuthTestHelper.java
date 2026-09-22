@@ -28,20 +28,24 @@ class AdminAuthTestHelper {
     }
 
     Cookie ownerSessionCookie(Long businessId) {
+        return sessionCookie(businessId, UserRole.OWNER);
+    }
+
+    Cookie sessionCookie(Long businessId, UserRole role) {
         String suffix = UUID.randomUUID().toString();
         LocalDateTime now = LocalDateTime.now();
-        User owner = userRepository.save(User.builder()
+        User user = userRepository.save(User.builder()
                 .businessId(businessId)
-                .name("Test Owner")
-                .email("owner-" + suffix + "@example.com")
+                .name("Test " + role.name())
+                .email(role.name().toLowerCase() + "-" + suffix + "@example.com")
                 .authProvider(AuthProvider.GOOGLE)
-                .authSubject("test-owner-" + suffix)
-                .role(UserRole.OWNER)
+                .authSubject("test-" + role.name().toLowerCase() + "-" + suffix)
+                .role(role)
                 .createdAt(now)
                 .updatedAt(now)
                 .build());
 
-        String rawToken = sessionService.createSession(owner.getId(), "127.0.0.1", "MockMvc");
+        String rawToken = sessionService.createSession(user.getId(), "127.0.0.1", "MockMvc");
 
         return new Cookie(sessionProperties.getCookieName(), rawToken);
     }
