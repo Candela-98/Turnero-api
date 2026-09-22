@@ -119,7 +119,6 @@ class PublicBookingServiceImplTest {
         ServiceOffering activeWithInactiveStaff = service(30L, "Color", ServiceOfferingStatus.ACTIVE);
         ServiceOffering inactiveService = service(40L, "Shave", ServiceOfferingStatus.INACTIVE);
         StaffMember activeStaff = staff(100L, "John Doe", StaffMemberStatus.ACTIVE);
-        StaffMember inactiveStaff = staff(200L, "Jane Doe", StaffMemberStatus.INACTIVE);
 
         given(businessRepository.findBySlug(BUSINESS_SLUG)).willReturn(Optional.of(activeBusiness()));
         given(bookingSettingsRepository.findByBusinessId(BUSINESS_ID)).willReturn(Optional.of(enabledSettings()));
@@ -131,14 +130,16 @@ class PublicBookingServiceImplTest {
         ));
         given(staffServiceOfferingRepository.findAllByServiceOfferingId(10L))
                 .willReturn(List.of(relation(100L, 10L)));
-        given(staffMemberRepository.findAllByIdInAndBusinessId(List.of(100L), BUSINESS_ID))
+        given(staffMemberRepository.findAllByIdInAndBusinessIdAndStatus(List.of(100L), BUSINESS_ID,
+                StaffMemberStatus.ACTIVE))
                 .willReturn(List.of(activeStaff));
         given(staffServiceOfferingRepository.findAllByServiceOfferingId(20L))
                 .willReturn(List.of());
         given(staffServiceOfferingRepository.findAllByServiceOfferingId(30L))
                 .willReturn(List.of(relation(200L, 30L)));
-        given(staffMemberRepository.findAllByIdInAndBusinessId(List.of(200L), BUSINESS_ID))
-                .willReturn(List.of(inactiveStaff));
+        given(staffMemberRepository.findAllByIdInAndBusinessIdAndStatus(List.of(200L), BUSINESS_ID,
+                StaffMemberStatus.ACTIVE))
+                .willReturn(List.of());
 
         PublicServiceOfferingListResponseDto response = publicBookingService.getPublicServices(BUSINESS_SLUG);
 
@@ -174,7 +175,7 @@ class PublicBookingServiceImplTest {
                 .willReturn(List.of(slot(startsAt, endsAt)));
 
         List<PublicAvailabilitySlotResponseDto> response = publicBookingService.getPublicAvailability(
-                BUSINESS_SLUG, from, to, serviceOfferingId, staffMemberId.toString());
+                BUSINESS_SLUG, from, to, serviceOfferingId, staffMemberId);
 
         assertThat(response).hasSize(1);
         assertThat(response.getFirst().getStartsAt()).isEqualTo(startsAt);
@@ -207,12 +208,11 @@ class PublicBookingServiceImplTest {
                         relation(firstStaffId, serviceOfferingId),
                         relation(secondStaffId, serviceOfferingId),
                         relation(inactiveStaffId, serviceOfferingId)));
-        given(staffMemberRepository.findAllByIdInAndBusinessId(
-                List.of(firstStaffId, secondStaffId, inactiveStaffId), BUSINESS_ID))
+        given(staffMemberRepository.findAllByIdInAndBusinessIdAndStatus(
+                List.of(firstStaffId, secondStaffId, inactiveStaffId), BUSINESS_ID, StaffMemberStatus.ACTIVE))
                 .willReturn(List.of(
                         staff(firstStaffId, "John Doe", StaffMemberStatus.ACTIVE),
-                        staff(secondStaffId, "Jane Doe", StaffMemberStatus.ACTIVE),
-                        staff(inactiveStaffId, "Inactive Staff", StaffMemberStatus.INACTIVE)));
+                        staff(secondStaffId, "Jane Doe", StaffMemberStatus.ACTIVE)));
         given(availabilityService.getAvailableSlotsForBusiness(
                 BUSINESS_ID, from, to, serviceOfferingId, firstStaffId, null))
                 .willReturn(List.of(slot(sharedStart, sharedEnd), slot(secondStart, secondEnd)));
@@ -221,7 +221,7 @@ class PublicBookingServiceImplTest {
                 .willReturn(List.of(slot(sharedStart, sharedEnd)));
 
         List<PublicAvailabilitySlotResponseDto> response = publicBookingService.getPublicAvailability(
-                BUSINESS_SLUG, from, to, serviceOfferingId, "any");
+                BUSINESS_SLUG, from, to, serviceOfferingId, null);
 
         assertThat(response).hasSize(2);
         assertThat(response.getFirst().getStartsAt()).isEqualTo(sharedStart);
@@ -240,6 +240,32 @@ class PublicBookingServiceImplTest {
     }
 
     @Test
+    void getPublicAvailability_whenAnyStaffRequestedAndServiceHasNoStaffRelations_returnsEmptyAvailability() {
+        Long serviceOfferingId = 10L;
+        LocalDate from = LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")).plusDays(1);
+
+        given(businessRepository.findBySlug(BUSINESS_SLUG)).willReturn(Optional.of(activeBusiness()));
+        BookingSettings settings = enabledSettings();
+        settings.setMinNoticeHours(0);
+        given(bookingSettingsRepository.findByBusinessId(BUSINESS_ID)).willReturn(Optional.of(settings));
+        given(staffServiceOfferingRepository.findAllByServiceOfferingId(serviceOfferingId))
+                .willReturn(List.of());
+
+        List<PublicAvailabilitySlotResponseDto> response = publicBookingService.getPublicAvailability(
+                BUSINESS_SLUG, from, from, serviceOfferingId, null);
+
+        assertThat(response).isEmpty();
+
+        verify(staffMemberRepository, never()).findAllByIdInAndBusinessIdAndStatus(
+                org.mockito.ArgumentMatchers.anyList(),
+                eq(BUSINESS_ID),
+                eq(StaffMemberStatus.ACTIVE));
+        verify(availabilityService, never()).getAvailableSlotsForBusiness(
+                eq(BUSINESS_ID), eq(from), eq(from), eq(serviceOfferingId), org.mockito.ArgumentMatchers.any(),
+                isNull());
+    }
+
+    @Test
     void getPublicAvailability_whenSpecificStaffDoesNotOfferService_throwsNotFound() {
         Long serviceOfferingId = 10L;
         Long staffMemberId = 100L;
@@ -253,7 +279,7 @@ class PublicBookingServiceImplTest {
                 .willReturn(List.of(relation(staffMemberId, 99L)));
 
         assertThatThrownBy(() -> publicBookingService.getPublicAvailability(
-                BUSINESS_SLUG, from, from, serviceOfferingId, staffMemberId.toString()))
+                BUSINESS_SLUG, from, from, serviceOfferingId, staffMemberId))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Staff member does not offer this service.");
 
@@ -295,7 +321,7 @@ class PublicBookingServiceImplTest {
                             slot(boundary, boundaryEndsAt)));
 
             List<PublicAvailabilitySlotResponseDto> response = publicBookingService.getPublicAvailability(
-                    BUSINESS_SLUG, from, from, serviceOfferingId, staffMemberId.toString());
+                    BUSINESS_SLUG, from, from, serviceOfferingId, staffMemberId);
 
             assertThat(response).hasSize(1);
             assertThat(response.getFirst().getStartsAt()).isEqualTo(boundary);
@@ -325,7 +351,7 @@ class PublicBookingServiceImplTest {
                     endsAt);
 
             List<PublicAvailabilitySlotResponseDto> response = publicBookingService.getPublicAvailability(
-                    BUSINESS_SLUG, requestedDate, requestedDate, serviceOfferingId, staffMemberId.toString());
+                    BUSINESS_SLUG, requestedDate, requestedDate, serviceOfferingId, staffMemberId);
 
             assertThat(response).hasSize(1);
         }
@@ -352,7 +378,7 @@ class PublicBookingServiceImplTest {
                     endsAt);
 
             List<PublicAvailabilitySlotResponseDto> response = publicBookingService.getPublicAvailability(
-                    BUSINESS_SLUG, lastAllowedDate, lastAllowedDate, serviceOfferingId, staffMemberId.toString());
+                    BUSINESS_SLUG, lastAllowedDate, lastAllowedDate, serviceOfferingId, staffMemberId);
 
             assertThat(response).hasSize(1);
         }
@@ -376,7 +402,7 @@ class PublicBookingServiceImplTest {
             given(bookingSettingsRepository.findByBusinessId(BUSINESS_ID)).willReturn(Optional.of(enabledSettings()));
 
             assertThatThrownBy(() -> publicBookingService.getPublicAvailability(
-                    BUSINESS_SLUG, yesterday, yesterday, serviceOfferingId, staffMemberId.toString()))
+                    BUSINESS_SLUG, yesterday, yesterday, serviceOfferingId, staffMemberId))
                     .isInstanceOf(ResponseStatusException.class)
                     .hasMessageContaining("Requested dates are outside the public booking window");
 
@@ -404,7 +430,7 @@ class PublicBookingServiceImplTest {
 
             assertThatThrownBy(() -> publicBookingService.getPublicAvailability(
                     BUSINESS_SLUG, dayAfterLastAllowedDate, dayAfterLastAllowedDate, serviceOfferingId,
-                    staffMemberId.toString()))
+                    staffMemberId))
                     .isInstanceOf(ResponseStatusException.class)
                     .hasMessageContaining("Requested dates are outside the public booking window");
 

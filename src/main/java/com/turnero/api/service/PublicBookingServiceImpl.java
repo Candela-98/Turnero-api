@@ -88,9 +88,9 @@ public class PublicBookingServiceImpl implements PublicBookingService{
                     }
 
                     List<PublicStaffMemberResponseDto> activeStaff = staffMemberRepository
-                                    .findAllByIdInAndBusinessId(staffIds, business.getId())
+                                    .findAllByIdInAndBusinessIdAndStatus(staffIds, business.getId(),
+                                            StaffMemberStatus.ACTIVE)
                                     .stream()
-                                    .filter(staff -> staff.getStatus() == StaffMemberStatus.ACTIVE)
                                     .map(staff -> PublicStaffMemberResponseDto.builder()
                                                     .id(staff.getId())
                                                     .name(staff.getName())
@@ -147,7 +147,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
 
     @Override
     public List<PublicAvailabilitySlotResponseDto> getPublicAvailability(String businessSlug, LocalDate from,
-            LocalDate to, Long serviceOfferingId, String staffMemberId) {
+            LocalDate to, Long serviceOfferingId, Long staffMemberId) {
 
         PublicBookingContext context = resolvePublicBookingContext(businessSlug);
 
@@ -183,23 +183,15 @@ public class PublicBookingServiceImpl implements PublicBookingService{
 
         LocalDateTime minimumAllowedStart = LocalDateTime.now(businessZone).plusHours(minNoticeHours);
 
-        if ("any".equalsIgnoreCase(staffMemberId)) {
+        if (staffMemberId == null) {
 
             return getAvailabilityForAnyStaff(context.business().getId(), from, to, serviceOfferingId).stream()
                     .filter(slot -> !slot.getStartsAt().isBefore(minimumAllowedStart))
                     .toList();
         }
 
-        Long resolvedStaffMemberId;
-
-        try {
-            resolvedStaffMemberId = Long.valueOf(staffMemberId);
-        } catch (NumberFormatException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "staff_member_id must be a numeric ID or 'any'");
-        }
-
         var staffMember = staffMemberRepository
-                .findByIdAndBusinessId(resolvedStaffMemberId, context.business().getId())
+                .findByIdAndBusinessId(staffMemberId, context.business().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Staff member not found."));
 
         if (staffMember.getStatus() != StaffMemberStatus.ACTIVE) {
@@ -207,7 +199,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
         }
 
         boolean offersService = staffServiceOfferingRepository
-                .findAllByStaffMemberId(resolvedStaffMemberId)
+                .findAllByStaffMemberId(staffMemberId)
                 .stream()
                 .anyMatch(relation -> relation.getServiceOfferingId().equals(serviceOfferingId));
 
@@ -220,7 +212,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
                         from,
                         to,
                         serviceOfferingId,
-                        resolvedStaffMemberId,
+                        staffMemberId,
                         null
                 );
 
@@ -229,7 +221,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
                 .map(slot -> PublicAvailabilitySlotResponseDto.builder()
                                 .startsAt(slot.getStartsAt())
                                 .endsAt(slot.getEndsAt())
-                                .availableStaffMemberIds(List.of(resolvedStaffMemberId))
+                                .availableStaffMemberIds(List.of(staffMemberId))
                                 .build()
                 )
                 .toList();
@@ -247,13 +239,12 @@ public class PublicBookingServiceImpl implements PublicBookingService{
                 .map(relation -> relation.getStaffMemberId())
                 .toList();
 
+        if (staffIds.isEmpty()) {
+            return List.of();
+        }
+
         var activeStaff = staffMemberRepository
-                .findAllByIdInAndBusinessId(staffIds, businessId)
-                .stream()
-                .filter(staff ->
-                        staff.getStatus() == StaffMemberStatus.ACTIVE
-                )
-                .toList();
+                .findAllByIdInAndBusinessIdAndStatus(staffIds, businessId, StaffMemberStatus.ACTIVE);
 
         var availabilityBySlot =
                 new LinkedHashMap<String, PublicAvailabilitySlotResponseDto>();
