@@ -1,27 +1,42 @@
 package com.turnero.api.service;
 
 import com.turnero.api.dto.AvailabilitySlotResponseDto;
+import com.turnero.api.dto.PublicAppointmentCustomerRequestDto;
+import com.turnero.api.dto.PublicAppointmentRequestDto;
+import com.turnero.api.dto.PublicAppointmentResponseDto;
 import com.turnero.api.dto.PublicAvailabilitySlotResponseDto;
 import com.turnero.api.dto.PublicBookingProfileResponseDto;
 import com.turnero.api.dto.PublicServiceOfferingListResponseDto;
+import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ForbiddenException;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.model.Appointment;
+import com.turnero.api.model.AppointmentPublicToken;
 import com.turnero.api.model.BookingSettings;
 import com.turnero.api.model.Business;
+import com.turnero.api.model.Customer;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.model.StaffServiceOffering;
+import com.turnero.api.model.enums.AppointmentPublicTokenType;
+import com.turnero.api.model.enums.AppointmentSource;
+import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.model.enums.BusinessOnboardingStatus;
 import com.turnero.api.model.enums.BusinessStatus;
+import com.turnero.api.model.enums.CustomerStatus;
 import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.model.enums.StaffMemberStatus;
+import com.turnero.api.repository.AppointmentPublicTokenRepository;
+import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.BookingSettingsRepository;
 import com.turnero.api.repository.BusinessRepository;
+import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.StaffServiceOfferingRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.InjectMocks;
@@ -32,11 +47,16 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -55,6 +75,9 @@ class PublicBookingServiceImplTest {
     @Mock private StaffServiceOfferingRepository staffServiceOfferingRepository;
     @Mock private StaffMemberRepository staffMemberRepository;
     @Mock private AvailabilityService availabilityService;
+    @Mock private CustomerRepository customerRepository;
+    @Mock private AppointmentPublicTokenRepository appointmentPublicTokenRepository;
+    @Mock private AppointmentRepository appointmentRepository;
 
     @InjectMocks private PublicBookingServiceImpl publicBookingService;
 
@@ -414,6 +437,208 @@ class PublicBookingServiceImplTest {
         }
     }
 
+    @Test
+    void createPublicAppointment_whenSpecificStaffIsSelected_persistsAppointmentWithSelectedStaffAndBackendSnapshots() {
+        Long serviceOfferingId = 10L;
+        Long staffMemberId = 100L;
+        LocalDate appointmentDate = LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")).plusDays(1);
+        LocalDateTime startsAt = appointmentDate.atTime(10, 0);
+        ServiceOffering serviceOffering = service(serviceOfferingId, "Haircut", ServiceOfferingStatus.ACTIVE);
+        serviceOffering.setDurationMinutes(45);
+        serviceOffering.setPriceCents(32000);
+        BookingSettings settings = enabledSettings();
+        settings.setMinNoticeHours(0);
+        PublicAppointmentRequestDto request = appointmentRequest(serviceOfferingId, staffMemberId.toString(),
+                startsAt);
+
+        given(businessRepository.findBySlug(BUSINESS_SLUG)).willReturn(Optional.of(activeBusiness()));
+        given(bookingSettingsRepository.findByBusinessId(BUSINESS_ID)).willReturn(Optional.of(settings));
+        given(servOfferingRepository.findByIdAndBusinessId(serviceOfferingId, BUSINESS_ID))
+                .willReturn(Optional.of(serviceOffering));
+        given(staffMemberRepository.findByIdAndBusinessId(staffMemberId, BUSINESS_ID))
+                .willReturn(Optional.of(staff(staffMemberId, "John Doe", StaffMemberStatus.ACTIVE)));
+        given(staffServiceOfferingRepository.findAllByServiceOfferingId(serviceOfferingId))
+                .willReturn(List.of(relation(staffMemberId, serviceOfferingId)));
+        given(availabilityService.getAvailableSlotsForBusiness(
+                BUSINESS_ID, appointmentDate, appointmentDate, serviceOfferingId, staffMemberId, null))
+                .willReturn(List.of(slot(startsAt, startsAt.plusMinutes(45))));
+        given(staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, BUSINESS_ID))
+                .willReturn(Optional.of(staff(staffMemberId, "John Doe", StaffMemberStatus.ACTIVE)));
+        given(customerRepository.findByBusinessIdAndEmailIgnoreCase(BUSINESS_ID, "candela@email.com"))
+                .willReturn(Optional.of(customer(500L)));
+        given(appointmentRepository.save(any(Appointment.class))).willAnswer(invocation -> {
+            Appointment appointment = invocation.getArgument(0);
+            appointment.setId(900L);
+            return appointment;
+        });
+
+        PublicAppointmentResponseDto response = publicBookingService.createPublicAppointment(BUSINESS_SLUG, request);
+
+        ArgumentCaptor<Appointment> appointmentCaptor = ArgumentCaptor.forClass(Appointment.class);
+        verify(appointmentRepository).save(appointmentCaptor.capture());
+        Appointment savedAppointment = appointmentCaptor.getValue();
+
+        assertThat(savedAppointment.getStaffMemberId()).isEqualTo(staffMemberId);
+        assertThat(savedAppointment.getSource()).isEqualTo(AppointmentSource.PUBLIC_BOOKING);
+        assertThat(savedAppointment.getDurationMinutes()).isEqualTo(45);
+        assertThat(savedAppointment.getPriceCents()).isEqualTo(32000);
+        assertThat(savedAppointment.getEndsAt()).isEqualTo(startsAt.plusMinutes(45));
+        assertThat(response.getAppointmentId()).isEqualTo(900L);
+        assertThat(response.getStaffMemberId()).isEqualTo(staffMemberId);
+        assertThat(response.getDurationMinutes()).isEqualTo(45);
+        assertThat(response.getPriceCents()).isEqualTo(32000);
+        assertThat(response.getEndsAt()).isEqualTo(startsAt.plusMinutes(45));
+
+        verify(staffMemberRepository).findByIdAndBusinessIdForUpdate(staffMemberId, BUSINESS_ID);
+        verify(availabilityService, Mockito.times(2)).getAvailableSlotsForBusiness(
+                BUSINESS_ID, appointmentDate, appointmentDate, serviceOfferingId, staffMemberId, null);
+    }
+
+    @Test
+    void createPublicAppointment_whenAnyStaffIsSelected_persistsRealAvailableStaffMember() {
+        Long serviceOfferingId = 10L;
+        Long firstStaffId = 100L;
+        Long secondStaffId = 200L;
+        LocalDate appointmentDate = LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")).plusDays(1);
+        LocalDateTime startsAt = appointmentDate.atTime(10, 0);
+        BookingSettings settings = enabledSettings();
+        settings.setMinNoticeHours(0);
+
+        givenSuccessfulCreateBase(serviceOfferingId, settings, startsAt);
+        given(staffServiceOfferingRepository.findAllByServiceOfferingId(serviceOfferingId))
+                .willReturn(List.of(
+                        relation(firstStaffId, serviceOfferingId),
+                        relation(secondStaffId, serviceOfferingId)));
+        given(staffMemberRepository.findAllByIdInAndBusinessId(List.of(firstStaffId, secondStaffId), BUSINESS_ID))
+                .willReturn(List.of(
+                        staff(firstStaffId, "John Doe", StaffMemberStatus.INACTIVE),
+                        staff(secondStaffId, "Jane Doe", StaffMemberStatus.ACTIVE)));
+        given(availabilityService.getAvailableSlotsForBusiness(
+                BUSINESS_ID, appointmentDate, appointmentDate, serviceOfferingId, secondStaffId, null))
+                .willReturn(List.of(slot(startsAt, startsAt.plusMinutes(30))));
+        given(staffMemberRepository.findByIdAndBusinessIdForUpdate(secondStaffId, BUSINESS_ID))
+                .willReturn(Optional.of(staff(secondStaffId, "Jane Doe", StaffMemberStatus.ACTIVE)));
+        given(customerRepository.findByBusinessIdAndEmailIgnoreCase(BUSINESS_ID, "candela@email.com"))
+                .willReturn(Optional.of(customer(500L)));
+        given(appointmentRepository.save(any(Appointment.class))).willAnswer(invocation -> {
+            Appointment appointment = invocation.getArgument(0);
+            appointment.setId(900L);
+            return appointment;
+        });
+
+        PublicAppointmentResponseDto response = publicBookingService.createPublicAppointment(BUSINESS_SLUG,
+                appointmentRequest(serviceOfferingId, "any", startsAt));
+
+        ArgumentCaptor<Appointment> appointmentCaptor = ArgumentCaptor.forClass(Appointment.class);
+        verify(appointmentRepository).save(appointmentCaptor.capture());
+        Long persistedStaffMemberId = appointmentCaptor.getValue().getStaffMemberId();
+
+        assertThat(persistedStaffMemberId).isEqualTo(secondStaffId);
+        assertThat(response.getStaffMemberId()).isEqualTo(persistedStaffMemberId);
+        assertThat(response.getStaffMemberId()).isNotNull();
+        verify(staffMemberRepository).findByIdAndBusinessIdForUpdate(persistedStaffMemberId, BUSINESS_ID);
+    }
+
+    @Test
+    void createPublicAppointment_whenManualConfirmationIsEnabled_persistsPendingStatus() {
+        Long serviceOfferingId = 10L;
+        Long staffMemberId = 100L;
+        LocalDate appointmentDate = LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")).plusDays(1);
+        LocalDateTime startsAt = appointmentDate.atTime(10, 0);
+        BookingSettings settings = enabledSettings();
+        settings.setManualConfirmationEnabled(true);
+        settings.setMinNoticeHours(0);
+
+        givenSuccessfulSpecificStaffCreate(serviceOfferingId, staffMemberId, settings, startsAt);
+
+        PublicAppointmentResponseDto response = publicBookingService.createPublicAppointment(BUSINESS_SLUG,
+                appointmentRequest(serviceOfferingId, staffMemberId.toString(), startsAt));
+
+        ArgumentCaptor<Appointment> appointmentCaptor = ArgumentCaptor.forClass(Appointment.class);
+        verify(appointmentRepository).save(appointmentCaptor.capture());
+
+        assertThat(appointmentCaptor.getValue().getStatus()).isEqualTo(AppointmentStatus.PENDING);
+        assertThat(response.getStatus()).isEqualTo(AppointmentStatus.PENDING);
+    }
+
+    @Test
+    void createPublicAppointment_whenManualConfirmationIsDisabled_persistsConfirmedStatus() {
+        Long serviceOfferingId = 10L;
+        Long staffMemberId = 100L;
+        LocalDate appointmentDate = LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")).plusDays(1);
+        LocalDateTime startsAt = appointmentDate.atTime(10, 0);
+        BookingSettings settings = enabledSettings();
+        settings.setManualConfirmationEnabled(false);
+        settings.setMinNoticeHours(0);
+
+        givenSuccessfulSpecificStaffCreate(serviceOfferingId, staffMemberId, settings, startsAt);
+
+        PublicAppointmentResponseDto response = publicBookingService.createPublicAppointment(BUSINESS_SLUG,
+                appointmentRequest(serviceOfferingId, staffMemberId.toString(), startsAt));
+
+        ArgumentCaptor<Appointment> appointmentCaptor = ArgumentCaptor.forClass(Appointment.class);
+        verify(appointmentRepository).save(appointmentCaptor.capture());
+
+        assertThat(appointmentCaptor.getValue().getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
+        assertThat(response.getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
+    }
+
+    @Test
+    void createPublicAppointment_whenSlotIsOccupied_throwsConflictAndDoesNotPersistAppointment() {
+        Long serviceOfferingId = 10L;
+        Long staffMemberId = 100L;
+        LocalDate appointmentDate = LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")).plusDays(1);
+        LocalDateTime startsAt = appointmentDate.atTime(10, 0);
+        BookingSettings settings = enabledSettings();
+        settings.setMinNoticeHours(0);
+
+        given(businessRepository.findBySlug(BUSINESS_SLUG)).willReturn(Optional.of(activeBusiness()));
+        given(bookingSettingsRepository.findByBusinessId(BUSINESS_ID)).willReturn(Optional.of(settings));
+        given(servOfferingRepository.findByIdAndBusinessId(serviceOfferingId, BUSINESS_ID))
+                .willReturn(Optional.of(service(serviceOfferingId, "Haircut", ServiceOfferingStatus.ACTIVE)));
+        given(staffMemberRepository.findByIdAndBusinessId(staffMemberId, BUSINESS_ID))
+                .willReturn(Optional.of(staff(staffMemberId, "John Doe", StaffMemberStatus.ACTIVE)));
+        given(staffServiceOfferingRepository.findAllByServiceOfferingId(serviceOfferingId))
+                .willReturn(List.of(relation(staffMemberId, serviceOfferingId)));
+        given(availabilityService.getAvailableSlotsForBusiness(
+                BUSINESS_ID, appointmentDate, appointmentDate, serviceOfferingId, staffMemberId, null))
+                .willReturn(List.of());
+
+        assertThatThrownBy(() -> publicBookingService.createPublicAppointment(BUSINESS_SLUG,
+                appointmentRequest(serviceOfferingId, staffMemberId.toString(), startsAt)))
+                .isInstanceOf(AppointmentOverlapException.class)
+                .hasMessage("The selected slot is not available");
+
+        verify(appointmentRepository, never()).save(any(Appointment.class));
+        verify(appointmentPublicTokenRepository, never()).save(any(AppointmentPublicToken.class));
+    }
+
+    @Test
+    void createPublicAppointment_generatesCancellationTokenAndStoresOnlySha256Hash() {
+        Long serviceOfferingId = 10L;
+        Long staffMemberId = 100L;
+        LocalDate appointmentDate = LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")).plusDays(1);
+        LocalDateTime startsAt = appointmentDate.atTime(10, 0);
+        BookingSettings settings = enabledSettings();
+        settings.setMinNoticeHours(0);
+
+        givenSuccessfulSpecificStaffCreate(serviceOfferingId, staffMemberId, settings, startsAt);
+
+        PublicAppointmentResponseDto response = publicBookingService.createPublicAppointment(BUSINESS_SLUG,
+                appointmentRequest(serviceOfferingId, staffMemberId.toString(), startsAt));
+
+        ArgumentCaptor<AppointmentPublicToken> tokenCaptor = ArgumentCaptor.forClass(AppointmentPublicToken.class);
+        verify(appointmentPublicTokenRepository).save(tokenCaptor.capture());
+        AppointmentPublicToken persistedToken = tokenCaptor.getValue();
+
+        assertThat(response.getCancelToken()).isNotBlank();
+        assertThat(persistedToken.getTokenHash()).isNotEqualTo(response.getCancelToken());
+        assertThat(persistedToken.getTokenHash()).isEqualTo(sha256Hex(response.getCancelToken()));
+        assertThat(persistedToken.getType()).isEqualTo(AppointmentPublicTokenType.CANCEL);
+        assertThat(persistedToken.getExpiresAt()).isEqualTo(startsAt);
+        assertThat(persistedToken.getAppointmentId()).isEqualTo(response.getAppointmentId());
+    }
+
     private void givenSuccessfulSpecificStaffAvailability(Long serviceOfferingId, Long staffMemberId,
             LocalDate requestedDate, LocalDateTime startsAt, LocalDateTime endsAt) {
         BookingSettings settings = enabledSettings();
@@ -427,6 +652,36 @@ class PublicBookingServiceImplTest {
         given(availabilityService.getAvailableSlotsForBusiness(
                 BUSINESS_ID, requestedDate, requestedDate, serviceOfferingId, staffMemberId, null))
                 .willReturn(List.of(slot(startsAt, endsAt)));
+    }
+
+    private void givenSuccessfulCreateBase(Long serviceOfferingId, BookingSettings settings, LocalDateTime startsAt) {
+        given(businessRepository.findBySlug(BUSINESS_SLUG)).willReturn(Optional.of(activeBusiness()));
+        given(bookingSettingsRepository.findByBusinessId(BUSINESS_ID)).willReturn(Optional.of(settings));
+        given(servOfferingRepository.findByIdAndBusinessId(serviceOfferingId, BUSINESS_ID))
+                .willReturn(Optional.of(service(serviceOfferingId, "Haircut", ServiceOfferingStatus.ACTIVE)));
+    }
+
+    private void givenSuccessfulSpecificStaffCreate(Long serviceOfferingId, Long staffMemberId,
+            BookingSettings settings, LocalDateTime startsAt) {
+        LocalDate appointmentDate = startsAt.toLocalDate();
+
+        givenSuccessfulCreateBase(serviceOfferingId, settings, startsAt);
+        given(staffMemberRepository.findByIdAndBusinessId(staffMemberId, BUSINESS_ID))
+                .willReturn(Optional.of(staff(staffMemberId, "John Doe", StaffMemberStatus.ACTIVE)));
+        given(staffServiceOfferingRepository.findAllByServiceOfferingId(serviceOfferingId))
+                .willReturn(List.of(relation(staffMemberId, serviceOfferingId)));
+        given(availabilityService.getAvailableSlotsForBusiness(
+                BUSINESS_ID, appointmentDate, appointmentDate, serviceOfferingId, staffMemberId, null))
+                .willReturn(List.of(slot(startsAt, startsAt.plusMinutes(30))));
+        given(staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, BUSINESS_ID))
+                .willReturn(Optional.of(staff(staffMemberId, "John Doe", StaffMemberStatus.ACTIVE)));
+        given(customerRepository.findByBusinessIdAndEmailIgnoreCase(BUSINESS_ID, "candela@email.com"))
+                .willReturn(Optional.of(customer(500L)));
+        given(appointmentRepository.save(any(Appointment.class))).willAnswer(invocation -> {
+            Appointment appointment = invocation.getArgument(0);
+            appointment.setId(900L);
+            return appointment;
+        });
     }
 
     private Business activeBusiness() {
@@ -468,6 +723,17 @@ class PublicBookingServiceImplTest {
                 .build();
     }
 
+    private Customer customer(Long id) {
+        return Customer.builder()
+                .id(id)
+                .businessId(BUSINESS_ID)
+                .name("Candela")
+                .email("candela@email.com")
+                .phoneNumber("1123456789")
+                .status(CustomerStatus.ACTIVE)
+                .build();
+    }
+
     private StaffMember staff(Long id, String name, StaffMemberStatus status) {
         return StaffMember.builder()
                 .id(id)
@@ -493,5 +759,30 @@ class PublicBookingServiceImplTest {
                 .endsAt(endsAt)
                 .available(true)
                 .build();
+    }
+
+    private PublicAppointmentRequestDto appointmentRequest(Long serviceOfferingId, String staffMemberId,
+            LocalDateTime startsAt) {
+        PublicAppointmentCustomerRequestDto customer = new PublicAppointmentCustomerRequestDto();
+        customer.setName("Candela");
+        customer.setEmail("candela@email.com");
+        customer.setPhoneNumber("1123456789");
+
+        PublicAppointmentRequestDto request = new PublicAppointmentRequestDto();
+        request.setServiceOfferingId(serviceOfferingId);
+        request.setStaffMemberId(staffMemberId);
+        request.setStartsAt(startsAt);
+        request.setCustomer(customer);
+        request.setCustomerNotes("Comentario opcional");
+        return request;
+    }
+
+    private String sha256Hex(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 algorithm is not available", exception);
+        }
     }
 }

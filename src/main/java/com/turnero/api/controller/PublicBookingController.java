@@ -1,10 +1,10 @@
 package com.turnero.api.controller;
 
-import com.turnero.api.dto.PublicAvailabilitySlotResponseDto;
-import com.turnero.api.dto.PublicBookingProfileResponseDto;
-import com.turnero.api.dto.PublicServiceOfferingListResponseDto;
+import com.turnero.api.dto.*;
 import com.turnero.api.service.PublicBookingService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,5 +37,13 @@ public class PublicBookingController {
 
         return ResponseEntity.ok(publicBookingService.getPublicAvailability(businessSlug, from, to, serviceOfferingId,
                         staffMemberId));
+    }
+
+    @PostMapping("/{businessSlug}/appointments")
+    public ResponseEntity<PublicAppointmentResponseDto> createAppointment(@PathVariable String businessSlug, @Valid @RequestBody PublicAppointmentRequestDto request) {
+
+        PublicAppointmentResponseDto response = publicBookingService.createPublicAppointment(businessSlug, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
