@@ -14,4 +14,13 @@ public interface AvailabilityService {
             Long staffMemberId,
             Long excludeAppointmentId
     );
+
+    List<AvailabilitySlotResponseDto> getAvailableSlotsForBusiness(
+            Long businessId,
+            LocalDate from,
+            LocalDate to,
+            Long serviceOfferingId,
+            Long staffMemberId,
+            Long excludeAppointmentId
+    );
 }

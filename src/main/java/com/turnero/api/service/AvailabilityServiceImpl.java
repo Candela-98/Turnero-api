@@ -141,6 +141,21 @@ public class AvailabilityServiceImpl implements AvailabilityService{
 
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
+        return getAvailableSlotsForBusiness(
+                businessId,
+                from,
+                to,
+                serviceOfferingId,
+                staffMemberId,
+                excludeAppointmentId
+        );
+
+    }
+
+    @Override
+    public List<AvailabilitySlotResponseDto> getAvailableSlotsForBusiness(Long businessId, LocalDate from,
+            LocalDate to, Long serviceOfferingId, Long staffMemberId, Long excludeAppointmentId) {
+
         validateDateRange(from, to);
 
         ServiceOffering serviceOffering = servOfferingRepository.findByIdAndBusinessId(serviceOfferingId, businessId)
@@ -163,49 +178,37 @@ public class AvailabilityServiceImpl implements AvailabilityService{
         var rangeStart = from.atStartOfDay();
         var rangeEnd = to.plusDays(1).atStartOfDay();
 
-        var blockingAppointments =
-                appointmentRepository.findBlockingAppointments(
+        var blockingAppointments = appointmentRepository.findBlockingAppointments(
                         businessId,
                         staffMemberId,
-                        List.of(
-                                AppointmentStatus.PENDING,
-                                AppointmentStatus.CONFIRMED
-                        ),
+                        List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED),
                         rangeStart,
                         rangeEnd
                 );
 
-        blockingAppointments = excludeCurrentAppointment(
-                blockingAppointments,
-                excludeAppointmentId
-        );
+        blockingAppointments = excludeCurrentAppointment(blockingAppointments, excludeAppointmentId);
 
         int serviceDurationMinutes = serviceOffering.getDurationMinutes();
 
         if (serviceDurationMinutes <= 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Service duration must be greater than zero"
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Service duration must be greater than zero");
         }
 
         int slotIntervalMinutes = bookingSettings.getSlotIntervalMinutes();
 
         if (slotIntervalMinutes <= 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Slot interval must be greater than zero"
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slot interval must be greater than zero");
         }
 
         var availableSlots = new ArrayList<AvailabilitySlotResponseDto>();
 
         for (LocalDate currentDate = from; !currentDate.isAfter(to); currentDate = currentDate.plusDays(1)) {
             availableSlots.addAll(generateSlotsForDate(currentDate, serviceDurationMinutes, slotIntervalMinutes,
-                            businessHours, staffWorkingHours, availabilityExceptions, blockingAppointments));
+                    businessHours, staffWorkingHours, availabilityExceptions, blockingAppointments));
         }
 
         return availableSlots;
+
     }
 
     private void validateDateRange(LocalDate from, LocalDate to) {

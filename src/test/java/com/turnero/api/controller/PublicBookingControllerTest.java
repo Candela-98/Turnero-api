@@ -1,6 +1,7 @@
 package com.turnero.api.controller;
 
 import com.turnero.api.auth.AdminAuthInterceptor;
+import com.turnero.api.dto.PublicAvailabilitySlotResponseDto;
 import com.turnero.api.dto.PublicBookingProfileResponseDto;
 import com.turnero.api.dto.PublicBookingSettingsResponseDto;
 import com.turnero.api.dto.PublicBusinessResponseDto;
@@ -17,10 +18,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -32,6 +36,7 @@ class PublicBookingControllerTest {
     private static final String BUSINESS_SLUG = "barber-studio";
     private static final String PROFILE_URL = "/api/v1/public/businesses/{businessSlug}/booking-profile";
     private static final String SERVICES_URL = "/api/v1/public/businesses/{businessSlug}/services";
+    private static final String AVAILABILITY_URL = "/api/v1/public/businesses/{businessSlug}/availability";
 
     @Autowired private MockMvc mockMvc;
 
@@ -125,6 +130,87 @@ class PublicBookingControllerTest {
         then(adminAuthInterceptor).shouldHaveNoInteractions();
     }
 
+    @Test
+    void getAvailability_whenStaffMemberIdIsNumeric_returnsPublicAvailabilityWithSnakeCaseContract() throws Exception {
+        LocalDate from = LocalDate.of(2026, 9, 15);
+        LocalDate to = LocalDate.of(2026, 9, 15);
+        Long serviceOfferingId = 10L;
+        Long staffMemberId = 100L;
+
+        given(publicBookingService.getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, staffMemberId))
+                .willReturn(List.of(availabilitySlot(
+                        LocalDateTime.of(2026, 9, 15, 10, 0),
+                        LocalDateTime.of(2026, 9, 15, 10, 30),
+                        List.of(100L))));
+
+        mockMvc.perform(get(AVAILABILITY_URL, BUSINESS_SLUG)
+                        .param("from", "2026-09-15")
+                        .param("to", "2026-09-15")
+                        .param("service_offering_id", "10")
+                        .param("staff_member_id", "100"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[0].starts_at").value("2026-09-15T10:00:00"))
+                .andExpect(jsonPath("$[0].ends_at").value("2026-09-15T10:30:00"))
+                .andExpect(jsonPath("$[0].available_staff_member_ids.length()").value(1))
+                .andExpect(jsonPath("$[0].available_staff_member_ids[0]").value(100))
+                .andExpect(jsonPath("$[0].startsAt").doesNotExist())
+                .andExpect(jsonPath("$[0].endsAt").doesNotExist())
+                .andExpect(jsonPath("$[0].availableStaffMemberIds").doesNotExist());
+
+        then(publicBookingService).should()
+                .getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, staffMemberId);
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void getAvailability_whenStaffMemberIdIsAny_returnsGroupedPublicAvailability() throws Exception {
+        LocalDate from = LocalDate.of(2026, 9, 15);
+        LocalDate to = LocalDate.of(2026, 9, 15);
+        Long serviceOfferingId = 10L;
+
+        given(publicBookingService.getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, null))
+                .willReturn(List.of(availabilitySlot(
+                        LocalDateTime.of(2026, 9, 15, 10, 0),
+                        LocalDateTime.of(2026, 9, 15, 10, 30),
+                        List.of(100L, 200L))));
+
+        mockMvc.perform(get(AVAILABILITY_URL, BUSINESS_SLUG)
+                        .param("from", "2026-09-15")
+                        .param("to", "2026-09-15")
+                        .param("service_offering_id", "10")
+                        .param("staff_member_id", "any"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[0].starts_at").value("2026-09-15T10:00:00"))
+                .andExpect(jsonPath("$[0].ends_at").value("2026-09-15T10:30:00"))
+                .andExpect(jsonPath("$[0].available_staff_member_ids.length()").value(2))
+                .andExpect(jsonPath("$[0].available_staff_member_ids[0]").value(100))
+                .andExpect(jsonPath("$[0].available_staff_member_ids[1]").value(200));
+
+        then(publicBookingService).should()
+                .getPublicAvailability(BUSINESS_SLUG, from, to, serviceOfferingId, null);
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void getAvailability_whenStaffMemberIdIsInvalid_rejectsRequestBeforeCallingService() throws Exception {
+        mockMvc.perform(get(AVAILABILITY_URL, BUSINESS_SLUG)
+                        .param("from", "2026-09-15")
+                        .param("to", "2026-09-15")
+                        .param("service_offering_id", "10")
+                        .param("staff_member_id", "not-a-number"))
+                .andExpect(status().isBadRequest());
+
+        then(publicBookingService).should(never())
+                .getPublicAvailability(org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(LocalDate.class),
+                        org.mockito.ArgumentMatchers.any(LocalDate.class),
+                        org.mockito.ArgumentMatchers.anyLong(),
+                        org.mockito.ArgumentMatchers.any());
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
     private PublicBookingProfileResponseDto profileResponse() {
         return PublicBookingProfileResponseDto.builder()
                 .business(PublicBusinessResponseDto.builder()
@@ -159,6 +245,15 @@ class PublicBookingControllerTest {
                                 .avatarUrl("https://example.com/avatar.jpg")
                                 .build()))
                         .build()))
+                .build();
+    }
+
+    private PublicAvailabilitySlotResponseDto availabilitySlot(LocalDateTime startsAt, LocalDateTime endsAt,
+            List<Long> availableStaffMemberIds) {
+        return PublicAvailabilitySlotResponseDto.builder()
+                .startsAt(startsAt)
+                .endsAt(endsAt)
+                .availableStaffMemberIds(availableStaffMemberIds)
                 .build();
     }
 }

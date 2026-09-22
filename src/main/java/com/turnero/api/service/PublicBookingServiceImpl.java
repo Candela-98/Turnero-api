@@ -11,8 +11,16 @@ import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -24,6 +32,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
     private final ServOfferingRepository servOfferingRepository;
     private final StaffServiceOfferingRepository staffServiceOfferingRepository;
     private final StaffMemberRepository staffMemberRepository;
+    private final AvailabilityService availabilityService;
 
 
     @Override
@@ -79,9 +88,9 @@ public class PublicBookingServiceImpl implements PublicBookingService{
                     }
 
                     List<PublicStaffMemberResponseDto> activeStaff = staffMemberRepository
-                                    .findAllByIdInAndBusinessId(staffIds, business.getId())
+                                    .findAllByIdInAndBusinessIdAndStatus(staffIds, business.getId(),
+                                            StaffMemberStatus.ACTIVE)
                                     .stream()
-                                    .filter(staff -> staff.getStatus() == StaffMemberStatus.ACTIVE)
                                     .map(staff -> PublicStaffMemberResponseDto.builder()
                                                     .id(staff.getId())
                                                     .name(staff.getName())
@@ -133,9 +142,147 @@ public class PublicBookingServiceImpl implements PublicBookingService{
         return new PublicBookingContext(business, bookingSettings);
     }
 
-    private record PublicBookingContext(
-            Business business,
-            BookingSettings bookingSettings
-    ) {
+    private record PublicBookingContext(Business business, BookingSettings bookingSettings) {
+    }
+
+    @Override
+    public List<PublicAvailabilitySlotResponseDto> getPublicAvailability(String businessSlug, LocalDate from,
+            LocalDate to, Long serviceOfferingId, Long staffMemberId) {
+
+        PublicBookingContext context = resolvePublicBookingContext(businessSlug);
+
+        if (from == null || to == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from and to are required.");
+        }
+
+        if (from.isAfter(to)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from must be before or equal to to.");
+        }
+
+        ZoneId businessZone = ZoneId.of(context.business().getTimezone());
+
+        LocalDate today = LocalDate.now(businessZone);
+
+        int bookingWindowDays = context.bookingSettings().getBookingWindowDays();
+
+        if (bookingWindowDays <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Booking window must be greater than zero");
+        }
+
+        LocalDate maxBookingDate = today.plusDays(bookingWindowDays - 1L);
+
+        if (from.isBefore(today) || to.isAfter(maxBookingDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Requested dates are outside the public booking window");
+        }
+
+        int minNoticeHours = context.bookingSettings().getMinNoticeHours();
+
+        if (minNoticeHours < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Minimum notice hours cannot be negative");
+        }
+
+        LocalDateTime minimumAllowedStart = LocalDateTime.now(businessZone).plusHours(minNoticeHours);
+
+        if (staffMemberId == null) {
+
+            return getAvailabilityForAnyStaff(context.business().getId(), from, to, serviceOfferingId).stream()
+                    .filter(slot -> !slot.getStartsAt().isBefore(minimumAllowedStart))
+                    .toList();
+        }
+
+        var staffMember = staffMemberRepository
+                .findByIdAndBusinessId(staffMemberId, context.business().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Staff member not found."));
+
+        if (staffMember.getStatus() != StaffMemberStatus.ACTIVE) {
+            throw new ResourceNotFoundException("Staff member not found.");
+        }
+
+        boolean offersService = staffServiceOfferingRepository
+                .findAllByStaffMemberId(staffMemberId)
+                .stream()
+                .anyMatch(relation -> relation.getServiceOfferingId().equals(serviceOfferingId));
+
+        if (!offersService) {
+            throw new ResourceNotFoundException("Staff member does not offer this service.");
+        }
+
+        var slots = availabilityService.getAvailableSlotsForBusiness(
+                        context.business().getId(),
+                        from,
+                        to,
+                        serviceOfferingId,
+                        staffMemberId,
+                        null
+                );
+
+        return slots.stream()
+                .filter(slot -> !slot.getStartsAt().isBefore(minimumAllowedStart))
+                .map(slot -> PublicAvailabilitySlotResponseDto.builder()
+                                .startsAt(slot.getStartsAt())
+                                .endsAt(slot.getEndsAt())
+                                .availableStaffMemberIds(List.of(staffMemberId))
+                                .build()
+                )
+                .toList();
+    }
+
+    private List<PublicAvailabilitySlotResponseDto> getAvailabilityForAnyStaff(
+            Long businessId,
+            LocalDate from,
+            LocalDate to,
+            Long serviceOfferingId) {
+
+        var staffIds = staffServiceOfferingRepository
+                .findAllByServiceOfferingId(serviceOfferingId)
+                .stream()
+                .map(relation -> relation.getStaffMemberId())
+                .toList();
+
+        if (staffIds.isEmpty()) {
+            return List.of();
+        }
+
+        var activeStaff = staffMemberRepository
+                .findAllByIdInAndBusinessIdAndStatus(staffIds, businessId, StaffMemberStatus.ACTIVE);
+
+        var availabilityBySlot =
+                new LinkedHashMap<String, PublicAvailabilitySlotResponseDto>();
+
+        for (var staff : activeStaff) {
+
+            Long currentStaffMemberId = staff.getId();
+
+            var slots = availabilityService
+                    .getAvailableSlotsForBusiness(
+                            businessId,
+                            from,
+                            to,
+                            serviceOfferingId,
+                            currentStaffMemberId,
+                            null
+                    );
+
+            for (var slot : slots) {
+
+                String key = slot.getStartsAt() + "|" + slot.getEndsAt();
+
+                var existing = availabilityBySlot.get(key);
+
+                if (existing == null) {
+                    availabilityBySlot.put(key, PublicAvailabilitySlotResponseDto.builder()
+                                    .startsAt(slot.getStartsAt())
+                                    .endsAt(slot.getEndsAt())
+                                    .availableStaffMemberIds(new ArrayList<>(List.of(currentStaffMemberId)))
+                                    .build()
+                    );
+
+                } else {
+                    existing.getAvailableStaffMemberIds().add(currentStaffMemberId);
+                }
+            }
+        }
+
+        return new ArrayList<>(availabilityBySlot.values());
     }
 }
