@@ -1,6 +1,6 @@
 # Tracking de Implementacion Backend MVP
 
-Actualizado: 2026-09-22
+Actualizado: 2026-09-25
 
 ## Proposito
 
@@ -20,7 +20,7 @@ El backend ya avanzo desde la base single-business/H2 hacia la base MVP con Post
 
 Appointments admin ya tiene creacion, listado base, detalle, edicion y transiciones de estado. Las brechas de lectura, escritura y availability se cerraran mediante TURN-90, TURN-105, TURN-109 y TURN-92 antes de conectar definitivamente el frontend.
 
-La fuente de este estado es `develop` en el commit `61596d3` (2026-09-22). Las ramas remotas sin merge no se consideran implementadas en este tracking.
+La fuente de este estado es `develop` en el commit `8b29021` (2026-09-25). Las ramas remotas sin merge no se consideran implementadas en este tracking.
 
 ## PRs completados y avances en develop
 
@@ -52,6 +52,7 @@ La fuente de este estado es `develop` en el commit `61596d3` (2026-09-22). Las r
 | PR 19 | TURN-88 | Completado | Login Google, sesión propia y `/auth/me` mergeados en PR #61; contrato canónico alineado en `3533fe7` y aprovisionamiento local repetible mergeado en PR #65 |
 | PR 20 | TURN-89 | Completado | Logout, interceptor admin y business desde usuario autenticado mergeados en PR #62; `business-hours` atraviesa la protección admin y tiene cobertura de sesión, rol y scoping |
 | PR 21 | TURN-58 | Completado | Perfil público y servicios reservables expuestos en PR #63 |
+| Fix horarios | TURN-82 / TURN-55 | Completado | PR #69 actualiza los días existentes en el lugar, crea solo los faltantes y conserva IDs; cubre persistencia real en PostgreSQL sin violar `uq_business_hours_day` |
 
 ## Proximo foco recomendado
 
@@ -74,7 +75,7 @@ Los tickets terminados TURN-41, TURN-55, TURN-56 y TURN-57 conservan su historia
 
 TURN-88 alineó request, responses, cookie y roles con el contrato canónico. El aprovisionamiento local de un OWNER real quedó mergeado en PR #65; el logout idempotente permanece como hardening separado.
 
-TURN-89 incorporó `/api/v1/business-hours/**` a la protección admin y verifica sesión, rol OWNER y scoping entre negocios. TURN-82 queda desbloqueado por este lado.
+TURN-89 incorporó `/api/v1/business-hours/**` a la protección admin y verifica sesión, rol OWNER y scoping entre negocios. Con PR #69, el `PUT` de semana completa de TURN-82 actualiza filas existentes en lugar de reinsertarlas; TURN-82 y su historia padre TURN-85 ya están en Done en Jira.
 
 ### Cerrar brechas de appointments admin
 
