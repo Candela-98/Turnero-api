@@ -44,19 +44,70 @@ class BusinessHoursServiceImplTest {
     }
 
     @Test
-    void replaceCurrentBusinessHours_replacesAllDaysForCurrentBusiness() {
+    void replaceCurrentBusinessHours_updatesOnlyChangedDayWithoutReplacingRows() {
         given(currentBusinessContext.getCurrentBusinessId()).willReturn(1L);
+        List<BusinessHours> existing = fullWeekEntities();
+        given(businessHoursRepository.findAllByBusinessId(1L)).willReturn(existing);
+        BusinessHoursReplaceRequestDto request = fullWeek();
+        request.getHours().getFirst().setClosesAt(LocalTime.of(13, 0));
+
+        List<BusinessHours> result = businessHoursService.replaceCurrentBusinessHours(request);
+
+        assertThat(result).hasSize(7);
+        assertThat(result.getFirst().getDayOfWeek()).isEqualTo(DayOfWeek.MONDAY);
+        assertThat(result.getFirst().getId()).isEqualTo(1L);
+        assertThat(result.getFirst().getBusinessId()).isEqualTo(1L);
+        assertThat(result.getFirst().getClosesAt()).isEqualTo(LocalTime.of(13, 0));
+        assertThat(result.get(1).getClosesAt()).isEqualTo(LocalTime.of(18, 0));
+        assertThat(result).containsExactlyElementsOf(existing);
+        assertThat(result.get(5).getOpensAt()).isNull();
+        assertThat(result.get(5).getClosesAt()).isNull();
+        verify(businessHoursRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void replaceCurrentBusinessHours_createsMissingDaysWithoutDeletingExistingRows() {
+        given(currentBusinessContext.getCurrentBusinessId()).willReturn(1L);
+        BusinessHours monday = fullWeekEntities().getFirst();
+        given(businessHoursRepository.findAllByBusinessId(1L)).willReturn(List.of(monday));
         given(businessHoursRepository.saveAll(anyList())).willAnswer(invocation -> invocation.getArgument(0));
 
         List<BusinessHours> result = businessHoursService.replaceCurrentBusinessHours(fullWeek());
 
         assertThat(result).hasSize(7);
-        assertThat(result.getFirst().getDayOfWeek()).isEqualTo(DayOfWeek.MONDAY);
-        assertThat(result.getFirst().getBusinessId()).isEqualTo(1L);
+        assertThat(result.getFirst()).isSameAs(monday);
         assertThat(result.get(5).getOpensAt()).isNull();
         assertThat(result.get(5).getClosesAt()).isNull();
-        verify(businessHoursRepository).deleteAllByBusinessId(1L);
         verify(businessHoursRepository).saveAll(anyList());
+    }
+
+    @Test
+    void replaceCurrentBusinessHours_whenUnchangedDoesNotCreateRows() {
+        given(currentBusinessContext.getCurrentBusinessId()).willReturn(1L);
+        List<BusinessHours> existing = fullWeekEntities();
+        given(businessHoursRepository.findAllByBusinessId(1L)).willReturn(existing);
+
+        List<BusinessHours> result = businessHoursService.replaceCurrentBusinessHours(fullWeek());
+
+        assertThat(result).containsExactlyElementsOf(existing);
+        verify(businessHoursRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void replaceCurrentBusinessHours_closingAnExistingDayClearsItsHours() {
+        given(currentBusinessContext.getCurrentBusinessId()).willReturn(1L);
+        List<BusinessHours> existing = fullWeekEntities();
+        given(businessHoursRepository.findAllByBusinessId(1L)).willReturn(existing);
+        BusinessHoursReplaceRequestDto request = fullWeek();
+        request.getHours().getFirst().setIsClosed(true);
+
+        List<BusinessHours> result = businessHoursService.replaceCurrentBusinessHours(request);
+
+        assertThat(result.getFirst().getId()).isEqualTo(1L);
+        assertThat(result.getFirst().isClosed()).isTrue();
+        assertThat(result.getFirst().getOpensAt()).isNull();
+        assertThat(result.getFirst().getClosesAt()).isNull();
+        verify(businessHoursRepository, never()).saveAll(anyList());
     }
 
     @Test
@@ -68,7 +119,6 @@ class BusinessHoursServiceImplTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Business hours must contain exactly 7 days");
 
-        verify(businessHoursRepository, never()).deleteAllByBusinessId(1L);
         verify(businessHoursRepository, never()).saveAll(anyList());
     }
 
@@ -82,7 +132,6 @@ class BusinessHoursServiceImplTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Opening time must be before closing time for open days");
 
-        verify(businessHoursRepository, never()).deleteAllByBusinessId(1L);
         verify(businessHoursRepository, never()).saveAll(anyList());
     }
 
@@ -104,5 +153,21 @@ class BusinessHoursServiceImplTest {
 
     private BusinessHours entity(DayOfWeek day, boolean closed) {
         return BusinessHours.builder().businessId(1L).dayOfWeek(day).isClosed(closed).build();
+    }
+
+    private List<BusinessHours> fullWeekEntities() {
+        List<BusinessHours> entities = new ArrayList<>();
+        for (DayOfWeek day : DayOfWeek.values()) {
+            boolean closed = day == DayOfWeek.SATURDAY;
+            entities.add(BusinessHours.builder()
+                    .id((long) day.ordinal() + 1)
+                    .businessId(1L)
+                    .dayOfWeek(day)
+                    .opensAt(closed ? null : LocalTime.of(9, 0))
+                    .closesAt(closed ? null : LocalTime.of(18, 0))
+                    .isClosed(closed)
+                    .build());
+        }
+        return entities;
     }
 }

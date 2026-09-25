@@ -10,8 +10,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,13 +36,25 @@ public class BusinessHoursServiceImpl implements BusinessHoursService {
         validateWeek(hours);
 
         Long businessId = currentBusinessContext.getCurrentBusinessId();
-        businessHoursRepository.deleteAllByBusinessId(businessId);
+        List<BusinessHours> businessHours = new ArrayList<>(businessHoursRepository.findAllByBusinessId(businessId));
+        Map<DayOfWeek, BusinessHours> existingByDay = businessHours.stream()
+                .collect(Collectors.toMap(BusinessHours::getDayOfWeek, hour -> hour));
+        List<BusinessHours> missingDays = new ArrayList<>();
 
-        List<BusinessHours> replacement = hours.stream()
-                .map(hour -> toEntity(businessId, hour))
-                .toList();
+        for (BusinessHoursDayRequestDto hour : hours) {
+            BusinessHours existing = existingByDay.get(hour.getDayOfWeek());
+            if (existing == null) {
+                missingDays.add(toEntity(businessId, hour));
+            } else {
+                updateEntity(existing, hour);
+            }
+        }
 
-        return sortWeek(businessHoursRepository.saveAll(replacement));
+        if (!missingDays.isEmpty()) {
+            businessHours.addAll(businessHoursRepository.saveAll(missingDays));
+        }
+
+        return sortWeek(businessHours);
     }
 
     private void validateWeek(List<BusinessHoursDayRequestDto> hours) {
@@ -79,6 +94,16 @@ public class BusinessHoursServiceImpl implements BusinessHoursService {
                 .closesAt(isClosed ? null : hour.getClosesAt())
                 .isClosed(isClosed)
                 .build();
+    }
+
+    private void updateEntity(BusinessHours existing, BusinessHoursDayRequestDto hour) {
+        boolean isClosed = Boolean.TRUE.equals(hour.getIsClosed());
+        var opensAt = isClosed ? null : hour.getOpensAt();
+        var closesAt = isClosed ? null : hour.getClosesAt();
+
+        if (existing.isClosed() != isClosed) existing.setClosed(isClosed);
+        if (!Objects.equals(existing.getOpensAt(), opensAt)) existing.setOpensAt(opensAt);
+        if (!Objects.equals(existing.getClosesAt(), closesAt)) existing.setClosesAt(closesAt);
     }
 
     private List<BusinessHours> sortWeek(List<BusinessHours> hours) {
