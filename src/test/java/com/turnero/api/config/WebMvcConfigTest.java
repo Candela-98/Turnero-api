@@ -10,12 +10,14 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,6 +58,24 @@ class WebMvcConfigTest {
     }
 
     @Test
+    void publicCancellationEndpoint_doesNotPassThroughAdminAuthInterceptor() throws Exception {
+        mockMvc.perform(get("/api/v1/public/cancellations/plain-cancel-token"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("public-cancellation"));
+
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void publicCancellationPostEndpoint_doesNotPassThroughAdminAuthInterceptor() throws Exception {
+        mockMvc.perform(post("/api/v1/public/cancellations/plain-cancel-token"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("public-cancellation-post"));
+
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
+    @Test
     void availabilityEndpoint_passesThroughAdminAuthInterceptor() throws Exception {
         mockMvc.perform(get("/api/v1/availability/slots"))
                 .andExpect(status().isOk())
@@ -84,6 +104,16 @@ class WebMvcConfigTest {
         @GetMapping("/api/v1/auth/me")
         String auth() {
             return "auth";
+        }
+
+        @GetMapping("/api/v1/public/cancellations/{token}")
+        String publicCancellation() {
+            return "public-cancellation";
+        }
+
+        @PostMapping("/api/v1/public/cancellations/{token}")
+        String publicCancellationPost() {
+            return "public-cancellation-post";
         }
 
         @GetMapping("/api/v1/availability/slots")
