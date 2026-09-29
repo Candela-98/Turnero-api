@@ -647,6 +647,12 @@ sort=name,asc
 
 Response `200 OK`: page de `ServiceOfferingSummary`.
 
+`q` busca por nombre y categoría sin distinguir mayúsculas (máximo 100 caracteres); `category` (máximo 255 caracteres) y `status` se combinan con la búsqueda. `page` empieza en `0`, `size` admite `1..100` (por defecto `20`) y `sort` admite `name`, `category`, `duration_minutes`, `price_cents` o `status` con `asc|desc` (por defecto `name,asc`). El ID ascendente desempata siempre. Parámetros inválidos devuelven `400`.
+
+### GET `/api/v1/service-offerings/categories`
+
+Admin autenticado. Devuelve un array ordenado de categorías distintas, no vacías, del negocio autenticado (incluye servicios activos e inactivos).
+
 ### POST `/api/v1/service-offerings`
 
 Admin autenticado.

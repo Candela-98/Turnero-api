@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.config.SessionProperties;
 import com.turnero.api.dto.ServOfferingRequestDto;
 import com.turnero.api.dto.ServOfferingResponseDto;
+import com.turnero.api.dto.ServOfferingPageResponseDto;
 import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.Appointment;
@@ -261,7 +262,7 @@ public class ServOfferingControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<ServOfferingResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<ServOfferingResponseDto> response = objectMapper.readValue(json, ServOfferingPageResponseDto.class).data();
         assertThat(response).hasSize(2);
         assertThat(response).extracting(ServOfferingResponseDto::getName).containsExactlyInAnyOrder("Corte y barba", "Coloración");
         assertThat(response).extracting(ServOfferingResponseDto::getDurationMinutes).containsExactlyInAnyOrder(60, 90);
@@ -333,8 +334,54 @@ public class ServOfferingControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<ServOfferingResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<ServOfferingResponseDto> response = objectMapper.readValue(json, ServOfferingPageResponseDto.class).data();
         assertThat(response).isEmpty();
+    }
+
+    @Test
+    void listFiltersPagesAndKeepsBusinessesIsolated() throws Exception {
+        servOfferingRepository.save(ServiceOffering.builder().businessId(1L).name("Barba B").category("Barba")
+                .durationMinutes(30).priceCents(1000).status(ServiceOfferingStatus.ACTIVE).build());
+        servOfferingRepository.save(ServiceOffering.builder().businessId(1L).name("Barba A").category("Barba")
+                .durationMinutes(30).priceCents(1000).status(ServiceOfferingStatus.ACTIVE).build());
+        servOfferingRepository.save(ServiceOffering.builder().businessId(1L).name("Barba inactiva").category("Barba")
+                .durationMinutes(30).priceCents(1000).status(ServiceOfferingStatus.INACTIVE).build());
+        servOfferingRepository.save(ServiceOffering.builder().businessId(2L).name("Barba ajena").category("Barba")
+                .durationMinutes(30).priceCents(1000).status(ServiceOfferingStatus.ACTIVE).build());
+
+        mockMvc.perform(get(BASE_URL).param("q", "barba").param("category", "Barba")
+                        .param("status", "ACTIVE").param("size", "1").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.total_elements").value(2))
+                .andExpect(jsonPath("$.page.total_pages").value(2))
+                .andExpect(jsonPath("$.data[0].name").value("Barba B"));
+
+        mockMvc.perform(get(BASE_URL + "/categories"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("Barba"))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void invalidPaginationAndSortReturnBadRequest() throws Exception {
+        for (String[] invalid : List.of(new String[]{"page", "-1"}, new String[]{"size", "0"},
+                new String[]{"size", "101"}, new String[]{"sort", "businessId,asc"},
+                new String[]{"sort", "name,sideways"}, new String[]{"q", "x".repeat(101)})) {
+            mockMvc.perform(get(BASE_URL).param(invalid[0], invalid[1])).andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void equalNamesUseIdAsStableTieBreaker() throws Exception {
+        ServiceOffering first = servOfferingRepository.save(ServiceOffering.builder().businessId(1L).name("Corte")
+                .category("Cabello").durationMinutes(30).priceCents(1000).status(ServiceOfferingStatus.ACTIVE).build());
+        ServiceOffering second = servOfferingRepository.save(ServiceOffering.builder().businessId(1L).name("Corte")
+                .category("Cabello").durationMinutes(45).priceCents(2000).status(ServiceOfferingStatus.ACTIVE).build());
+
+        mockMvc.perform(get(BASE_URL).param("size", "1").param("page", "0"))
+                .andExpect(jsonPath("$.data[0].id").value(first.getId()));
+        mockMvc.perform(get(BASE_URL).param("size", "1").param("page", "1"))
+                .andExpect(jsonPath("$.data[0].id").value(second.getId()));
     }
 
     @Test
@@ -440,5 +487,3 @@ public class ServOfferingControllerIT {
     }
 
 }
-
-

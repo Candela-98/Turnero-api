@@ -8,12 +8,15 @@ import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
+import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.service.ServOfferingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -172,19 +175,51 @@ public class ServiceOfferingControllerTest {
         var response1 = getServiceOfferingResponseDto(id);
         var response2 = getServiceOfferingResponseDto(2L);
 
-        given(servOfferingService.findAllServOffering()).willReturn(List.of(servOffering1, servOffering2));
+        given(servOfferingService.listServiceOfferings(null, null, null, 0, 20, "name,asc"))
+                .willReturn(new PageImpl<>(List.of(servOffering1, servOffering2), PageRequest.of(0, 20), 2));
         given(sMapper.toResponseDtoList(List.of(servOffering1, servOffering2))).willReturn(List.of(response1, response2));
 
         //when + then
         mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[1].id").value(2));
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[1].id").value(2))
+                .andExpect(jsonPath("$.page.total_elements").value(2));
 
-        then(servOfferingService).should().findAllServOffering();
+        then(servOfferingService).should().listServiceOfferings(null, null, null, 0, 20, "name,asc");
         then(sMapper).should().toResponseDtoList(List.of(servOffering1, servOffering2));
+    }
+
+    @Test
+    void listForwardsCombinedFiltersAndPagination() throws Exception {
+        given(servOfferingService.listServiceOfferings("corte", "Barba", ServiceOfferingStatus.ACTIVE, 2, 5, "price_cents,desc"))
+                .willReturn(new PageImpl<>(List.of(), PageRequest.of(2, 5), 12));
+
+        mockMvc.perform(get(BASE_URL).param("q", "corte").param("category", "Barba")
+                        .param("status", "ACTIVE").param("page", "2").param("size", "5")
+                        .param("sort", "price_cents,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.number").value(2))
+                .andExpect(jsonPath("$.page.total_pages").value(3));
+        then(servOfferingService).should().listServiceOfferings("corte", "Barba", ServiceOfferingStatus.ACTIVE, 2, 5, "price_cents,desc");
+    }
+
+    @Test
+    void categoriesAreReturnedFromCurrentBusinessService() throws Exception {
+        given(servOfferingService.listCategories()).willReturn(List.of("Barba", "Corte"));
+        mockMvc.perform(get(BASE_URL + "/categories"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("Barba"))
+                .andExpect(jsonPath("$[1]").value("Corte"));
+    }
+
+    @Test
+    void invalidStatusReturnsBadRequest() throws Exception {
+        mockMvc.perform(get(BASE_URL).param("status", "UNKNOWN"))
+                .andExpect(status().isBadRequest());
+        then(servOfferingService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -316,5 +351,3 @@ public class ServiceOfferingControllerTest {
         then(servOfferingService).should().deleteServOffering(999L);
     }
 }
-
-

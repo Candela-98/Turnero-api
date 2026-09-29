@@ -92,26 +92,6 @@ public class ServiceOfferingServiceImplTest {
     }
 
     @Test
-    void findAllServiceOfferings_shouldReturnList() {
-        Long businessId = 1L;
-
-        ServiceOffering s1 = new ServiceOffering();
-        s1.setBusinessId(businessId);
-        ServiceOffering s2 = new ServiceOffering();
-        s2.setBusinessId(businessId);
-
-        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.findByBusinessId(businessId)).thenReturn(List.of(s1, s2));
-
-        List<ServiceOffering> listServOffering = servOfferingService.findAllServOffering();
-
-        assertEquals(2, listServOffering.size());
-
-        verify(currentBusinessContext, times(1)).getCurrentBusinessId();
-        verify(servOfferingRepository, times(1)).findByBusinessId(businessId);
-    }
-
-    @Test
     void updateServiceOffering_whenExists_updatesAndSaves() {
         Long id = 1L;
         Long businessId = 1L;
@@ -210,5 +190,4 @@ public class ServiceOfferingServiceImplTest {
         verify(servOfferingRepository, never()).deleteById(anyLong());
     }
 }
-
 
