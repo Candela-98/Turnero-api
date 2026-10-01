@@ -17,6 +17,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -175,7 +176,7 @@ public class ServiceOfferingControllerTest {
         var response1 = getServiceOfferingResponseDto(id);
         var response2 = getServiceOfferingResponseDto(2L);
 
-        given(servOfferingService.listServiceOfferings(null, null, null, 0, 20, "name,asc"))
+        given(servOfferingService.listServiceOfferings(null, null, null, 0, 20, Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"))))
                 .willReturn(new PageImpl<>(List.of(servOffering1, servOffering2), PageRequest.of(0, 20), 2));
         given(sMapper.toResponseDtoList(List.of(servOffering1, servOffering2))).willReturn(List.of(response1, response2));
 
@@ -188,13 +189,13 @@ public class ServiceOfferingControllerTest {
                 .andExpect(jsonPath("$.data[1].id").value(2))
                 .andExpect(jsonPath("$.page.total_elements").value(2));
 
-        then(servOfferingService).should().listServiceOfferings(null, null, null, 0, 20, "name,asc");
+        then(servOfferingService).should().listServiceOfferings(null, null, null, 0, 20, Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id")));
         then(sMapper).should().toResponseDtoList(List.of(servOffering1, servOffering2));
     }
 
     @Test
     void listForwardsCombinedFiltersAndPagination() throws Exception {
-        given(servOfferingService.listServiceOfferings("corte", "Barba", ServiceOfferingStatus.ACTIVE, 2, 5, "price_cents,desc"))
+        given(servOfferingService.listServiceOfferings("corte", "Barba", ServiceOfferingStatus.ACTIVE, 2, 5, Sort.by(Sort.Order.desc("priceCents"), Sort.Order.asc("id"))))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(2, 5), 12));
 
         mockMvc.perform(get(BASE_URL).param("q", "corte").param("category", "Barba")
@@ -203,7 +204,7 @@ public class ServiceOfferingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.page.number").value(2))
                 .andExpect(jsonPath("$.page.total_pages").value(3));
-        then(servOfferingService).should().listServiceOfferings("corte", "Barba", ServiceOfferingStatus.ACTIVE, 2, 5, "price_cents,desc");
+        then(servOfferingService).should().listServiceOfferings("corte", "Barba", ServiceOfferingStatus.ACTIVE, 2, 5, Sort.by(Sort.Order.desc("priceCents"), Sort.Order.asc("id")));
     }
 
     @Test
@@ -213,6 +214,16 @@ public class ServiceOfferingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]").value("Barba"))
                 .andExpect(jsonPath("$[1]").value("Corte"));
+    }
+
+    @Test
+    void invalidSortReturnsBadRequestWithoutCallingService() throws Exception {
+        for (String sort : List.of("businessId,asc", "name,sideways", "durationMinutes,asc", "name,asc,id")) {
+            mockMvc.perform(get(BASE_URL).param("sort", sort))
+                    .andExpect(status().isBadRequest());
+        }
+        then(servOfferingService).shouldHaveNoInteractions();
+        then(sMapper).shouldHaveNoInteractions();
     }
 
     @Test

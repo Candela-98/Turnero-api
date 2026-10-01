@@ -50,22 +50,12 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     }
 
     @Override
-    public Page<ServiceOffering> listServiceOfferings(String q, String category, ServiceOfferingStatus status, int page, int size, String sort) {
+    public Page<ServiceOffering> listServiceOfferings(String q, String category, ServiceOfferingStatus status, int page, int size, Sort ordering) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
-        String[] sortParts = sort.split(",", -1);
         if (page < 0 || size < 1 || size > 100 || (q != null && q.length() > 100)
-                || (category != null && category.length() > 255) || sortParts.length != 2
-                || !List.of("name", "category", "duration_minutes", "price_cents", "status").contains(sortParts[0])
-                || !List.of("asc", "desc").contains(sortParts[1])) {
+                || (category != null && category.length() > 255)) {
             throw new IllegalArgumentException("Invalid service offering list parameter");
         }
-        String property = switch (sortParts[0]) {
-            case "duration_minutes" -> "durationMinutes";
-            case "price_cents" -> "priceCents";
-            default -> sortParts[0];
-        };
-        Sort.Direction direction = Sort.Direction.fromString(sortParts[1]);
-        Sort ordering = Sort.by(new Sort.Order(direction, property), new Sort.Order(Sort.Direction.ASC, "id"));
         String search = q == null ? null : q.trim().toLowerCase(Locale.ROOT);
         String selectedCategory = category == null ? null : category.trim();
         Specification<ServiceOffering> filters = (root, query, builder) -> {

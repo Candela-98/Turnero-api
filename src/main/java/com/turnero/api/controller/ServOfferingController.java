@@ -9,6 +9,7 @@ import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.openapi.*;
 import com.turnero.api.service.ServOfferingService;
+import com.turnero.api.service.ServiceOfferingSort;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -82,8 +83,8 @@ public class ServOfferingController {
             @RequestParam(required = false) ServiceOfferingStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "name,asc") String sort) {
-        var offerings = servOfferingService.listServiceOfferings(q, category, status, page, size, sort);
+            @RequestParam(defaultValue = ServiceOfferingSort.DEFAULT_PARAMETER) String sort) {
+        var offerings = servOfferingService.listServiceOfferings(q, category, status, page, size, ServiceOfferingSort.fromParameter(sort));
         return ResponseEntity.ok(new ServOfferingPageResponseDto(
                 serviceOfferingMapper.toResponseDtoList(offerings.getContent()),
                 new ServOfferingPageResponseDto.PageInfo(offerings.getNumber(), offerings.getSize(),
