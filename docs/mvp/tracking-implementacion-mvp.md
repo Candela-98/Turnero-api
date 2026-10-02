@@ -1,6 +1,6 @@
 # Tracking de Implementacion Backend MVP
 
-Actualizado: 2026-09-25
+Actualizado: 2026-10-02
 
 ## Proposito
 
@@ -20,7 +20,7 @@ El backend ya avanzo desde la base single-business/H2 hacia la base MVP con Post
 
 Appointments admin ya tiene creacion, listado base, detalle, edicion y transiciones de estado. Las brechas de lectura, escritura y availability se cerraran mediante TURN-90, TURN-105, TURN-109 y TURN-92 antes de conectar definitivamente el frontend.
 
-La fuente de este estado es `develop` en el commit `8b29021` (2026-09-25). Las ramas remotas sin merge no se consideran implementadas en este tracking.
+La base histórica de este estado es `develop` en el commit `8b29021` (2026-09-25). La entrega TURN-76 está integrada en `a734b63` (2026-10-02). Las ramas remotas sin merge no se consideran implementadas en este tracking.
 
 ## PRs completados y avances en develop
 
@@ -53,6 +53,7 @@ La fuente de este estado es `develop` en el commit `8b29021` (2026-09-25). Las r
 | PR 20 | TURN-89 | Completado | Logout, interceptor admin y business desde usuario autenticado mergeados en PR #62; `business-hours` atraviesa la protección admin y tiene cobertura de sesión, rol y scoping |
 | PR 21 | TURN-58 | Completado | Perfil público y servicios reservables expuestos en PR #63 |
 | Fix horarios | TURN-82 / TURN-55 | Completado | PR #69 actualiza los días existentes en el lugar, crea solo los faltantes y conserva IDs; cubre persistencia real en PostgreSQL sin violar `uq_business_hours_day` |
+| Listado real de servicios | TURN-76 | Entregado; cierre Jira a cargo del usuario | [PR #72](https://github.com/Candela-98/Turnero-api/pull/72), merge `a734b63`: filtros, paginación, categorías y política de ordenamiento |
 
 ## Proximo foco recomendado
 
@@ -189,13 +190,15 @@ Suite general:
 ./gradlew test
 ```
 
-## Entrega TURN-76 pendiente de integración
+## TURN-76 integrada — listado real de servicios
 
-Preparada para revisión el 2026-10-01 en `feature/TURN-76-service-offerings-list`, con destino `develop`. Este apartado no cambia el estado mergeado de las tablas anteriores.
+Integrada el 2026-10-02 en `develop` mediante [PR #72](https://github.com/Candela-98/Turnero-api/pull/72), merge `a734b63`. El frontend dependiente quedó integrado en `dev` mediante [PR #9](https://github.com/Candela-98/Turnero-frontend/pull/9), merge `70df540`.
 
 - Listado paginado real `{ data, page }`, búsqueda por nombre/categoría y filtros combinados por categoría y estado.
 - Parámetros validados, orden estable con desempate por ID y aislamiento por negocio autenticado.
 - Endpoint de categorías distintas para el negocio actual.
+- `ServiceOfferingSort` centraliza campos permitidos, traducción a propiedades Java, direcciones y orden predeterminado; el servicio recibe un `Sort` resuelto.
 - Contrato documentado y cobertura de controller/integración para filtros, paginación, categorías y aislamiento.
-- Dependencia del frontend TURN-76; integrar este contrato antes del PR frontend hacia `dev`.
-- Al integrar ambos PRs, actualizar el estado operativo y el tracking de cierre de TURN-76.
+- Verificación local inicial: 354 tests pasaron; `BusinessHoursPostgresIT` y `FlywayMigrationTest` no pudieron iniciar por falta de Docker. Después del refactor pasaron los 58 tests afectados, incluidos los nuevos de ordenamiento.
+- CI del PR #72 completado correctamente antes del merge. La limitación de Docker registrada arriba corresponde al entorno local, no a un fallo pendiente de CI.
+- Entrega técnica completada y validación local aprobada por el usuario. El usuario realiza el cierre de TURN-76 en Jira.
