@@ -16,4 +16,6 @@ public interface CustomerService {
     Customer updateCustomer(CustomerUpdateRequestDto customer, Long id);
 
     void deleteCustomer(Long id);
+
+    Customer findOrCreateCustomerForBusiness(Long businessId, String name, String email, String phoneNumber);
 }
