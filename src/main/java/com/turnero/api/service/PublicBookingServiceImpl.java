@@ -33,7 +33,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
     private final StaffServiceOfferingRepository staffServiceOfferingRepository;
     private final StaffMemberRepository staffMemberRepository;
     private final AvailabilityService availabilityService;
-    private final CustomerRepository customerRepository;
+    private final CustomerService customerService;
     private final AppointmentPublicTokenRepository appointmentPublicTokenRepository;
     private final AppointmentRepository appointmentRepository;
 
@@ -282,43 +282,6 @@ public class PublicBookingServiceImpl implements PublicBookingService{
         return new ArrayList<>(availabilityBySlot.values());
     }
 
-    private Customer findOrCreateCustomer(Long businessId, PublicAppointmentCustomerRequestDto customerRequest) {
-        String email = customerRequest.getEmail();
-        String phoneNumber = customerRequest.getPhoneNumber();
-
-        if ((email == null || email.isBlank()) && (phoneNumber == null || phoneNumber.isBlank())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Customer email or phone number is required");
-        }
-
-        Optional<Customer> existingCustomer;
-
-        if (email != null && !email.isBlank()) {
-            existingCustomer = customerRepository.findByBusinessIdAndEmailIgnoreCase(businessId, email.trim());
-        } else {
-            existingCustomer = customerRepository.findByBusinessIdAndPhoneNumber(businessId, phoneNumber.trim());
-        }
-
-        if (existingCustomer.isPresent()) {
-            return existingCustomer.get();
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-
-        Customer customer = Customer.builder()
-                .businessId(businessId)
-                .userId(null)
-                .name(customerRequest.getName().trim())
-                .email(email == null ? null : email.trim())
-                .phoneNumber(phoneNumber == null ? null : phoneNumber.trim())
-                .status(CustomerStatus.ACTIVE)
-                .internalNotes(null)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
-
-        return customerRepository.save(customer);
-    }
-
     private ServiceOffering getActiveServiceOffering(Long businessId, Long serviceOfferingId) {
         ServiceOffering serviceOffering = servOfferingRepository.findByIdAndBusinessId(serviceOfferingId, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service offering not found with ID: " + serviceOfferingId));
@@ -507,7 +470,8 @@ public class PublicBookingServiceImpl implements PublicBookingService{
         StaffMember lockedStaffMember = lockAndRevalidateStaffMember(business.getId(), serviceOffering.getId(),
                         resolvedStaffMember.getId(), request.getStartsAt());
 
-        Customer customer = findOrCreateCustomer(business.getId(), request.getCustomer());
+        Customer customer = customerService.findOrCreateCustomerForBusiness(business.getId(), request.getCustomer().getName(),
+                request.getCustomer().getEmail(), request.getCustomer().getPhoneNumber());
 
         Appointment appointment = buildPublicAppointment(business, customer, serviceOffering, lockedStaffMember, request, bookingSettings);
 

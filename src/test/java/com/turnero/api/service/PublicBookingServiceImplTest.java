@@ -30,7 +30,6 @@ import com.turnero.api.repository.AppointmentPublicTokenRepository;
 import com.turnero.api.repository.AppointmentRepository;
 import com.turnero.api.repository.BookingSettingsRepository;
 import com.turnero.api.repository.BusinessRepository;
-import com.turnero.api.repository.CustomerRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.StaffServiceOfferingRepository;
@@ -75,7 +74,7 @@ class PublicBookingServiceImplTest {
     @Mock private StaffServiceOfferingRepository staffServiceOfferingRepository;
     @Mock private StaffMemberRepository staffMemberRepository;
     @Mock private AvailabilityService availabilityService;
-    @Mock private CustomerRepository customerRepository;
+    @Mock private CustomerService customerService;
     @Mock private AppointmentPublicTokenRepository appointmentPublicTokenRepository;
     @Mock private AppointmentRepository appointmentRepository;
 
@@ -490,8 +489,9 @@ class PublicBookingServiceImplTest {
                 .willReturn(List.of(slot(startsAt, startsAt.plusMinutes(45))));
         given(staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, BUSINESS_ID))
                 .willReturn(Optional.of(staff(staffMemberId, "John Doe", StaffMemberStatus.ACTIVE)));
-        given(customerRepository.findByBusinessIdAndEmailIgnoreCase(BUSINESS_ID, "candela@email.com"))
-                .willReturn(Optional.of(customer(500L)));
+        given(customerService.findOrCreateCustomerForBusiness(
+                BUSINESS_ID, "Candela", "candela@email.com", "1123456789"))
+                .willReturn(customer(500L));
         given(appointmentRepository.save(any(Appointment.class))).willAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);
             appointment.setId(900L);
@@ -505,6 +505,7 @@ class PublicBookingServiceImplTest {
         Appointment savedAppointment = appointmentCaptor.getValue();
 
         assertThat(savedAppointment.getStaffMemberId()).isEqualTo(staffMemberId);
+        assertThat(savedAppointment.getCustomerId()).isEqualTo(500L);
         assertThat(savedAppointment.getSource()).isEqualTo(AppointmentSource.PUBLIC_BOOKING);
         assertThat(savedAppointment.getDurationMinutes()).isEqualTo(45);
         assertThat(savedAppointment.getPriceCents()).isEqualTo(32000);
@@ -516,6 +517,8 @@ class PublicBookingServiceImplTest {
         assertThat(response.getEndsAt()).isEqualTo(startsAt.plusMinutes(45));
 
         verify(staffMemberRepository).findByIdAndBusinessIdForUpdate(staffMemberId, BUSINESS_ID);
+        verify(customerService).findOrCreateCustomerForBusiness(
+                BUSINESS_ID, "Candela", "candela@email.com", "1123456789");
         verify(availabilityService, Mockito.times(2)).getAvailableSlotsForBusiness(
                 BUSINESS_ID, appointmentDate, appointmentDate, serviceOfferingId, staffMemberId, null);
     }
@@ -544,8 +547,9 @@ class PublicBookingServiceImplTest {
                 .willReturn(List.of(slot(startsAt, startsAt.plusMinutes(30))));
         given(staffMemberRepository.findByIdAndBusinessIdForUpdate(secondStaffId, BUSINESS_ID))
                 .willReturn(Optional.of(staff(secondStaffId, "Jane Doe", StaffMemberStatus.ACTIVE)));
-        given(customerRepository.findByBusinessIdAndEmailIgnoreCase(BUSINESS_ID, "candela@email.com"))
-                .willReturn(Optional.of(customer(500L)));
+        given(customerService.findOrCreateCustomerForBusiness(
+                BUSINESS_ID, "Candela", "candela@email.com", "1123456789"))
+                .willReturn(customer(500L));
         given(appointmentRepository.save(any(Appointment.class))).willAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);
             appointment.setId(900L);
@@ -562,6 +566,9 @@ class PublicBookingServiceImplTest {
         assertThat(persistedStaffMemberId).isEqualTo(secondStaffId);
         assertThat(response.getStaffMemberId()).isEqualTo(persistedStaffMemberId);
         assertThat(response.getStaffMemberId()).isNotNull();
+        assertThat(appointmentCaptor.getValue().getCustomerId()).isEqualTo(500L);
+        verify(customerService).findOrCreateCustomerForBusiness(
+                BUSINESS_ID, "Candela", "candela@email.com", "1123456789");
         verify(staffMemberRepository).findByIdAndBusinessIdForUpdate(persistedStaffMemberId, BUSINESS_ID);
     }
 
@@ -701,8 +708,9 @@ class PublicBookingServiceImplTest {
                 .willReturn(List.of(slot(startsAt, startsAt.plusMinutes(30))));
         given(staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, BUSINESS_ID))
                 .willReturn(Optional.of(staff(staffMemberId, "John Doe", StaffMemberStatus.ACTIVE)));
-        given(customerRepository.findByBusinessIdAndEmailIgnoreCase(BUSINESS_ID, "candela@email.com"))
-                .willReturn(Optional.of(customer(500L)));
+        given(customerService.findOrCreateCustomerForBusiness(
+                BUSINESS_ID, "Candela", "candela@email.com", "1123456789"))
+                .willReturn(customer(500L));
         given(appointmentRepository.save(any(Appointment.class))).willAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);
             appointment.setId(900L);

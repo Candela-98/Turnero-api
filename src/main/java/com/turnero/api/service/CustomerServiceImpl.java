@@ -38,6 +38,27 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    public Customer findOrCreateCustomerForBusiness(Long businessId, String name, String email, String phoneNumber) {
+
+        String normalizedEmail = email.trim();
+        String normalizedPhoneNumber = phoneNumber.trim();
+
+        return customerRepository.findByBusinessIdAndEmailIgnoreCase(businessId, normalizedEmail)
+                .orElseGet(() -> {
+                    Customer customer = new Customer();
+                    customer.setBusinessId(businessId);
+                    customer.setName(name.trim());
+                    customer.setEmail(normalizedEmail);
+                    customer.setPhoneNumber(normalizedPhoneNumber);
+                    customer.setStatus(CustomerStatus.ACTIVE);
+                    customer.setCreatedAt(LocalDateTime.now());
+                    customer.setUpdatedAt(LocalDateTime.now());
+
+                    return customerRepository.save(customer);
+                });
+    }
+
+    @Override
     public Customer findCustomer(Long id) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 

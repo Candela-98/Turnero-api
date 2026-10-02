@@ -9,6 +9,7 @@ import com.turnero.api.repository.CustomerRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -50,6 +51,58 @@ public class CustomerServiceImplTest {
 
         verify(currentBusinessContext, times(1)).getCurrentBusinessId();
         verify(customerRepository, times(1)).save(customer);
+    }
+
+    @Test
+    void findOrCreateCustomerForBusiness_whenCustomerExists_returnsExistingCustomerWithoutSaving() {
+        Long businessId = 42L;
+        Customer existingCustomer = Customer.builder()
+                .id(500L)
+                .businessId(businessId)
+                .name("Original name")
+                .email("candela@mail.com")
+                .phoneNumber("123")
+                .status(CustomerStatus.ACTIVE)
+                .build();
+        when(customerRepository.findByBusinessIdAndEmailIgnoreCase(businessId, "Candela@MAIL.com"))
+                .thenReturn(Optional.of(existingCustomer));
+
+        Customer result = customerService.findOrCreateCustomerForBusiness(
+                businessId, " New name ", " Candela@MAIL.com ", " 456 ");
+
+        assertSame(existingCustomer, result);
+        assertEquals("Original name", result.getName());
+        assertEquals("candela@mail.com", result.getEmail());
+        assertEquals("123", result.getPhoneNumber());
+        verify(customerRepository).findByBusinessIdAndEmailIgnoreCase(businessId, "Candela@MAIL.com");
+        verify(customerRepository, never()).save(any(Customer.class));
+        verifyNoInteractions(currentBusinessContext);
+    }
+
+    @Test
+    void findOrCreateCustomerForBusiness_whenCustomerDoesNotExist_createsNormalizedActiveCustomer() {
+        Long businessId = 42L;
+        Customer savedCustomer = Customer.builder().id(500L).build();
+        when(customerRepository.findByBusinessIdAndEmailIgnoreCase(businessId, "Candela@MAIL.com"))
+                .thenReturn(Optional.empty());
+        when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
+
+        Customer result = customerService.findOrCreateCustomerForBusiness(
+                businessId, " Candela Agustina ", " Candela@MAIL.com ", " 1123456789 ");
+
+        ArgumentCaptor<Customer> customerCaptor = ArgumentCaptor.forClass(Customer.class);
+        verify(customerRepository).save(customerCaptor.capture());
+        Customer createdCustomer = customerCaptor.getValue();
+        assertEquals(businessId, createdCustomer.getBusinessId());
+        assertEquals("Candela Agustina", createdCustomer.getName());
+        assertEquals("Candela@MAIL.com", createdCustomer.getEmail());
+        assertEquals("1123456789", createdCustomer.getPhoneNumber());
+        assertEquals(CustomerStatus.ACTIVE, createdCustomer.getStatus());
+        assertNotNull(createdCustomer.getCreatedAt());
+        assertNotNull(createdCustomer.getUpdatedAt());
+        assertSame(savedCustomer, result);
+        verify(customerRepository).findByBusinessIdAndEmailIgnoreCase(businessId, "Candela@MAIL.com");
+        verifyNoInteractions(currentBusinessContext);
     }
 
     @Test

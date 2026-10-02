@@ -14,7 +14,9 @@ public class PublicAppointmentCustomerRequestDto {
     private String name;
 
     @Email(message = "Customer email must be valid")
+    @NotBlank(message = "Customer email is required")
     private String email;
 
+    @NotBlank(message = "Customer phone number is required")
     private String phoneNumber;
 }

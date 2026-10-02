@@ -1,5 +1,7 @@
 package com.turnero.api.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.dto.PublicAvailabilitySlotResponseDto;
 import com.turnero.api.dto.PublicBookingProfileResponseDto;
@@ -15,6 +17,9 @@ import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.service.PublicBookingService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -25,7 +30,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Stream;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -47,6 +54,7 @@ class PublicBookingControllerTest {
     private static final String APPOINTMENTS_URL = "/api/v1/public/businesses/{businessSlug}/appointments";
 
     @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private PublicBookingService publicBookingService;
     @MockitoBean private AdminAuthInterceptor adminAuthInterceptor;
@@ -267,6 +275,43 @@ class PublicBookingControllerTest {
                 .andExpect(jsonPath("$.message").value("The selected slot is not available"));
 
         then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidCustomerContact")
+    void createAppointment_whenCustomerContactIsInvalid_returnsBadRequestWithoutCallingService(
+            String description, String field, String value, String validationField, String message) throws Exception {
+        LocalDateTime startsAt = LocalDate.now().plusDays(3).atTime(10, 0);
+        ObjectNode request = (ObjectNode) objectMapper.readTree(publicAppointmentRequest(startsAt, "100"));
+        ObjectNode customer = (ObjectNode) request.get("customer");
+        if (value == null) {
+            customer.remove(field);
+        } else {
+            customer.put(field, value);
+        }
+
+        mockMvc.perform(post(APPOINTMENTS_URL, BUSINESS_SLUG)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[?(@.field == '%s')].message".formatted(validationField))
+                        .value(hasItem(message)));
+
+        then(publicBookingService).shouldHaveNoInteractions();
+        then(adminAuthInterceptor).shouldHaveNoInteractions();
+    }
+
+    private static Stream<Arguments> invalidCustomerContact() {
+        return Stream.of(
+                Arguments.of("missing email", "email", null, "customer.email", "Customer email is required"),
+                Arguments.of("empty email", "email", "", "customer.email", "Customer email is required"),
+                Arguments.of("blank email", "email", "   ", "customer.email", "Customer email is required"),
+                Arguments.of("invalid email format", "email", "not-an-email", "customer.email", "Customer email must be valid"),
+                Arguments.of("missing phone number", "phone_number", null, "customer.phoneNumber", "Customer phone number is required"),
+                Arguments.of("empty phone number", "phone_number", "", "customer.phoneNumber", "Customer phone number is required"),
+                Arguments.of("blank phone number", "phone_number", "   ", "customer.phoneNumber", "Customer phone number is required"));
     }
 
     private PublicBookingProfileResponseDto profileResponse() {
