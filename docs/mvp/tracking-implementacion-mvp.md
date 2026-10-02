@@ -188,3 +188,14 @@ Suite general:
 ```bash
 ./gradlew test
 ```
+
+## Entrega TURN-76 pendiente de integración
+
+Preparada para revisión el 2026-10-01 en `feature/TURN-76-service-offerings-list`, con destino `develop`. Este apartado no cambia el estado mergeado de las tablas anteriores.
+
+- Listado paginado real `{ data, page }`, búsqueda por nombre/categoría y filtros combinados por categoría y estado.
+- Parámetros validados, orden estable con desempate por ID y aislamiento por negocio autenticado.
+- Endpoint de categorías distintas para el negocio actual.
+- Contrato documentado y cobertura de controller/integración para filtros, paginación, categorías y aislamiento.
+- Dependencia del frontend TURN-76; integrar este contrato antes del PR frontend hacia `dev`.
+- Al integrar ambos PRs, actualizar el estado operativo y el tracking de cierre de TURN-76.

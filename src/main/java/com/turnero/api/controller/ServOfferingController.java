@@ -3,10 +3,13 @@ package com.turnero.api.controller;
 import com.turnero.api.dto.ServOfferingRequestDto;
 import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.dto.ServOfferingUpdateRequestDto;
+import com.turnero.api.dto.ServOfferingPageResponseDto;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
+import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.openapi.*;
 import com.turnero.api.service.ServOfferingService;
+import com.turnero.api.service.ServiceOfferingSort;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -71,17 +74,27 @@ public class ServOfferingController {
         return ResponseEntity.ok(responseDto);
     }
 
-    @Operation(
-            summary = "Listar servicios ofrecidos",
-            description = "Obtiene una lista de todos los servicios ofrecidos disponibles en el sistema"
-    )
+    @Operation(summary = "Listar servicios ofrecidos", description = "Filtra y pagina los servicios del negocio autenticado")
     @ApiFindAllResponses
     @GetMapping
-    public ResponseEntity<List<ServOfferingResponseDto>> findAllServOffering() {
-        var servOfferings = servOfferingService.findAllServOffering();
-        var servOfferingResponseDtos = serviceOfferingMapper.toResponseDtoList(servOfferings);
+    public ResponseEntity<ServOfferingPageResponseDto> findAllServOffering(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) ServiceOfferingStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = ServiceOfferingSort.DEFAULT_PARAMETER) String sort) {
+        var offerings = servOfferingService.listServiceOfferings(q, category, status, page, size, ServiceOfferingSort.fromParameter(sort));
+        return ResponseEntity.ok(new ServOfferingPageResponseDto(
+                serviceOfferingMapper.toResponseDtoList(offerings.getContent()),
+                new ServOfferingPageResponseDto.PageInfo(offerings.getNumber(), offerings.getSize(),
+                        offerings.getTotalElements(), offerings.getTotalPages())));
+    }
 
-        return ResponseEntity.ok(servOfferingResponseDtos);
+    @Operation(summary = "Listar categorías", description = "Categorías distintas del negocio autenticado")
+    @GetMapping("/categories")
+    public ResponseEntity<List<String>> listCategories() {
+        return ResponseEntity.ok(servOfferingService.listCategories());
     }
 
     @Operation(

@@ -1,8 +1,10 @@
 package com.turnero.api.service;
 
-import com.turnero.api.dto.ServOfferingResponseDto;
 import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.model.ServiceOffering;
+import com.turnero.api.model.enums.ServiceOfferingStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -10,7 +12,9 @@ public interface ServOfferingService {
 
     ServiceOffering saveServiceOffering(ServiceOffering serviceOffering);
 
-    List<ServiceOffering> findAllServOffering();
+    Page<ServiceOffering> listServiceOfferings(String q, String category, ServiceOfferingStatus status, int page, int size, Sort ordering);
+
+    List<String> listCategories();
 
     ServiceOffering findServiceOffering(Long id);
 

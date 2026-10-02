@@ -9,6 +9,13 @@ import com.turnero.api.repository.ServOfferingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.util.Locale;
 
 import java.util.List;
 
@@ -43,9 +50,33 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     }
 
     @Override
-    public List<ServiceOffering> findAllServOffering() {
+    public Page<ServiceOffering> listServiceOfferings(String q, String category, ServiceOfferingStatus status, int page, int size, Sort ordering) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
-        return servOfferingRepository.findByBusinessId(businessId);
+        if (page < 0 || size < 1 || size > 100 || (q != null && q.length() > 100)
+                || (category != null && category.length() > 255)) {
+            throw new IllegalArgumentException("Invalid service offering list parameter");
+        }
+        String search = q == null ? null : q.trim().toLowerCase(Locale.ROOT);
+        String selectedCategory = category == null ? null : category.trim();
+        Specification<ServiceOffering> filters = (root, query, builder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(builder.equal(root.get("businessId"), businessId));
+            if (search != null && !search.isEmpty()) {
+                String pattern = "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+                predicates.add(builder.or(
+                        builder.like(builder.lower(root.get("name")), pattern, '\\'),
+                        builder.like(builder.lower(root.get("category")), pattern, '\\')));
+            }
+            if (selectedCategory != null && !selectedCategory.isEmpty()) predicates.add(builder.equal(root.get("category"), selectedCategory));
+            if (status != null) predicates.add(builder.equal(root.get("status"), status));
+            return builder.and(predicates.toArray(new Predicate[0]));
+        };
+        return servOfferingRepository.findAll(filters, PageRequest.of(page, size, ordering));
+    }
+
+    @Override
+    public List<String> listCategories() {
+        return servOfferingRepository.findCategoriesByBusinessId(currentBusinessContext.getCurrentBusinessId());
     }
 
     @Override
