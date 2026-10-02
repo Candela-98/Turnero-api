@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
+import com.turnero.api.exception.InvalidPublicTokenException;
+import com.turnero.api.exception.PublicTokenExpiredException;
+import com.turnero.api.exception.PublicTokenUsedException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -184,5 +187,53 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    @ExceptionHandler(InvalidPublicTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPublicToken(InvalidPublicTokenException ex, HttpServletRequest request) {
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .code("TOKEN_INVALID")
+                .message(ex.getMessage())
+                .details(null)
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    @ExceptionHandler(PublicTokenUsedException.class)
+    public ResponseEntity<ErrorResponse> handlePublicTokenUsed(PublicTokenUsedException ex, HttpServletRequest request) {
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .code("TOKEN_USED")
+                .message(ex.getMessage())
+                .details(null)
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler(PublicTokenExpiredException.class)
+    public ResponseEntity<ErrorResponse> handlePublicTokenExpired(PublicTokenExpiredException ex, HttpServletRequest request) {
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .code("TOKEN_EXPIRED")
+                .message(ex.getMessage())
+                .details(null)
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 }

@@ -1,21 +1,17 @@
 package com.turnero.api.service;
 
 import com.turnero.api.dto.*;
-import com.turnero.api.exception.AppointmentOverlapException;
-import com.turnero.api.exception.ForbiddenException;
-import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.exception.*;
 import com.turnero.api.model.*;
 import com.turnero.api.model.enums.*;
 import com.turnero.api.repository.*;
+import com.turnero.api.security.PublicTokenHasher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -36,6 +32,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
     private final CustomerService customerService;
     private final AppointmentPublicTokenRepository appointmentPublicTokenRepository;
     private final AppointmentRepository appointmentRepository;
+    private final PublicTokenHasher publicTokenHasher;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -241,8 +238,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
             return List.of();
         }
 
-        var activeStaff = staffMemberRepository
-                .findAllByIdInAndBusinessIdAndStatus(staffIds, businessId, StaffMemberStatus.ACTIVE);
+        var activeStaff = staffMemberRepository.findAllByIdInAndBusinessIdAndStatus(staffIds, businessId, StaffMemberStatus.ACTIVE);
 
         var availabilityBySlot = new LinkedHashMap<String, PublicAvailabilitySlotResponseDto>();
 
@@ -257,7 +253,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
                             serviceOfferingId,
                             currentStaffMemberId,
                             null
-                    );
+            );
 
             for (var slot : slots) {
 
@@ -410,21 +406,9 @@ public class PublicBookingServiceImpl implements PublicBookingService{
         return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
     }
 
-    private String hashPublicToken(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-
-            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 algorithm is not available", exception);
-        }
-    }
-
     private String createCancellationToken(Appointment appointment) {
         String plainToken = generatePublicToken();
-        String tokenHash = hashPublicToken(plainToken);
+        String tokenHash = publicTokenHasher.hash(plainToken);
 
         AppointmentPublicToken publicToken = AppointmentPublicToken.builder()
                 .appointmentId(appointment.getId())
@@ -527,4 +511,6 @@ public class PublicBookingServiceImpl implements PublicBookingService{
     }
 
     //endregion
+
+
 }

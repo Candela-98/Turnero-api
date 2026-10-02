@@ -33,6 +33,7 @@ import com.turnero.api.repository.BusinessRepository;
 import com.turnero.api.repository.ServOfferingRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.StaffServiceOfferingRepository;
+import com.turnero.api.security.PublicTokenHasher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -56,6 +57,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -77,6 +79,7 @@ class PublicBookingServiceImplTest {
     @Mock private CustomerService customerService;
     @Mock private AppointmentPublicTokenRepository appointmentPublicTokenRepository;
     @Mock private AppointmentRepository appointmentRepository;
+    @Mock private PublicTokenHasher publicTokenHasher;
 
     @InjectMocks private PublicBookingServiceImpl publicBookingService;
 
@@ -656,6 +659,8 @@ class PublicBookingServiceImplTest {
         settings.setMinNoticeHours(0);
 
         givenSuccessfulSpecificStaffCreate(serviceOfferingId, staffMemberId, settings, startsAt);
+        given(publicTokenHasher.hash(anyString()))
+                .willAnswer(invocation -> sha256Hex(invocation.getArgument(0)));
 
         PublicAppointmentResponseDto response = publicBookingService.createPublicAppointment(BUSINESS_SLUG,
                 appointmentRequest(serviceOfferingId, staffMemberId.toString(), startsAt));
