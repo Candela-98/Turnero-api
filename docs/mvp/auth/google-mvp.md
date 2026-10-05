@@ -1,10 +1,10 @@
 # Turnero API — Google Auth MVP
 
-Actualizado: 2026-09-03
+Actualizado: 2026-10-05
 
 ## Propósito y ownership
 
-Este documento explica la arquitectura, implementación y operación de Google Auth en Turnero. El wire contract canónico —payloads, respuestas, códigos y cookie por ambiente— vive únicamente en `../api-contracts-mvp.md`, sección `Auth/session`.
+Este documento explica la arquitectura, implementación y operación de Google Auth en Turnero. El wire contract canónico —payloads, respuestas, códigos y cookie por ambiente— vive únicamente en `../api-contracts-mvp.md`, sección `Auth/session`. La decisión HTTP/BFF/CORS/CSRF vive en [Seguridad y scoping](../api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62).
 
 El estado de entrega vive en `../tracking-implementacion-mvp.md` y las mejoras pendientes en `../deuda-tecnica-backend.md`. Este archivo no duplica esos backlogs.
 
@@ -24,13 +24,13 @@ Google Identity Services -> Turnero valida identidad -> user aprovisionado
 ## Flujo funcional
 
 1. El frontend obtiene un ID token mediante Google Identity Services.
-2. Lo intercambia en `POST /api/v1/auth/google` según el contrato canónico.
+2. Lo envía al BFF same-origin bajo `/api/backend`; Next.js lo intercambia en `POST /api/v1/auth/google` según el contrato canónico.
 3. El backend valida firma, audiencia, emisor, expiración y `email_verified`.
 4. Resuelve al usuario por `auth_provider = GOOGLE` y `auth_subject = sub`.
 5. Verifica business y rol permitidos.
 6. Crea `user_sessions`, responde el contexto de usuario/business y setea la cookie.
-7. El frontend consulta `GET /api/v1/auth/me` al restaurar la aplicación.
-8. `POST /api/v1/auth/logout` revoca la sesión y expira la cookie.
+7. El frontend restaura la sesión a través del BFF, que consulta `GET /api/v1/auth/me`.
+8. El logout pasa por el BFF hacia `POST /api/v1/auth/logout`; Spring revoca la sesión si corresponde y expira la cookie de forma idempotente.
 
 ## Sesión y autorización
 
@@ -38,7 +38,7 @@ La sesión contiene un token opaco de 32 bytes codificado en Base64 URL-safe. En
 
 Reglas MVP:
 
-- TTL fijo de siete días; no hay refresh ni expiración deslizante.
+- TTL predeterminado de siete días, configurable mediante auth.session.ttl-days según el contrato canónico; no hay refresh ni expiración deslizante.
 - Pueden coexistir varias sesiones del mismo usuario.
 - `AuthenticatedUserContext` vive por request.
 - `AuthenticatedCurrentBusinessContext` obtiene el business desde el usuario autenticado.
@@ -47,19 +47,7 @@ Reglas MVP:
 
 ## Cookie por ambiente
 
-- Local: `turnero_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure=false`.
-- Producción HTTPS: `__Host-turnero_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/` y sin `Domain`.
-
-Propiedades configurables:
-
-```text
-AUTH_SESSION_COOKIE_NAME=turnero_session
-AUTH_SESSION_TTL_DAYS=7
-AUTH_SESSION_SECURE=false
-AUTH_SESSION_SAME_SITE=Lax
-```
-
-Fuera de desarrollo se debe usar `AUTH_SESSION_COOKIE_NAME=__Host-turnero_session` y `AUTH_SESSION_SECURE=true`.
+Los atributos, defaults versionados y overrides externos se documentan únicamente en [Cookie por ambiente](../api-contracts-mvp.md#cookie-por-ambiente). En particular, desa hereda Secure=false salvo configuración externa; no debe suponerse que HTTPS lo activa automáticamente.
 
 ## Configuración de Google
 
@@ -88,7 +76,7 @@ Para una prueba local controlada:
 
 ## Integración con Next.js
 
-La decisión MVP es usar un BFF/proxy same-origin de Next. El navegador llama al BFF y el BFF llama a Turnero API.
+El admin implementado usa un BFF/proxy same-origin de Next; booking público debe conservar esa frontera al integrar la UI. El recorrido y el inventario de consumidores están en [la decisión HTTP canónica](../api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62).
 
 El BFF debe:
 
@@ -101,11 +89,11 @@ El BFF debe:
 
 El frontend hidrata sesión con `/auth/me`, limpia estado local ante `401` y muestra acceso denegado ante `403`. El logout local debe completarse aunque la sesión backend ya haya vencido.
 
-Con esta arquitectura el navegador no llama cross-origin al backend y CORS no es requisito para el admin MVP. Si se cambia a acceso directo, debe abrirse una decisión nueva sobre CORS con credentials y CSRF.
+Spring mantiene CORS sin configurar. El BFF es responsable de validar procedencia/CSRF en las mutaciones, pero esa mitigación todavía NO está implementada: requiere una subtarea frontend/BFF pendiente de crear/vincular. La política completa y su matriz de mutaciones viven en el contrato canónico enlazado arriba.
 
 ## Implementación actual y convergencia pendiente
 
-PRs #61 y #62 implementaron `AuthController`, validación Google, sesiones, contexto autenticado, logout y protección admin. TURN-88 registra la convergencia necesaria antes de cerrar TURN-69. El hardening posterior se divide en TURN-62 para la frontera BFF/CORS/CSRF, TURN-110 para cleanup de sesiones y TURN-116 para logs sensibles. El contrato objetivo vive en `../api-contracts-mvp.md`; el inventario y la prioridad se mantienen en `../deuda-tecnica-backend.md` y `../tracking-implementacion-mvp.md`.
+PRs #61 y #62 implementaron `AuthController`, validación Google, sesiones, contexto autenticado, logout y protección admin. El tracking registra la convergencia de contrato de TURN-88. El hardening posterior se divide en TURN-62 para la decisión de frontera BFF/CORS/CSRF, una subtarea frontend/BFF pendiente de crear/vincular para la mitigación, TURN-110 para cleanup de sesiones y TURN-116 para logs sensibles. El contrato vive en `../api-contracts-mvp.md`; el inventario y la prioridad se mantienen en `../deuda-tecnica-backend.md` y `../tracking-implementacion-mvp.md`.
 
 ## Componentes implementados
 
