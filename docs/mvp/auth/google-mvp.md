@@ -1,6 +1,6 @@
 # Turnero API — Google Auth MVP
 
-Actualizado: 2026-09-03
+Actualizado: 2026-10-07
 
 ## Propósito y ownership
 
@@ -44,6 +44,72 @@ Reglas MVP:
 - `AuthenticatedCurrentBusinessContext` obtiene el business desde el usuario autenticado.
 - Los endpoints admin no aceptan `business_id` elegido por el cliente.
 - `401` representa ausencia o invalidez de sesión; `403`, identidad válida sin autorización suficiente.
+
+## Cleanup operativo de sesiones (TURN-110)
+
+El cleanup elimina registros antiguos de `user_sessions`; no cambia el TTL de autenticación. En cada ejecución calcula una única fecha de corte (`cutoff = now - retentionDays`), usando la zona local de la JVM.
+
+### Elegibilidad y retención
+
+La fecha relevante es `revoked_at` si existe; en caso contrario es `expires_at`. Sólo se elimina una sesión cuando esa fecha es estrictamente anterior al cutoff:
+
+```text
+(revoked_at IS NOT NULL AND revoked_at < cutoff)
+OR
+(revoked_at IS NULL AND expires_at < cutoff)
+```
+
+- Las sesiones activas (no revocadas y no expiradas) se conservan.
+- Las sesiones expiradas o revocadas dentro del período de retención se conservan.
+- Si `revoked_at` existe, esa fecha manda aunque `expires_at` sea antigua; una revocación reciente conserva la sesión.
+- Una revocación anterior al cutoff permite eliminar la sesión aunque `expires_at` sea futura.
+- Una fecha relevante exactamente igual al cutoff se conserva.
+
+La selección y el borrado usan el mismo cutoff en una transacción. Antes de borrar se revalida la elegibilidad de los IDs seleccionados. El cleanup es idempotente: repetirlo no vuelve a eliminar registros ya borrados y conserva las sesiones que no cumplen la regla. Esto no reemplaza la coordinación entre schedulers descrita más abajo.
+
+### Batch y frecuencia
+
+Cada ejecución procesa como máximo un batch, por defecto de 500 candidatos, tomando los primeros elegibles por `id` ascendente. No repite batches hasta vaciar todos los candidatos en una misma ejecución; así mantiene acotada la cantidad de registros procesados.
+
+Si se generan más sesiones elegibles por día que el batch configurado, puede acumularse backlog. Primero se puede ajustar `batch-size` según la capacidad operativa; si el sistema crece, evaluar múltiples batches acotados por ejecución. Esa modalidad no está implementada.
+
+El cron por defecto es `0 0 3 * * *`: ejecución diaria a las 03:00 según la zona horaria de la JVM/scheduler de la aplicación. No se fuerza UTC ni una zona explícita en el scheduler. El cron es configurable.
+
+### Configuración
+
+Las propiedades viven bajo `auth.session.cleanup`. El YAML referencia explícitamente estas variables de entorno, también incluidas en `.env.example`:
+
+| Variable | Default | Controla |
+| --- | --- | --- |
+| `AUTH_SESSION_CLEANUP_RETENTION_DAYS` | `30` | Días conservados desde la fecha relevante para calcular el cutoff. |
+| `AUTH_SESSION_CLEANUP_BATCH_SIZE` | `500` | Máximo de candidatos seleccionados en una ejecución. |
+| `AUTH_SESSION_CLEANUP_CRON` | `0 0 3 * * *` | Expresión cron de Spring que define cuándo se ejecuta el cleanup. |
+
+La retención y el batch deben ser positivos; el cron no puede ser vacío. Los valores default se aplican cuando no se proporcionan esas variables.
+
+### Observabilidad
+
+Cada ejecución exitosa emite un único log INFO:
+
+```text
+Session cleanup completed: deletedCount={}, durationMs={}
+```
+
+`deletedCount` es la cantidad realmente eliminada y `durationMs` es la duración en milisegundos. Cero eliminados también es un resultado exitoso. Si el servicio falla, la excepción se propaga al mecanismo de scheduling de Spring y no se emite el mensaje de éxito; no hay retries propios del cleanup.
+
+El log del cleanup contiene sólo esos datos operativos. No registrar `session_token_hash`, cookies, tokens, email, nombre, IP, user-agent ni IDs de usuario/sesión; tampoco listas de candidatos ni entidades.
+
+### Instancias y coordinación
+
+El MVP asume una sola instancia de la aplicación ejecutando el scheduler. Actualmente no existe coordinación distribuida entre instancias. Si se despliegan varias réplicas, cada una podría disparar el mismo job; la implementación actual no garantiza ejecución coordinada entre múltiples schedulers.
+
+Antes de ese despliegue se debe incorporar una estrategia de coordinación distribuida, por ejemplo un lock distribuido o equivalente. No se elige una tecnología concreta en este bloque.
+
+### Índices y Flyway
+
+`V3__add_user_session_cleanup_indexes.sql` agrega dos índices parciales: `idx_user_sessions_cleanup_expires_at` sobre `expires_at` para sesiones no revocadas, e `idx_user_sessions_cleanup_revoked_at` sobre `revoked_at` para sesiones revocadas.
+
+El seed local está versionado como V1000. Como nuevas migraciones estructurales pueden tener versiones inferiores a V1000, `out-of-order` está habilitado únicamente en dev/desa para actualizar bases que ya aplicaron ese seed. Producción carga sólo migraciones estructurales y conserva el comportamiento normal de Flyway, con `out-of-order=false` por defecto.
 
 ## Cookie por ambiente
 
