@@ -209,5 +209,5 @@ Pendientes de integración; no cambian el estado mergeado del tracking:
 
 - `ServOfferingServiceImpl` asigna `createdAt`/`updatedAt` al crear y actualiza `updatedAt` al editar/desactivar. Prueba de persistencia con timestamps NOT NULL.
 - `V1001__sync_seed_sequences.sql`, exclusivamente en seeds locales, sincroniza las secuencias de las cuatro tablas con IDs explícitos de V1000. Preserva filas y contadores adelantados; no modifica el seed ya aplicado. Probado en PostgreSQL con bases nuevas y existentes y aplicado en la base local de esta sesión.
-- Suite completa con `make test`: 440 tests aprobados sin omisiones. Pruebas manuales de alta/edición aprobadas por el usuario en desktop y mobile; publicación del PR hacia `develop` autorizada. Pendiente de merge.
+- Suite completa con `make test`: 440 tests aprobados sin omisiones. Pruebas manuales de alta/edición aprobadas por el usuario en desktop y mobile; PR backend [#75](https://github.com/Candela-98/Turnero-api/pull/75) abierto hacia `develop`, relacionado con frontend [#10](https://github.com/Candela-98/Turnero-frontend/pull/10). Pendiente de merge.
 
