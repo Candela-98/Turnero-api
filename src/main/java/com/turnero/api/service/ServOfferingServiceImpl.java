@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -31,6 +32,9 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     public ServiceOffering saveServiceOffering(ServiceOffering serviceOffering) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
         serviceOffering.setBusinessId(businessId);
+        LocalDateTime now = LocalDateTime.now();
+        serviceOffering.setCreatedAt(now);
+        serviceOffering.setUpdatedAt(now);
 
         if (serviceOffering.getStatus() == null) {
             serviceOffering.setStatus(ServiceOfferingStatus.ACTIVE);
@@ -103,6 +107,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
             currentServOffering.setStatus(servOfferigUpdateDto.getStatus());
         }
 
+        currentServOffering.setUpdatedAt(LocalDateTime.now());
         ServiceOffering updatedServiceOffering = servOfferingRepository.save(currentServOffering);
 
         log.info("Service offering with id={} successfully updated.", id);
@@ -118,6 +123,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
                         .orElseThrow(() -> new ResourceNotFoundException("Service offering not found with ID: " + id));
 
         serviceOffering.setStatus(ServiceOfferingStatus.INACTIVE);
+        serviceOffering.setUpdatedAt(LocalDateTime.now());
 
         servOfferingRepository.save(serviceOffering);
 

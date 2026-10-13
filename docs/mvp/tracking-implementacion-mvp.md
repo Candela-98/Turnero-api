@@ -202,3 +202,12 @@ Integrada el 2026-10-02 en `develop` mediante [PR #72](https://github.com/Candel
 - Verificación local inicial: 354 tests pasaron; `BusinessHoursPostgresIT` y `FlywayMigrationTest` no pudieron iniciar por falta de Docker. Después del refactor pasaron los 58 tests afectados, incluidos los nuevos de ordenamiento.
 - CI del PR #72 completado correctamente antes del merge. La limitación de Docker registrada arriba corresponde al entorno local, no a un fallo pendiente de CI.
 - Entrega técnica completada y validación local aprobada por el usuario. El usuario realiza el cierre de TURN-76 en Jira.
+
+## Correcciones backend para TURN-96 (2026-10-12)
+
+Pendientes de integración; no cambian el estado mergeado del tracking:
+
+- `ServOfferingServiceImpl` asigna `createdAt`/`updatedAt` al crear y actualiza `updatedAt` al editar/desactivar. Prueba de persistencia con timestamps NOT NULL.
+- `V1001__sync_seed_sequences.sql`, exclusivamente en seeds locales, sincroniza las secuencias de las cuatro tablas con IDs explícitos de V1000. Preserva filas y contadores adelantados; no modifica el seed ya aplicado. Probado en PostgreSQL con bases nuevas y existentes y aplicado en la base local de esta sesión.
+- Suite completa con `make test`: 440 tests aprobados sin omisiones. Pruebas manuales de alta/edición aprobadas por el usuario en desktop y mobile; publicación del PR hacia `develop` autorizada. Pendiente de merge.
+
