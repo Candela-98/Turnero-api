@@ -34,9 +34,61 @@ No reemplaza a esos documentos. Este archivo baja el MVP a URLs, DTOs, filtros, 
 
 ## Seguridad y scoping
 
+### Frontera HTTP: BFF, CORS y CSRF (TURN-62)
+
+Esta seccion es la fuente canonica de la decision HTTP/BFF/CORS/CSRF del MVP. Distingue la responsabilidad acordada de la mitigacion efectivamente implementada.
+
+```text
+Browser admin -> /api/backend/... (Next.js BFF same-origin) -> /api/v1/... (Spring)
+Browser booking publico -> mismo BFF same-origin -> Spring (al integrar la UI)
+```
+
+Inventario al 2026-10-05, segun la auditoria frontend aportada para TURN-62 y la inspeccion de este backend:
+
+| Superficie | Recorrido browser | Consumidor browser directo de Spring |
+| --- | --- | --- |
+| Admin implementado | apiFetch usa rutas relativas /api/backend; el BFF llama a Spring con TURNERO_API_BASE_URL server-side | Ninguno identificado ni aprobado |
+| Booking publico | UI todavia sin integrar; el BFF admite profile, services, availability, create appointment, get cancellation y cancel | Ninguno identificado ni aprobado; la integracion debe conservar el BFF |
+
+El BFF reenvia Cookie a Spring y devuelve Set-Cookie al navegador. La cookie recibida mediante el BFF queda asociada al host de su respuesta, sin Domain; el navegador no necesita conocer la URL de Spring.
+
+**CORS:** Spring permanece sin configurar CORS en todos los perfiles. No se agregan @CrossOrigin, CorsConfiguration, headers Access-Control-Allow-* ni configuracion equivalente. Las llamadas server-side del BFF no necesitan CORS. Un futuro consumidor browser cross-origin aprobado exige otra decision con origenes explicitos, metodos, headers y credentials segun su contrato. La ausencia de CORS no es una restriccion de acceso de red ni una mitigacion CSRF.
+
+**Responsabilidades:** el BFF es la frontera responsable de validar procedencia/origen y mitigar CSRF en las mutaciones recibidas desde el navegador. Spring conserva autenticacion, autorizacion, business scoping y reglas de negocio; en cancelacion publica valida el token de cancelacion.
+
+**Estado actual:** la mitigacion explicita de procedencia/CSRF del BFF todavia NO esta implementada. Segun la auditoria frontend aportada, el proxy solo limita rutas y metodos: no valida Origin/Referer ni usa token CSRF o Fetch Metadata. Esa allowlist no acredita la mitigacion. Spring tampoco tiene proteccion CSRF explicita. SameSite=Lax es una defensa complementaria y no reemplaza la mitigacion CSRF.
+
+#### Matriz de mutaciones y frontera responsable
+
+Las rutas siguientes identifican las operaciones Spring actuales. Toda operacion que el browser consuma debe pasar por una ruta admitida del BFF; el inventario backend no implica que todas tengan UI o esten habilitadas por el proxy. La validacion de procedencia corresponde al BFF y esta pendiente en todas las filas.
+
+| Mutacion Spring | Frontera de procedencia/CSRF | Responsabilidad Spring |
+| --- | --- | --- |
+| POST /api/v1/auth/google | BFF; pendiente, incluido login | Validar identidad Google y acceso admin; crear sesion |
+| POST /api/v1/auth/logout | BFF; pendiente, incluso sin sesion valida | Revocar sesion si corresponde y expirar cookie de forma idempotente |
+| PATCH /api/v1/business | BFF; pendiente | Autenticacion, autorizacion, scoping y reglas de negocio |
+| PATCH /api/v1/booking-settings | BFF; pendiente | Autenticacion, autorizacion, scoping y reglas de negocio |
+| PUT /api/v1/business-hours | BFF; pendiente | Autenticacion, autorizacion, scoping y reglas de negocio |
+| POST /api/v1/service-offerings; PATCH/DELETE /api/v1/service-offerings/{id} | BFF; pendiente | Autenticacion, autorizacion, scoping y reglas de negocio |
+| POST /api/v1/staff-members; PATCH/DELETE /api/v1/staff-members/{id} | BFF; pendiente | Autenticacion, autorizacion, scoping y reglas de negocio |
+| PUT /api/v1/staff-members/{id}/working-hours; PUT /api/v1/staff-members/{staff_member_id}/service-offerings | BFF; pendiente | Autenticacion, autorizacion, scoping y reglas de negocio |
+| POST /api/v1/customers; PATCH/DELETE /api/v1/customers/{id} | BFF; pendiente | Autenticacion, autorizacion, scoping y reglas de negocio |
+| POST /api/v1/appointments; PATCH/DELETE /api/v1/appointments/{id} | BFF; pendiente | Autenticacion, autorizacion, scoping y reglas de negocio |
+| POST /api/v1/appointments/{id}/confirm; POST /api/v1/appointments/{id}/cancel; POST /api/v1/appointments/{id}/complete; POST /api/v1/appointments/{id}/no-show | BFF; pendiente | Autenticacion, autorizacion, scoping y transiciones de estado |
+| POST /api/v1/public/businesses/{business_slug}/appointments | BFF al integrar booking; pendiente | Reglas de reserva publica y resolucion del negocio; sin sesion admin |
+| POST /api/v1/public/cancellations/{token} | BFF al integrar booking; pendiente | Autorizar por token de cancelacion y aplicar reglas; sin sesion admin |
+
+Las lecturas GET de auth, admin y booking conservan el recorrido BFF; no son mutaciones. La validacion de procedencia de booking publico es independiente de la sesion admin y no sustituye la autorizacion por token ni el rate limiting de TURN-112.
+
+#### Entrega documental y seguimiento
+
+TURN-62 fija esta decision sin cambiar comportamiento HTTP, codigo ni configuracion Spring; no requiere tests backend nuevos. No acredita mitigacion CSRF operativa ni cierre del hardening de TURN-32.
+
+La implementacion se separa en una subtarea frontend/BFF **pendiente de crear/vincular**, sin ID asignado en este documento. Debe definir el mecanismo concreto de validacion de procedencia, tratamiento de headers ausentes o null y origen esperado en local/HTTPS y detras de proxies; cubrir login/logout, mutaciones admin y mutaciones publicas admitidas; y probar solicitudes aceptadas/rechazadas antes de considerar implementada la mitigacion. El comportamiento browser/BFF de cookies en local y HTTPS requiere validacion de integracion en esa subtarea. El inventario de brechas vive en [deuda tecnica](deuda-tecnica-backend.md#frontera-http-y-mitigacion-pendiente-en-el-bff); el estado de entrega vive en [tracking](tracking-implementacion-mvp.md#hardening-operativo-final).
+
 ### Admin autenticado
 
-Endpoints bajo estas familias requieren cookie de sesion Turnero:
+Endpoints bajo estas familias requieren cookie de sesion Turnero, salvo logout: POST /api/v1/auth/logout tambien responde 204 y expira la cookie si falta o la sesion ya no es valida:
 
 ```text
 /api/v1/auth/me
@@ -320,16 +372,29 @@ Set-Cookie: __Host-turnero_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max
 
 ### Cookie por ambiente
 
-```text
-local:      turnero_session; HttpOnly; SameSite=Lax; Path=/
-produccion: __Host-turnero_session; HttpOnly; Secure; SameSite=Lax; Path=/
-```
+AuthController emite HttpOnly=true, Path=/ y sin Domain tanto al crear como al expirar la cookie. Max-Age de login se calcula desde auth.session.ttl-days; logout usa Max-Age=0. El frontend no lee la cookie ni persiste tokens en JavaScript; el BFF reenvia Set-Cookie.
 
-El nombre, TTL, `Secure` y `SameSite` se configuran por ambiente. El frontend no lee la cookie ni persiste tokens en JavaScript.
+Defaults versionados, sin overrides externos:
 
-### Estado de implementacion al 2026-09-03
+| Perfil | Nombre | Secure | SameSite | TTL de login |
+| --- | --- | --- | --- | --- |
+| Base / dev | turnero_session | false | Lax | 7 dias (Max-Age=604800) |
+| desa | turnero_session (heredado) | false (heredado) | Lax (heredado) | 7 dias (heredado) |
+| prod | __Host-turnero_session | true | Lax | 7 dias (heredado) |
 
-El contrato anterior es el objetivo canonico. El codigo mergeado en `develop` todavia debe converger antes de integrar TURN-69; el detalle ejecutable vive en `deuda-tecnica-backend.md` y el estado resumido en `tracking-implementacion-mvp.md`.
+Configuracion externa explicitamente referenciada por los YAML:
+
+- Base, dev y desa: AUTH_SESSION_SECURE reemplaza el default false. No hay placeholders AUTH_SESSION_COOKIE_NAME, AUTH_SESSION_SAME_SITE ni AUTH_SESSION_TTL_DAYS en esos perfiles.
+- prod: AUTH_SESSION_COOKIE_NAME, AUTH_SESSION_SECURE y AUTH_SESSION_SAME_SITE reemplazan sus defaults. TTL no tiene placeholder AUTH_SESSION_TTL_DAYS en el YAML versionado.
+- Las propiedades auth.session.cookie-name, auth.session.ttl-days, auth.session.secure y auth.session.same-site pueden sobrescribirse por mecanismos externos de configuracion Spring. Eso no significa que las cuatro variables AUTH_SESSION_* anteriores sean aliases uniformes en todos los perfiles. No se verifico la configuracion efectiva de un despliegue.
+
+HTTP local usa turnero_session con Secure=false. Para HTTPS se debe configurar Secure=true; desa no lo activa automaticamente. En prod HTTPS se conserva __Host-turnero_session con Secure=true, Path=/ y sin Domain; cualquier override debe respetar las restricciones del prefijo __Host-. Para usar ese nombre en desa hace falta configurar externamente auth.session.cookie-name; el perfil no referencia AUTH_SESSION_COOKIE_NAME.
+
+Secure depende del HTTPS visible al navegador/BFF, no del protocolo del salto interno BFF -> Spring. SameSite=Lax es complementario y no reemplaza la mitigacion CSRF pendiente descrita en [la decision HTTP](#frontera-http-bff-cors-y-csrf-turn-62).
+
+### Estado de implementacion observado al 2026-10-05
+
+El estado de implementacion observado para TURN-62 incluye el contrato auth alineado, cookie por perfil y logout idempotente. Esta observacion no acredita un merge adicional ni un cierre en Jira. La decision HTTP de TURN-62 es documental; la mitigacion del BFF sigue pendiente en una subtarea separada de frontend/BFF por crear/vincular. El estado de entrega vive en [tracking](tracking-implementacion-mvp.md).
 
 ## Business/configuracion
 
@@ -1509,7 +1574,7 @@ POST   /api/v1/public/cancellations/{token}
 ## Pendientes fuera de este contrato
 
 - Contrato CRUD de `availability_exceptions`, si se decide incluirlo en el MVP operativo.
-- Politica CSRF final segun arquitectura frontend/backend desplegada.
+- Implementacion de la mitigacion de procedencia/CSRF en el BFF: subtarea frontend/BFF pendiente de crear/vincular. La decision esta definida en [Seguridad y scoping](#frontera-http-bff-cors-y-csrf-turn-62); la mitigacion todavia NO esta implementada.
 
 Notas:
 

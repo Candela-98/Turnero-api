@@ -14,26 +14,27 @@ Jira: `TURN-88` para contrato, autorizacion, cookie y logout; `TURN-89` para la 
 
 ### Contrato HTTP
 
-El contrato canónico de `api-contracts-mvp.md` y el código mergeado difieren en request de Google, body de login, estructura de `/auth/me`, cookie y autorización al crear sesión.
-
-Antes de integrar el frontend:
-
-- aceptar `id_token` en JSON;
-- devolver el mismo contexto anidado `user`/`business` desde login y `/auth/me`;
-- rechazar con `403` los roles sin acceso a la superficie admin MVP;
-- parametrizar la cookie para usar `turnero_session` local y `__Host-turnero_session` en producción.
+El tracking registra como completada la convergencia de contrato de TURN-88: request de Google, body de login, estructura de `/auth/me`, cookie y roles. Los atributos reales de cookie, defaults por perfil y configuración externa viven en [el contrato canónico](api-contracts-mvp.md#cookie-por-ambiente); no deben interpretarse como una parametrización uniforme mediante AUTH_SESSION_*.
 
 ### Protección de business hours
 
-`AdminAuthInterceptor` no incluye `/api/v1/business-hours/**`. El servicio depende de `AuthenticatedCurrentBusinessContext`, por lo que el endpoint debe incorporarse al interceptor y cubrirse con tests de sesión, rol y scoping antes de TURN-82.
+El tracking registra TURN-89 como completado: `/api/v1/business-hours/**` está incluido en AdminAuthInterceptor y tiene cobertura de sesión, rol y scoping. Esta autenticación backend no reemplaza la validación de procedencia pendiente en el BFF.
 
 ### Logout idempotente
 
-El logout actual exige una sesión todavía válida. El comportamiento objetivo es expirar la cookie y responder `204` aunque la cookie falte o la sesión esté vencida/revocada. Esto permite que el frontend siempre cierre su estado local sin convertir logout en un flujo de recuperación.
+En la branch revisada para TURN-62, AuthController ya expira la cookie y responde `204` aunque falte o la sesión esté vencida/revocada. No se registra como brecha de código pendiente; esta observación no acredita un merge ni cierre en Jira. La validación de procedencia de logout en el BFF sigue pendiente en la subtarea indicada abajo.
 
 ### Aprovisionamiento de desarrollo
 
-El seed usa un `auth_subject` ficticio. Hace falta un procedimiento o herramienta repetible para asociar una cuenta Google de desarrollo a un OWNER local sin versionar datos personales ni habilitar registro público.
+El seed usa un `auth_subject` ficticio. El procedimiento repetible de aprovisionamiento local está documentado en [Google Auth MVP](auth/google-mvp.md#aprovisionamiento-local) y su entrega se registra en el tracking. No es una brecha de la decisión HTTP de TURN-62.
+
+### Frontera HTTP y mitigacion pendiente en el BFF
+
+La decision canonica de TURN-62 vive en [Seguridad y scoping](api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62). El PR backend documenta la frontera y mantiene CORS sin configurar; no implementa la mitigacion del BFF.
+
+Brecha abierta: el BFF es responsable de validar procedencia/CSRF en mutaciones browser, pero la mitigacion explicita todavia NO esta implementada. Requiere una **subtarea separada de frontend/BFF pendiente de crear/vincular**, sin ID confirmado. Debe implementar el mecanismo y las pruebas definidos por la decision canonica, incluidos login/logout, mutaciones admin, creacion/cancelacion publica y verificacion de cookies en local/HTTPS. Booking publico debe conservar el BFF cuando se integre.
+
+No considerar completo el hardening de TURN-32 ni la mitigacion operativa por cerrar la decision documental TURN-62. Los defaults versionados de cookie no acreditan la configuracion efectiva del despliegue.
 
 ### Ciclo de vida de sesiones
 
