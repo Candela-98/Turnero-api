@@ -168,13 +168,10 @@ DB_NAME=turnero
 DB_USERNAME=turnero
 DB_PASSWORD=turnero_local
 GOOGLE_CLIENT_ID=
-AUTH_SESSION_COOKIE_NAME=turnero_session
-AUTH_SESSION_TTL_DAYS=7
 AUTH_SESSION_SECURE=false
-AUTH_SESSION_SAME_SITE=Lax
 ```
 
-El MVP usa ID token y no requiere `GOOGLE_CLIENT_SECRET`. En produccion HTTPS usar `AUTH_SESSION_COOKIE_NAME=__Host-turnero_session` y `AUTH_SESSION_SECURE=true`. El admin MVP accede mediante BFF same-origin de Next, por lo que no requiere una variable CORS backend.
+El MVP usa ID token y no requiere `GOOGLE_CLIENT_SECRET`. Los defaults de cookie y los overrides realmente referenciados por cada perfil viven en [Cookie por ambiente](api-contracts-mvp.md#cookie-por-ambiente). La decision HTTP/BFF/CORS/CSRF vive en [Seguridad y scoping](api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62): admin usa BFF same-origin y booking publico debe conservarlo; Spring no requiere una variable CORS.
 
 ### Perfiles Spring
 
@@ -185,7 +182,7 @@ El MVP usa ID token y no requiere `GOOGLE_CLIENT_SECRET`. En produccion HTTPS us
 - Flyway activo.
 - Seed dev Barber Studio disponible.
 - Cookie `Secure=false` solo si no hay HTTPS local.
-- CORS limitado al frontend local.
+- CORS sin configurar: no hay consumidor browser directo aprobado de Spring.
 
 `test`:
 
@@ -197,8 +194,8 @@ El MVP usa ID token y no requiere `GOOGLE_CLIENT_SECRET`. En produccion HTTPS us
 
 - Ambiente compartido de desarrollo.
 - Secretos fuera del repo.
-- CORS por dominio del frontend desa.
-- Cookies `Secure=true` si usa HTTPS.
+- CORS sin configurar: conservar la frontera BFF same-origin.
+- HTTPS requiere Secure=true por configuracion externa; desa hereda Secure=false. Ver los defaults y overrides en el contrato canonico.
 
 `prod`:
 
@@ -1156,7 +1153,7 @@ Criterios de aceptacion:
 
 Riesgos/validaciones:
 
-- CORS y CSRF deben quedar definidos antes de ambiente compartido.
+- La decision CORS/CSRF esta definida en [el contrato canonico](api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62). La mitigacion BFF aun no implementada requiere una subtarea frontend/BFF pendiente de crear/vincular; no considerar completo el hardening del ambiente compartido sin esa implementacion.
 
 Fuera de alcance:
 
@@ -1349,7 +1346,7 @@ TURN-32 es una historia contenedora, no un PR. El antiguo PR 25 se dividio para 
 Criterio de entrega:
 
 - Cada subtarea representa, en lo posible, un PR con objetivo unico y tests cuando aplica.
-- TURN-62 puede resolverse antes porque fija la frontera de seguridad.
+- TURN-62 puede resolverse antes porque fija la frontera de seguridad mediante documentacion, sin cambios de comportamiento HTTP en Spring. La decision canonica vive en [Seguridad y scoping](api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62); implementacion y tests de procedencia/CSRF en el BFF quedan en una subtarea frontend/BFF pendiente de crear/vincular. Cerrar la decision no acredita mitigacion operativa ni cierre de TURN-32.
 - Cleanup, rate limiting y auditoria de logs esperan que auth y booking publico esten estabilizados.
 - Concurrencia espera las invariantes de escritura admin y la reserva publica.
 - La auditoria de indices se realiza contra consultas finales, no contra supuestos.
@@ -1357,7 +1354,7 @@ Criterio de entrega:
 
 Tests esperados por la historia:
 
-- Configuracion/origen segun la decision BFF, CORS y CSRF, cuando aplique.
+- TURN-62 documental: revision de coherencia y enlaces, sin tests backend nuevos. La subtarea frontend/BFF pendiente de crear/vincular debe probar validacion de procedencia y cookies local/HTTPS.
 - Cleanup idempotente y por lotes.
 - Rate limiting con `429` y `Retry-After`.
 - Doble reserva con PostgreSQL/Testcontainers.
@@ -1400,8 +1397,8 @@ Fuera de alcance:
 | Availability exceptions lectura interna | A1, PR 8 |
 | Auth/session | PRs 19-20 |
 | BFF same-origin para admin frontend | TURN-97 frontend |
-| CORS para consumidores directos | Fuera del admin MVP salvo decision de TURN-62 |
-| CSRF segun arquitectura final | TURN-62 |
+| CORS para consumidores directos | Sin configurar; consumidor cross-origin aprobado futuro requiere otra decision |
+| Procedencia/CSRF en BFF | Decision: TURN-62; implementacion pendiente en subtarea frontend/BFF por crear/vincular |
 | Public booking | PRs 21-23 |
 | Public cancellation token | PR 24 |
 | Rate limiting publico | TURN-112 |

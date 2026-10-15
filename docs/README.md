@@ -74,10 +74,10 @@ Fuente para implementacion de auth:
 - Validacion de `email_verified`.
 - Sesion opaca propia de Turnero.
 - Flujo, configuracion local y aprovisionamiento.
-- Cookie por ambiente y arquitectura BFF con Next.
+- Integracion operativa de auth con Next; enlaza los atributos de cookie y la decision HTTP canonica.
 - Implementacion actual y enlaces a brechas pendientes.
 
-El wire contract de auth no vive aqui: pertenece a `mvp/api-contracts-mvp.md`.
+El wire contract de auth, los defaults y overrides de cookie y la decision HTTP/BFF/CORS/CSRF no viven aqui: pertenecen a [mvp/api-contracts-mvp.md](mvp/api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62).
 
 ### `mvp/api-contracts-mvp.md`
 
@@ -89,7 +89,8 @@ Fuente para contratos HTTP MVP:
 - Filtros, paginacion y formato de errores.
 - Reglas de scoping por `business_id`.
 - Estados HTTP y notas de seguridad/autorizacion por endpoint.
-- Wire contract canonico de auth, incluida la cookie por ambiente.
+- Wire contract canonico de auth, incluida la cookie por ambiente y sus defaults versionados frente a overrides externos.
+- [Decision HTTP/BFF/CORS/CSRF de TURN-62](mvp/api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62): recorrido e inventario de consumidores, matriz de mutaciones, responsabilidades y mitigacion BFF pendiente. Auth resume la integracion, deuda registra la brecha y tracking registra la entrega; no duplican la politica.
 
 ### `mvp/proximos-pasos-mvp.md`
 
