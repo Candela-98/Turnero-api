@@ -223,3 +223,5 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - Pruebas de API/persistencia para activos, eliminación, invisibilidad, restauración prohibida y aislamiento; prueba PostgreSQL de migración sobre seed existente y conservación de referencia de un turno.
 - Reiniciar API local para aplicar Flyway antes de probar Eliminar. No se eliminan físicamente servicios ni se cambian datos históricos.
 - Verificación final mediante `make test`: 443 aprobados sin errores ni omisiones, incluyendo migraciones PostgreSQL y el caso con un turno asociado. Frontend: 64 unitarios, 81 E2E afectados, lint, TypeScript y build correctos.
+
+- PR backend [#76](https://github.com/Candela-98/Turnero-api/pull/76) creado el 2026-10-16 sobre la rama de #75; frontend relacionado [#11](https://github.com/Candela-98/Turnero-frontend/pull/11), sobre #10. Ambos abiertos para revisión del usuario; sin merge. Tras integrar TURN-96, cambiar bases a `develop`/`dev` e integrar TURN-98 backend antes que frontend.
