@@ -1,6 +1,6 @@
 # Tracking de Implementacion Backend MVP
 
-Actualizado: 2026-10-02
+Actualizado: 2026-10-16
 
 ## Proposito
 
@@ -211,3 +211,15 @@ Pendientes de integración; no cambian el estado mergeado del tracking:
 - `V1001__sync_seed_sequences.sql`, exclusivamente en seeds locales, sincroniza las secuencias de las cuatro tablas con IDs explícitos de V1000. Preserva filas y contadores adelantados; no modifica el seed ya aplicado. Probado en PostgreSQL con bases nuevas y existentes y aplicado en la base local de esta sesión.
 - Suite completa con `make test`: 440 tests aprobados sin omisiones. Pruebas manuales de alta/edición aprobadas por el usuario en desktop y mobile; PR backend [#75](https://github.com/Candela-98/Turnero-api/pull/75) abierto hacia `develop`, relacionado con frontend [#10](https://github.com/Candela-98/Turnero-frontend/pull/10). Pendiente de merge.
 
+
+## TURN-98 — eliminación del catálogo (2026-10-13)
+
+Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. QA manual aprobado por el usuario el 2026-10-16. Preparada para PR sobre `fix/TURN-96-service-persistence` mientras #75 siga abierto; cambiar la base a `develop` después de integrar TURN-96. Integrar backend TURN-98 antes del frontend que utiliza la eliminación.
+
+- `DELETE /api/v1/service-offerings/{id}/catalog` permite borrado lógico solo de servicios inactivos; devuelve 409 para activos y 404 para eliminados/otro negocio. DELETE existente conserva su función de desactivar.
+- Migración `V1002__service_offering_logical_removal.sql` agrega `deleted_at` nullable sin modificar filas ni referencias. La versión posterior a V1001 permite actualizar bases locales con seeds ya aplicados; también pertenece a las migraciones de producción.
+- Listados, categorías, edición/restauración, booking público, availability y selección/asociaciones nuevas excluyen eliminados. Lookup histórico conserva la fila para turnos y cancelaciones existentes.
+- Bloqueo de fila en transacciones de editar/desactivar/eliminar evita restauración concurrente del servicio eliminado.
+- Pruebas de API/persistencia para activos, eliminación, invisibilidad, restauración prohibida y aislamiento; prueba PostgreSQL de migración sobre seed existente y conservación de referencia de un turno.
+- Reiniciar API local para aplicar Flyway antes de probar Eliminar. No se eliminan físicamente servicios ni se cambian datos históricos.
+- Verificación final mediante `make test`: 443 aprobados sin errores ni omisiones, incluyendo migraciones PostgreSQL y el caso con un turno asociado. Frontend: 64 unitarios, 81 E2E afectados, lint, TypeScript y build correctos.

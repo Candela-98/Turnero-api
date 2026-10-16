@@ -167,6 +167,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (serviceChanged) {
             ServiceOffering serviceOffering =
                     serviceRepository.findByIdAndBusinessId(request.getServiceOfferingId(), businessId)
+                            .filter(service -> service.getDeletedAt() == null)
                             .orElseThrow(() -> new ResourceNotFoundException("Service offering not found."));
 
             existingAppointment.setServiceOfferingId(serviceOffering.getId());

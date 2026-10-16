@@ -39,6 +39,38 @@ class FlywayMigrationTest {
         verifySeedRepair("existing_seed", true);
     }
 
+
+    @Test
+    void removalMigrationUpgradesExistingSeedAndPreservesAppointmentForeignKey() throws Exception {
+        String schema = "catalog_removal";
+        seedFlyway(schema, "1001").migrate();
+        try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
+            connection.setSchema(schema);
+            try (var statement = connection.createStatement()) {
+                statement.executeUpdate("""
+                    INSERT INTO customers (id,business_id,name,status,created_at,updated_at)
+                    VALUES (1,1,'Cliente histórico','ACTIVE',NOW(),NOW())
+                    """);
+                statement.executeUpdate("""
+                    INSERT INTO appointments (business_id,customer_id,service_offering_id,staff_member_id,
+                        starts_at,ends_at,duration_minutes,price_cents,status,source,created_at,updated_at)
+                    VALUES (1,1,1,1,NOW(),NOW()+interval '30 minutes',30,800000,'CONFIRMED','ADMIN',NOW(),NOW())
+                    """);
+                seedFlyway(schema, "1002").migrate();
+                statement.executeUpdate("UPDATE service_offerings SET status='INACTIVE',deleted_at=NOW() WHERE id=1");
+                try (var result = statement.executeQuery("""
+                    SELECT s.name,s.deleted_at,a.price_cents FROM appointments a
+                    JOIN service_offerings s ON s.id=a.service_offering_id WHERE s.id=1
+                    """)) {
+                    assertThat(result.next()).isTrue();
+                    assertThat(result.getString(1)).isEqualTo("Corte clásico");
+                    assertThat(result.getTimestamp(2)).isNotNull();
+                    assertThat(result.getInt(3)).isEqualTo(800000);
+                }
+            }
+        }
+    }
+
     private void verifySeedRepair(String schema, boolean existingData) throws Exception {
         Flyway beforeRepair = seedFlyway(schema, "1000");
         beforeRepair.migrate();

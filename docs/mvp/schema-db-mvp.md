@@ -582,7 +582,7 @@ customers = perfil comercial y operativo del cliente dentro del negocio
 
 ### service_offerings
 
-Representa servicios ofrecidos por el negocio.
+Representa servicios ofrecidos por el negocio. `deleted_at` (TIMESTAMP nullable) distingue la eliminación lógica del estado Activo/Inactivo: al eliminar un servicio inactivo se conserva la fila para el historial, pero se excluye del catálogo y no se permite restaurarlo mediante la API admin.
 
 Ejemplo:
 

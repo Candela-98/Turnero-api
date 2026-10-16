@@ -280,6 +280,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
 
     private ServiceOffering getActiveServiceOffering(Long businessId, Long serviceOfferingId) {
         ServiceOffering serviceOffering = servOfferingRepository.findByIdAndBusinessId(serviceOfferingId, businessId)
+                .filter(service -> service.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Service offering not found with ID: " + serviceOfferingId));
 
         if (serviceOffering.getStatus() != ServiceOfferingStatus.ACTIVE) {
