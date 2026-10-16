@@ -1,6 +1,6 @@
 # Tracking de Implementacion Backend MVP
 
-Actualizado: 2026-10-02
+Actualizado: 2026-10-05
 
 ## Proposito
 
@@ -74,7 +74,7 @@ Los tickets terminados TURN-41, TURN-55, TURN-56 y TURN-57 conservan su historia
 
 ### Integracion frontend de auth y horarios
 
-TURN-88 alineó request, responses, cookie y roles con el contrato canónico. El aprovisionamiento local de un OWNER real quedó mergeado en PR #65; el logout idempotente permanece como hardening separado.
+TURN-88 alineó request, responses, cookie y roles con el contrato canónico. El aprovisionamiento local de un OWNER real quedó mergeado en PR #65; la branch revisada para TURN-62 ya contiene logout idempotente en AuthController. Esta observación de la branch no acredita un merge adicional ni un cierre en Jira; la mitigación de procedencia del BFF sigue pendiente.
 
 TURN-89 incorporó `/api/v1/business-hours/**` a la protección admin y verifica sesión, rol OWNER y scoping entre negocios. Con PR #69, el `PUT` de semana completa de TURN-82 actualiza filas existentes en lugar de reinsertarlas; TURN-82 y su historia padre TURN-85 ya están en Done en Jira.
 
@@ -114,7 +114,7 @@ TURN-32 es la historia contenedora y permanece `To Do`. No representa un unico P
 
 | Jira | Unidad de entrega | Puede comenzar cuando |
 | --- | --- | --- |
-| TURN-62 | Boundary BFF, CORS y CSRF | Puede abordarse ahora |
+| TURN-62 | Decision documental de boundary BFF, CORS y CSRF | Alcance aprobado; entrega y cierre pendientes |
 | TURN-110 | Cleanup de sesiones | TURN-88 cerrado |
 | TURN-111 | Cleanup de tokens publicos | TURN-61 cerrado |
 | TURN-112 | Rate limiting publico | TURN-58 a TURN-61 cerrados |
@@ -124,6 +124,8 @@ TURN-32 es la historia contenedora y permanece `To Do`. No representa un unico P
 | TURN-115 | Runbook operativo final | Las otras subtareas de TURN-32 cerradas |
 
 Cada subtarea corresponde, en lo posible, a un PR. Los criterios detallados y el estado de asignacion viven en Jira.
+
+TURN-62 tiene alcance documental aprobado; todavia no esta mergeado ni cerrado. La decision vive en [el contrato canonico](api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62). La mitigacion explicita de procedencia/CSRF del BFF todavia NO esta implementada y requiere una subtarea frontend/BFF pendiente de crear/vincular, sin ID confirmado. El cierre documental no completa esa implementacion ni TURN-32. Actualizar el estado de entrega al mergearse el PR y verificar el cierre en Jira.
 
 ## No asumir todavia como completo
 
@@ -137,9 +139,10 @@ No marcar como completos sin revisar sus criterios de aceptacion:
 Pendiente de implementar:
 
 - TURN-59 a TURN-61 - Availability, creación y cancelación de booking público.
-- TURN-32 mediante TURN-62 y TURN-110 a TURN-116 - Hardening operativo MVP.
+- Mitigacion de procedencia/CSRF en BFF - Subtarea frontend/BFF pendiente de crear/vincular.
+- TURN-32 - Decision documental TURN-62 pendiente de entrega/cierre, implementacion BFF separada y hardening TURN-110 a TURN-116.
 
-PRs 19-20 ya estan mergeados, pero conservan las brechas contractuales y de hardening registradas arriba. El codigo de PRs 8-15 esta presente en `develop`, pero debe revisarse contra su contrato y criterios Jira antes de marcar cada ticket como completado. PRs 16-18 ya estan mergeados y no deben figurar como pendientes de implementacion.
+PRs 19-20 ya estan mergeados; TURN-88 y TURN-89 figuran completados en este tracking. El hardening HTTP y la implementacion de mitigacion en el BFF se siguen por separado segun lo indicado arriba. El codigo de PRs 8-15 esta presente en `develop`, pero debe revisarse contra su contrato y criterios Jira antes de marcar cada ticket como completado. PRs 16-18 ya estan mergeados y no deben figurar como pendientes de implementacion.
 
 ## Ramas remotas pendientes de integrar
 
@@ -211,3 +214,5 @@ Pendientes de integración; no cambian el estado mergeado del tracking:
 - `V1001__sync_seed_sequences.sql`, exclusivamente en seeds locales, sincroniza las secuencias de las cuatro tablas con IDs explícitos de V1000. Preserva filas y contadores adelantados; no modifica el seed ya aplicado. Probado en PostgreSQL con bases nuevas y existentes y aplicado en la base local de esta sesión.
 - Suite completa con `make test`: 440 tests aprobados sin omisiones. Pruebas manuales de alta/edición aprobadas por el usuario en desktop y mobile; PR backend [#75](https://github.com/Candela-98/Turnero-api/pull/75) abierto hacia `develop`, relacionado con frontend [#10](https://github.com/Candela-98/Turnero-frontend/pull/10). Pendiente de merge.
 
+
+- Actualización del PR #75 (2026-10-16): incorporado `develop` y resuelto el conflicto de Flyway conservando cobertura de limpieza de sesiones y reparación de secuencias. Ajustadas versiones esperadas para V1001. Suite completa mediante `make test`: 477 aprobados, 0 fallos, 0 omisiones. Pendiente de merge por el usuario.
