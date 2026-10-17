@@ -574,6 +574,14 @@ Response `200 OK` (reemplaza el array anterior):
 
 Conserva todos los campos de `StaffMemberResponseDto`; sin resultados devuelve `data: []`. No requiere migración. Integrar backend antes del frontend TURN-77.
 
+### GET `/api/v1/staff-members/me`
+
+Admin autenticado. Devuelve el profesional vinculado al usuario de sesión dentro del negocio autenticado, incluyendo inactivos y sin depender de búsqueda, estado ni paginación. No recibe un ID de usuario del cliente.
+
+Response `200 OK`: `{ "staff_member": StaffMemberResponseDto | null }`. `null` significa que el usuario todavía no tiene profesional vinculado. Sin sesión: `401`.
+
+El formulario usa esta consulta para deshabilitar la vinculación cuando ya existe o mientras no se pudo comprobar. El POST conserva `409 STAFF_USER_ALREADY_LINKED` como protección ante concurrencia.
+
 ### POST `/api/v1/staff-members`
 
 Admin autenticado.
@@ -608,7 +616,8 @@ Response `201 Created`:
 
 Reglas:
 
-- Si se informa `user_id`, debe pertenecer al mismo negocio y no estar vinculado a otro staff member.
+- Si se informa `user_id`, debe pertenecer al mismo negocio y no estar vinculado a otro staff member. Ante una vinculación existente (incluido profesional inactivo), responde `409` con `code: STAFF_USER_ALREADY_LINKED`. La creación se serializa por usuario y es transaccional junto con los horarios.
+- `name`: obligatorio, hasta 100 caracteres. `specialty`: obligatoria al crear, hasta 150. `role_label`: opcional, hasta 80 caracteres tanto en POST como en PATCH; 81 o más devuelve `400` con error de campo. No requiere migraciones.
 - Al crear, el backend crea `staff_working_hours` copiando `business_hours`.
 
 ### GET `/api/v1/staff-members/{staff_member_id}`

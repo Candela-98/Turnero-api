@@ -15,6 +15,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface StaffMemberRepository extends JpaRepository<StaffMember, Long>, JpaSpecificationExecutor<StaffMember> {
+    boolean existsByUserId(Long userId);
+
+    Optional<StaffMember> findByUserIdAndBusinessId(Long userId, Long businessId);
+
     List<StaffMember> findAllByBusinessId(Long businessId);
 
     Optional<StaffMember> findByIdAndBusinessId(Long id, Long businessId);

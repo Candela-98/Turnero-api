@@ -55,6 +55,16 @@ public class StaffMemberServiceImplTest {
     private AppointmentRepository appointmentRepository;
 
     @Test
+    void currentLink_isScopedToBusinessAndIncludesInactiveMembers() {
+        var member = StaffMember.builder().userId(20L).businessId(1L).status(StaffMemberStatus.INACTIVE).build();
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
+        when(staffMemberRepository.findByUserIdAndBusinessId(20L, 1L)).thenReturn(Optional.of(member));
+        assertEquals(Optional.of(member), staffMemberService.findStaffMemberForUser(20L));
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(2L);
+        assertTrue(staffMemberService.findStaffMemberForUser(20L).isEmpty());
+    }
+
+    @Test
     void saveStaffMember_shouldSaveAndReturnStaffMember() {
         StaffMember staffMember = new StaffMember();
         staffMember.setName("Juan");
@@ -72,7 +82,7 @@ public class StaffMemberServiceImplTest {
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
         when(businessHoursRepository.findAllByBusinessId(1L)).thenReturn(List.of(businessHours));
         when(staffMemberRepository.save(staffMember)).thenReturn(staffMember);
-        when(userRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(true);
+        when(userRepository.findByIdAndBusinessIdForUpdate(20L, 1L)).thenReturn(Optional.of(new com.turnero.api.model.User()));
 
         StaffMember result = staffMemberService.saveStaffMember(staffMember);
 
@@ -95,7 +105,7 @@ public class StaffMemberServiceImplTest {
         staffMember.setSpecialty("Barber");
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
-        when(userRepository.existsByIdAndBusinessId(20L, 1L)).thenReturn(false);
+        when(userRepository.findByIdAndBusinessIdForUpdate(20L, 1L)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,

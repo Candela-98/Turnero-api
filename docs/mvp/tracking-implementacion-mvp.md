@@ -241,3 +241,14 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - Verificación final backend: suite completa aprobada, 484 tests sin fallos ni omisiones, incluyendo PostgreSQL/Testcontainers en Colima. QA manual aprobada; integración pendiente.
 
 - PRs TURN-77 creados: [backend #77](https://github.com/Candela-98/Turnero-api/pull/77) sobre TURN-98 y [frontend #12](https://github.com/Candela-98/Turnero-frontend/pull/12) sobre TURN-98. Sin revisión de CI ni merge por instrucción del usuario. Ajustar bases al integrar dependencias; backend primero.
+
+## TURN-99 — Prerrequisito para crear/editar profesionales
+
+- Implementación local en `feature/TURN-99-staff-form`, sobre TURN-77: validación de rol alineada con columna de 80 caracteres en POST/PATCH, sin migraciones. Contrato y OpenAPI actualizados.
+- Alta transaccional junto con horarios; bloqueo pesimista del usuario antes de comprobar vinculación. Usuario fuera del negocio devuelve 404; duplicado, incluso inactivo, devuelve `409 STAFF_USER_ALREADY_LINKED`. El controller responde con la entidad persistida.
+- Suite backend completa: 492 aprobadas, sin fallos ni omisiones. Cobertura de límites 80/81, conflicto HTTP y PostgreSQL real: copia semanal, altas con/sin usuario, aislamiento, duplicados, concurrencia y rollback.
+- QA manual aprobada por el usuario el 2026-10-17; guía en frontend `docs/pruebas-locales-turn-99.md`. PR backend previo separado del frontend, tras aceptación del usuario; integrar antes de frontend. Bases dependientes de TURN-77. Sin revisión de CI ni merge automático.
+
+- QA de vinculación: nuevo GET `/api/v1/staff-members/me`, limitado al usuario de sesión y negocio; devuelve `staff_member` o null, incluidos inactivos. Permite bloquear preventivamente una segunda vinculación sin recorrer páginas ni depender de filtros. Sin migraciones; requiere reiniciar API. Pruebas de sesión, negocio y consulta sin vínculo añadidas.
+
+- Verificación de la consulta de vinculación: suite backend completa 495 aprobadas, sin fallos ni omisiones; incluye aislamiento por sesión/negocio, usuario sin vínculo, profesional inactivo y rechazo sin sesión.

@@ -17,6 +17,8 @@ public interface StaffMemberService {
 
     StaffMember findStaffMember(Long id);
 
+    java.util.Optional<StaffMember> findStaffMemberForUser(Long userId);
+
     List<StaffMember> findAllStaffMember();
 
     Page<StaffMember> listStaffMembers(String q,

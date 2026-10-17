@@ -6,6 +6,7 @@ import com.turnero.api.dto.StaffWorkingHoursRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursResponseDto;
 import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.exception.StaffUserAlreadyLinkedException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.model.StaffWorkingHours;
@@ -50,12 +51,16 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     private final AppointmentRepository appointmentRepository;
 
     @Override
+    @Transactional
     public StaffMember saveStaffMember(StaffMember staffMember) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
-        if (staffMember.getUserId() != null &&
-                !userRepository.existsByIdAndBusinessId(staffMember.getUserId(), businessId)) {
-            throw new ResourceNotFoundException("User not found for current business");
+        if (staffMember.getUserId() != null) {
+            userRepository.findByIdAndBusinessIdForUpdate(staffMember.getUserId(), businessId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found for current business"));
+            if (staffMemberRepository.existsByUserId(staffMember.getUserId())) {
+                throw new StaffUserAlreadyLinkedException();
+            }
         }
 
         List<BusinessHours> businessHours = businessHoursRepository.findAllByBusinessId(businessId);
@@ -92,6 +97,11 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         );
 
         return savedStaffMember;
+    }
+
+    @Override
+    public java.util.Optional<StaffMember> findStaffMemberForUser(Long userId) {
+        return staffMemberRepository.findByUserIdAndBusinessId(userId, currentBusinessContext.getCurrentBusinessId());
     }
 
     @Override

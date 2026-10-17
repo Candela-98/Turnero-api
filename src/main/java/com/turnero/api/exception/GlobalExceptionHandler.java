@@ -78,6 +78,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
+    @ExceptionHandler(StaffUserAlreadyLinkedException.class)
+    public ResponseEntity<ErrorResponse> handleStaffUserAlreadyLinked(StaffUserAlreadyLinkedException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now()).status(409).error("Conflict")
+                .code("STAFF_USER_ALREADY_LINKED").message(ex.getMessage())
+                .path(request.getRequestURI()).build());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unexpected error occurred", ex);
