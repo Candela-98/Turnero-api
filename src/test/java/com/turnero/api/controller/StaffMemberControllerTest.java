@@ -172,8 +172,8 @@ public class StaffMemberControllerTest {
         var staffMember1 = getStaffMemberEntity(id);
         var staffMember2 = getStaffMemberEntity(2L);
 
-        given(staffService.findAllStaffMember())
-                .willReturn(List.of(staffMember1, staffMember2));
+        given(staffService.listStaffMembers(null, null, 0, 20, com.turnero.api.service.StaffMemberSort.fromParameter(null)))
+                .willReturn(new org.springframework.data.domain.PageImpl<>(List.of(staffMember1, staffMember2)));
         given(staffMapper.toResponseDtoList(List.of(staffMember1, staffMember2)))
                 .willReturn(List.of(getStaffMemberResponseDTO(id), getStaffMemberResponseDTO(2L)));
 
@@ -181,11 +181,11 @@ public class StaffMemberControllerTest {
         mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[1].id").value(2));
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[1].id").value(2));
 
-        then(staffService).should().findAllStaffMember();
+        then(staffService).should().listStaffMembers(null, null, 0, 20, com.turnero.api.service.StaffMemberSort.fromParameter(null));
         then(staffMapper).should().toResponseDtoList(List.of(staffMember1, staffMember2));
     }
 

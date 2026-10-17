@@ -232,3 +232,10 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 
 - TURN-96 backend integrado mediante #75. PR #76 actualizado a base `develop` tras ese merge; incorporada la cobertura vigente de Flyway y ajustadas versiones esperadas para V1002. TURN-98 continúa pendiente de revisión e integración.
 - Validación de #76 contra `develop` actualizado: `make test`, 480 aprobados sin fallos ni omisiones. Conflicto documental resuelto conservando ambos registros y cobertura de V3/V1001/V1002 reconciliada.
+
+## TURN-77 — Listado real de profesionales
+
+- Implementación local: rama `feature/TURN-77-staff-list`, basada en TURN-98. GET `/api/v1/staff-members` pasa de array a `{ data, page }`; búsqueda parcial por nombre/rol/especialidad, estado, paginación y orden estable por nombre e ID, siempre en el negocio autenticado. Validación central de orden y límites; sin migraciones. Consulta interna anterior conservada.
+- Contrato y OpenAPI actualizados; cobertura de filtros combinados, campos opcionales nulos, duplicados, aislamiento, vacíos y parámetros inválidos. Validación automatizada: ver resultados finales en la guía frontend `docs/qa-turn-77.md`.
+- QA manual aprobada por el usuario; paginación cubierta por automatización por disponer de menos de 20 profesionales. Integración: pendiente. PR backend separado autorizado; integrar antes del frontend por el cambio de formato HTTP. Ajustar base cuando se integren las dependencias TURN-98.
+- Verificación final backend: suite completa aprobada, 484 tests sin fallos ni omisiones, incluyendo PostgreSQL/Testcontainers en Colima. QA manual aprobada; integración pendiente.

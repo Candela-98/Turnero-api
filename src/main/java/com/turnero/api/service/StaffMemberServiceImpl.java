@@ -17,13 +17,23 @@ import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.StaffWorkingHoursRepository;
 import com.turnero.api.repository.UserRepository;
+
+import jakarta.persistence.criteria.Predicate;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -120,6 +130,29 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         log.info("Staffmember with id={} successfully updated.", id);
 
         return updatedStaffMember;
+    }
+
+    @Override
+    public Page<StaffMember> listStaffMembers(String q, StaffMemberStatus status, int page, int size, Sort ordering) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        if (page < 0 || size < 1 || size > 100 || (q != null && q.length() > 100)) {
+            throw new IllegalArgumentException("Invalid staff member list parameter");
+        }
+        String search = q == null ? null : q.trim().toLowerCase(Locale.ROOT);
+        Specification<StaffMember> filters = (root, query, builder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(builder.equal(root.get("businessId"), businessId));
+            if (search != null && !search.isEmpty()) {
+                String pattern = "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+                predicates.add(builder.or(
+                        builder.like(builder.lower(root.get("name")), pattern, '\\'),
+                        builder.like(builder.lower(root.get("roleLabel")), pattern, '\\'),
+                        builder.like(builder.lower(root.get("specialty")), pattern, '\\')));
+            }
+            if (status != null) predicates.add(builder.equal(root.get("status"), status));
+            return builder.and(predicates.toArray(new Predicate[0]));
+        };
+        return staffMemberRepository.findAll(filters, PageRequest.of(page, size, ordering));
     }
 
     @Override

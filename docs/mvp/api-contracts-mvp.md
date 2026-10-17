@@ -564,7 +564,15 @@ size=20
 sort=name,asc
 ```
 
-Response `200 OK`: page de `StaffMemberSummary`.
+Búsqueda parcial sin distinguir mayúsculas por nombre, rol y especialidad; combinable con estado y limitada al negocio autenticado. Se escapan comodines SQL. `page` >= 0, `size` 1–100 (predeterminado 20), `q` máximo 100 caracteres. Orden permitido: `name,asc` (predeterminado) o `name,desc`, siempre con `id,asc` como desempate. Parámetros inválidos: `400`.
+
+Response `200 OK` (reemplaza el array anterior):
+
+```json
+{"data":[{"id":1,"business_id":1,"user_id":null,"name":"Ana","role_label":null,"specialty":null,"avatar_url":null,"status":"ACTIVE"}],"page":{"number":0,"size":20,"total_elements":1,"total_pages":1}}
+```
+
+Conserva todos los campos de `StaffMemberResponseDto`; sin resultados devuelve `data: []`. No requiere migración. Integrar backend antes del frontend TURN-77.
 
 ### POST `/api/v1/staff-members`
 
