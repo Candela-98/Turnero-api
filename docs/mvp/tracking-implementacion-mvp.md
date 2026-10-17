@@ -252,3 +252,5 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - QA de vinculación: nuevo GET `/api/v1/staff-members/me`, limitado al usuario de sesión y negocio; devuelve `staff_member` o null, incluidos inactivos. Permite bloquear preventivamente una segunda vinculación sin recorrer páginas ni depender de filtros. Sin migraciones; requiere reiniciar API. Pruebas de sesión, negocio y consulta sin vínculo añadidas.
 
 - Verificación de la consulta de vinculación: suite backend completa 495 aprobadas, sin fallos ni omisiones; incluye aislamiento por sesión/negocio, usuario sin vínculo, profesional inactivo y rechazo sin sesión.
+
+- PRs TURN-99 creados el 2026-10-17: [backend #78](https://github.com/Candela-98/Turnero-api/pull/78) y [frontend #13](https://github.com/Candela-98/Turnero-frontend/pull/13), ambos sobre sus ramas de TURN-77. QA manual aprobada. Sin revisión de CI ni merge; ajustar bases al integrar dependencias y entregar backend primero.
