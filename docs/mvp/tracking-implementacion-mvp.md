@@ -239,3 +239,5 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - Contrato y OpenAPI actualizados; cobertura de filtros combinados, campos opcionales nulos, duplicados, aislamiento, vacíos y parámetros inválidos. Validación automatizada: ver resultados finales en la guía frontend `docs/qa-turn-77.md`.
 - QA manual aprobada por el usuario; paginación cubierta por automatización por disponer de menos de 20 profesionales. Integración: pendiente. PR backend separado autorizado; integrar antes del frontend por el cambio de formato HTTP. Ajustar base cuando se integren las dependencias TURN-98.
 - Verificación final backend: suite completa aprobada, 484 tests sin fallos ni omisiones, incluyendo PostgreSQL/Testcontainers en Colima. QA manual aprobada; integración pendiente.
+
+- PRs TURN-77 creados: [backend #77](https://github.com/Candela-98/Turnero-api/pull/77) sobre TURN-98 y [frontend #12](https://github.com/Candela-98/Turnero-frontend/pull/12) sobre TURN-98. Sin revisión de CI ni merge por instrucción del usuario. Ajustar bases al integrar dependencias; backend primero.
