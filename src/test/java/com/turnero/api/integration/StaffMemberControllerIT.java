@@ -504,7 +504,7 @@ public class StaffMemberControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<StaffMemberResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<StaffMemberResponseDto> response = objectMapper.readValue(objectMapper.readTree(json).get("data").toString(), new TypeReference<>() {});
 
         assertThat(response)
                 .extracting(StaffMemberResponseDto::getName)
@@ -525,9 +525,70 @@ public class StaffMemberControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<StaffMember> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<StaffMember> response = objectMapper.readValue(objectMapper.readTree(json).get("data").toString(), new TypeReference<>() {});
 
         assertThat(response).isEmpty();
+    }
+
+    @Test
+    void listStaffMembers_filtersSearchesAndScopesWithStablePagination() throws Exception {
+        StaffMember first = staffMemberRepository.save(StaffMember.builder().businessId(1L)
+                .name("Ana").roleLabel("Directora").specialty(null).status(StaffMemberStatus.ACTIVE).build());
+        StaffMember second = staffMemberRepository.save(StaffMember.builder().businessId(1L)
+                .name("Ana").roleLabel(null).specialty("Colorista").status(StaffMemberStatus.INACTIVE).build());
+        staffMemberRepository.save(StaffMember.builder().businessId(2L).name("Ana")
+                .roleLabel("Directora").specialty("Colorista").status(StaffMemberStatus.ACTIVE).build());
+        for (String search : List.of("aNA", "RECT", "LORIS")) {
+            mockMvc.perform(get(BASE_URL).param("q", search))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.page.total_elements").value(search.equals("aNA") ? 2 : 1));
+        }
+        for (String sort : List.of("name,asc", "name,desc")) {
+            mockMvc.perform(get(BASE_URL).param("size", "1").param("sort", sort))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(first.getId()))
+                    .andExpect(jsonPath("$.page.total_pages").value(2));
+            mockMvc.perform(get(BASE_URL).param("size", "1").param("page", "1").param("sort", sort))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(second.getId()));
+        }
+        mockMvc.perform(get(BASE_URL).param("q", "ANA").param("status", "INACTIVE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(second.getId()))
+                .andExpect(jsonPath("$.page.total_elements").value(1));
+        mockMvc.perform(get(BASE_URL).param("q", "Directora").param("status", "INACTIVE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+        mockMvc.perform(get(BASE_URL).param("q", "%"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+        mockMvc.perform(get(BASE_URL).param("page", "10"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void listStaffMembers_preservesOptionalFieldsDefaultsAndNameOrdering() throws Exception {
+        staffMemberRepository.save(StaffMember.builder().businessId(1L).name("Zoe")
+                .status(StaffMemberStatus.ACTIVE).build());
+        staffMemberRepository.save(StaffMember.builder().businessId(1L).name("Ana")
+                .status(StaffMemberStatus.INACTIVE).build());
+        mockMvc.perform(get(BASE_URL))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].name").value("Ana"))
+                .andExpect(jsonPath("$.data[0].role_label").isEmpty())
+                .andExpect(jsonPath("$.data[0].specialty").isEmpty())
+                .andExpect(jsonPath("$.data[0].avatar_url").isEmpty())
+                .andExpect(jsonPath("$.data[0].business_id").value(1))
+                .andExpect(jsonPath("$.page.number").value(0)).andExpect(jsonPath("$.page.size").value(20));
+        mockMvc.perform(get(BASE_URL).param("sort", "name,desc").param("size", "100"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].name").value("Zoe"));
+        mockMvc.perform(get(BASE_URL).param("q", "x".repeat(100)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void listStaffMembers_rejectsInvalidParameters() throws Exception {
+        String[][] invalid = {{"page", "-1"}, {"page", "abc"}, {"size", "0"}, {"size", "101"},
+                {"q", "x".repeat(101)}, {"status", "ALL"}, {"sort", "id,asc"},
+                {"sort", "name,invalid"}, {"sort", "name,asc,id"}};
+        for (String[] parameter : invalid) {
+            mockMvc.perform(get(BASE_URL).param(parameter[0], parameter[1]))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.turnero.api.controller;
 
+import com.turnero.api.dto.StaffMemberPageResponseDto;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
@@ -7,13 +8,18 @@ import com.turnero.api.dto.StaffWorkingHoursRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursResponseDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.openapi.*;
 import com.turnero.api.service.StaffMemberService;
+import com.turnero.api.service.StaffMemberSort;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -95,14 +101,21 @@ public class StaffMemberController {
 
     @Operation(
             summary = "Obtener todos los profesionales",
-            description = "Obtiene una lista de todos los profesionales registrados en el sistema"
+            description = "Filtra por nombre, rol, especialidad y estado del negocio autenticado. Página desde 0, tamaño 1–100 (20 por defecto), q hasta 100 caracteres; orden name,asc o name,desc con id ascendente como desempate. Parámetros inválidos devuelven 400."
     )
     @ApiFindAllResponses
     @GetMapping
-    public ResponseEntity<List<StaffMemberResponseDto>> findAllStaffMember() {
-        var staffMembers = staffMemberService.findAllStaffMember();
-        var staffMembersResponseDto = staffMemberMapper.toResponseDtoList(staffMembers);
-        return ResponseEntity.ok(staffMembersResponseDto);
+    public ResponseEntity<StaffMemberPageResponseDto> findAllStaffMember(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) StaffMemberStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = StaffMemberSort.DEFAULT_PARAMETER) String sort) {
+        var members = staffMemberService.listStaffMembers(q, status, page, size, StaffMemberSort.fromParameter(sort));
+        return ResponseEntity.ok(new StaffMemberPageResponseDto(
+                staffMemberMapper.toResponseDtoList(members.getContent()),
+                new StaffMemberPageResponseDto.PageInfo(members.getNumber(), members.getSize(),
+                        members.getTotalElements(), members.getTotalPages())));
     }
 
     @Operation(
