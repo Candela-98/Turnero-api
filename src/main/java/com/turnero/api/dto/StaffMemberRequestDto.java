@@ -23,7 +23,7 @@ public class StaffMemberRequestDto {
     private String name;
 
     @Schema(description = "The staffmember's role label", example = "Senior barber")
-    @Size(max = 100, message = "The staffmember's role label must have at most 100 characters.")
+    @Size(max = 80, message = "The staffmember's role label must have at most 80 characters.")
     private String roleLabel;
 
     @Schema(description = "The staffmember's specialty", example = "Hairdresser")

@@ -1,6 +1,8 @@
 package com.turnero.api.controller;
 
 import com.turnero.api.dto.StaffMemberPageResponseDto;
+import com.turnero.api.dto.StaffMemberLinkResponseDto;
+import com.turnero.api.auth.AuthenticatedUserContext;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
@@ -34,24 +36,27 @@ import java.util.List;
 @RequestMapping("/api/v1/staff-members")
 public class StaffMemberController {
 
+    private final AuthenticatedUserContext authenticatedUserContext;
     private final StaffMemberService staffMemberService;
     private final StaffMemberMapper staffMemberMapper;
 
-    public StaffMemberController(StaffMemberService staffMemberService, StaffMemberMapper staffMemberMapper) {
+    public StaffMemberController(StaffMemberService staffMemberService, StaffMemberMapper staffMemberMapper, AuthenticatedUserContext authenticatedUserContext) {
+        this.authenticatedUserContext = authenticatedUserContext;
         this.staffMemberService = staffMemberService;
         this.staffMemberMapper = staffMemberMapper;
     }
 
     @Operation(
             summary = "Crear profesional",
-            description = "Crea un nuevo profesional en el sistema"
+            description = "Crea un profesional activo y copia los horarios del negocio. Rol de hasta 80 caracteres. Si user_id ya está vinculado, devuelve 409 STAFF_USER_ALREADY_LINKED."
     )
     @ApiCreateResponses
+    @ApiResponse(responseCode = "409", description = "STAFF_USER_ALREADY_LINKED: el usuario ya está vinculado a un profesional")
     @PostMapping
     public ResponseEntity<StaffMemberResponseDto> saveStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto) {
         var staff = staffMemberMapper.toEntity(staffDto);
-        staffMemberService.saveStaffMember(staff);
-        var staffResponseDto = staffMemberMapper.toResponseDto(staff);
+        var saved = staffMemberService.saveStaffMember(staff);
+        var staffResponseDto = staffMemberMapper.toResponseDto(saved);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(staffResponseDto);
     }
@@ -66,6 +71,13 @@ public class StaffMemberController {
         var staff = staffMemberService.findStaffMember(id);
             var staffResponseDto = staffMemberMapper.toResponseDto(staff);
         return ResponseEntity.ok(staffResponseDto);
+    }
+
+    @Operation(summary = "Obtener mi profesional vinculado", description = "Consulta por usuario de sesión y negocio autenticado, independiente de filtros, estado y paginación. Devuelve staff_member null si no existe vinculación; incluye profesionales inactivos.")
+    @GetMapping("/me")
+    public ResponseEntity<StaffMemberLinkResponseDto> findCurrentStaffMember() {
+        var member = staffMemberService.findStaffMemberForUser(authenticatedUserContext.getRequiredUser().getId());
+        return ResponseEntity.ok(new StaffMemberLinkResponseDto(member.map(staffMemberMapper::toResponseDto).orElse(null)));
     }
 
     @GetMapping("/{id}/working-hours")

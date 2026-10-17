@@ -40,6 +40,8 @@ public class StaffMemberControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
+    private com.turnero.api.auth.AuthenticatedUserContext authenticatedUserContext;
+    @MockitoBean
     private StaffMemberService staffService;
     @MockitoBean
     private StaffMemberMapper staffMapper;
@@ -90,6 +92,18 @@ public class StaffMemberControllerTest {
     }
 
     @Test
+    void currentLink_returnsTheSessionUsersMemberOrExplicitNull() throws Exception {
+        given(authenticatedUserContext.getRequiredUser()).willReturn(com.turnero.api.model.User.builder().id(20L).build());
+        given(staffService.findStaffMemberForUser(20L)).willReturn(java.util.Optional.empty());
+        mockMvc.perform(get(BASE_URL + "/me")).andExpect(status().isOk()).andExpect(jsonPath("$.staff_member").isEmpty());
+        var member = getStaffMemberEntity(1L);
+        given(staffService.findStaffMemberForUser(20L)).willReturn(java.util.Optional.of(member));
+        given(staffMapper.toResponseDto(member)).willReturn(getStaffMemberResponseDTO(1L));
+        mockMvc.perform(get(BASE_URL + "/me")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.staff_member.user_id").value(20));
+    }
+
+    @Test
     void saveStaffMember_ok_shouldReturn200_andCallService() throws Exception{
         // Given
         Long id = 1L;
@@ -98,6 +112,7 @@ public class StaffMemberControllerTest {
         var responseDto = getStaffMemberResponseDTO(id);
 
         given(staffMapper.toEntity(any(StaffMemberRequestDto.class))).willReturn(entity);
+        given(staffService.saveStaffMember(entity)).willReturn(entity);
         given(staffMapper.toResponseDto(any(StaffMember.class))).willReturn(responseDto);
 
         // When
@@ -110,6 +125,42 @@ public class StaffMemberControllerTest {
         then(staffMapper).should().toEntity(any(StaffMemberRequestDto.class));
         then(staffService).should().saveStaffMember(entity);
         then(staffMapper).should().toResponseDto(entity);
+    }
+
+    @Test
+    void saveStaffMember_duplicateUser_returnsStructuredConflict() throws Exception {
+        given(staffMapper.toEntity(any())).willReturn(getStaffMemberEntity(1L));
+        given(staffService.saveStaffMember(any())).willThrow(new com.turnero.api.exception.StaffUserAlreadyLinkedException());
+        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(getStaffMemberDTO(1L))))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STAFF_USER_ALREADY_LINKED"));
+    }
+
+    @Test
+    void roleLimit_isValidatedForCreateAndUpdate() throws Exception {
+        var dto = getStaffMemberDTO(1L);
+        dto.setRoleLabel("x".repeat(81));
+        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(patch(BASE_URL + "/1").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role_label\":\"" + "x".repeat(81) + "\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void roleOfEightyCharacters_isAcceptedForCreateAndUpdate() throws Exception {
+        var dto = getStaffMemberDTO(1L);
+        dto.setRoleLabel("x".repeat(80));
+        var entity = getStaffMemberEntity(1L);
+        given(staffMapper.toEntity(any())).willReturn(entity);
+        given(staffService.saveStaffMember(any())).willReturn(entity);
+        given(staffService.updateStaffMember(any(), eq(1L))).willReturn(entity);
+        given(staffMapper.toResponseDto(any(StaffMember.class))).willReturn(getStaffMemberResponseDTO(1L));
+        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(patch(BASE_URL + "/1").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role_label\":\"" + "x".repeat(80) + "\"}"))
+                .andExpect(status().isOk());
     }
 
     @Test

@@ -240,6 +240,26 @@ public class StaffMemberControllerIT {
     }
 
     @Test
+    void myStaffLink_usesSessionAndBusinessAndIncludesInactiveStaff() throws Exception {
+        var cookie = adminAuth().ownerSessionCookie(1L);
+        Long ownerId = sessionService.validateSession(cookie.getValue()).getUserId();
+        mockMvc.perform(get(BASE_URL + "/me").cookie(cookie)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.staff_member").isEmpty());
+        StaffMember member = getStaffMember();
+        member.setUserId(ownerId);
+        member.setStatus(StaffMemberStatus.INACTIVE);
+        var saved = staffMemberRepository.saveAndFlush(member);
+        mockMvc.perform(get(BASE_URL + "/me").cookie(cookie)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.staff_member.id").value(saved.getId()))
+                .andExpect(jsonPath("$.staff_member.status").value("INACTIVE"));
+        var otherCookie = adminAuth().ownerSessionCookie(2L);
+        mockMvc.perform(get(BASE_URL + "/me").cookie(otherCookie).param("user_id", ownerId.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.staff_member").isEmpty());
+        MockMvcBuilders.webAppContextSetup(webApplicationContext).build().perform(get(BASE_URL + "/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void saveStaffMember_whenRequestIsValid_persistsStaffMember_andReturns201() throws Exception {
         //Given
         StaffMemberRequestDto dto = getStaffMemberRequestDto();
