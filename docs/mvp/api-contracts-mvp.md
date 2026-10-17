@@ -803,6 +803,20 @@ Reglas:
 - Setea `status = INACTIVE`.
 - No borra historial.
 
+### DELETE `/api/v1/service-offerings/{service_offering_id}/catalog`
+
+Admin autenticado. Elimina del catálogo mediante borrado lógico independiente de desactivar.
+
+Response `204 No Content`. `409 Conflict` si el servicio está activo; `404 Not Found` si no existe, ya fue eliminado o pertenece a otro negocio.
+
+Reglas:
+
+- Requiere `status = INACTIVE` y asigna `deleted_at` / `updated_at`.
+- Excluye el servicio de listado, categorías, selección para nuevos turnos, booking público y asociaciones nuevas. Una categoría sigue visible si otro servicio no eliminado la utiliza.
+- GET y PATCH del catálogo devuelven 404 para eliminados; no se restauran desde la app.
+- Conserva la fila y las referencias históricas de turnos; las consultas históricas y la cancelación de turnos existentes pueden seguir recuperando sus datos.
+- Editar, desactivar y eliminar serializan sus cambios con bloqueo de fila dentro de una transacción para evitar una restauración concurrente.
+
 ## Asociacion staff-service
 
 ### GET `/api/v1/staff-members/{staff_member_id}/service-offerings`

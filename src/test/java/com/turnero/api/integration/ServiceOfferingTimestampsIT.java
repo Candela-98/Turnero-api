@@ -109,4 +109,46 @@ class ServiceOfferingTimestampsIT {
         assertThat(deactivated.getCreatedAt()).isEqualTo(original);
         assertThat(deactivated.getUpdatedAt()).isAfterOrEqualTo(editedAt);
     }
+    @Test
+    void logicalRemovalRequiresInactiveAndRetainsTheRowButExcludesCatalogAndCategories() throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        Long id = offerings.saveAndFlush(ServiceOffering.builder()
+                .businessId(businessId).name("Retirar").category("Única")
+                .durationMinutes(30).priceCents(600000).status(ServiceOfferingStatus.ACTIVE)
+                .createdAt(now).updatedAt(now).build()).getId();
+        mvc.perform(delete("/api/v1/service-offerings/{id}/catalog", id)).andExpect(status().isConflict());
+        assertThat(offerings.findById(id).orElseThrow().getDeletedAt()).isNull();
+        mvc.perform(delete("/api/v1/service-offerings/{id}", id)).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/service-offerings/{id}/catalog", id)).andExpect(status().isNoContent());
+        offerings.flush(); entityManager.clear();
+        var retained = offerings.findByIdAndBusinessId(id, businessId).orElseThrow();
+        assertThat(retained.getDeletedAt()).isNotNull();
+        assertThat(retained.getName()).isEqualTo("Retirar");
+        assertThat(retained.getStatus()).isEqualTo(ServiceOfferingStatus.INACTIVE);
+        mvc.perform(get("/api/v1/service-offerings")).andExpect(jsonPath("$.page.total_elements").value(0));
+        mvc.perform(get("/api/v1/service-offerings").param("status", "INACTIVE").param("q", "Retirar"))
+                .andExpect(jsonPath("$.data").isEmpty());
+        mvc.perform(get("/api/v1/service-offerings/categories")).andExpect(jsonPath("$").isEmpty());
+        mvc.perform(get("/api/v1/service-offerings/{id}", id)).andExpect(status().isNotFound());
+        mvc.perform(patch("/api/v1/service-offerings/{id}", id).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"ACTIVE\"}")).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/service-offerings/{id}/catalog", id)).andExpect(status().isNotFound());
+        assertThat(offerings.findByBusinessId(businessId)).isEmpty();
+        assertThat(offerings.findAllByIdInAndBusinessId(java.util.List.of(id), businessId)).isEmpty();
+    }
+
+    @Test
+    void removalCannotAffectAnotherBusiness() throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        Long otherBusinessId = businessRepository.saveAndFlush(Business.builder()
+                .name("Otro").slug("other-removal").timezone("America/Argentina/Buenos_Aires")
+                .status(BusinessStatus.ACTIVE).onboardingStatus(BusinessOnboardingStatus.PENDING_SETUP)
+                .createdAt(now).updatedAt(now).build()).getId();
+        Long id = offerings.saveAndFlush(ServiceOffering.builder().businessId(otherBusinessId).name("Ajeno")
+                .durationMinutes(30).priceCents(100).status(ServiceOfferingStatus.INACTIVE)
+                .createdAt(now).updatedAt(now).build()).getId();
+        mvc.perform(delete("/api/v1/service-offerings/{id}/catalog", id)).andExpect(status().isNotFound());
+        assertThat(offerings.findById(id).orElseThrow().getDeletedAt()).isNull();
+    }
+
 }

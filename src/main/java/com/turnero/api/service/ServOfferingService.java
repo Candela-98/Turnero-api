@@ -21,4 +21,6 @@ public interface ServOfferingService {
     ServiceOffering updateServOffering(ServOfferingUpdateRequestDto servOfferigUpdateDto, Long id);
 
     void deleteServOffering(Long id);
+
+    void removeFromCatalog(Long id);
 }

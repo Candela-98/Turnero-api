@@ -110,7 +110,7 @@ public class ServiceOfferingServiceImplTest {
                         .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(currentServiceOffering));
+        when(servOfferingRepository.findForUpdate(id, businessId)).thenReturn(Optional.of(currentServiceOffering));
         when(servOfferingRepository.save(currentServiceOffering)).thenReturn(currentServiceOffering);
 
         ServiceOffering result = servOfferingService.updateServOffering(updateRequest, id);
@@ -122,7 +122,7 @@ public class ServiceOfferingServiceImplTest {
         assertSame(currentServiceOffering, result);
 
         verify(currentBusinessContext, times(1)).getCurrentBusinessId();
-        verify(servOfferingRepository, times(1)).findByIdAndBusinessId(id, businessId);
+        verify(servOfferingRepository, times(1)).findForUpdate(id, businessId);
         verify(servOfferingRepository, times(1)).save(currentServiceOffering);
     }
 
@@ -136,7 +136,7 @@ public class ServiceOfferingServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+        when(servOfferingRepository.findForUpdate(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> servOfferingService.updateServOffering(updatedServiceOffering, id));
@@ -144,7 +144,7 @@ public class ServiceOfferingServiceImplTest {
         assertEquals("Service offering not found with ID: " + id, exception.getMessage());
 
         verify(currentBusinessContext, times(1)).getCurrentBusinessId();
-        verify(servOfferingRepository, times(1)).findByIdAndBusinessId(id, businessId);
+        verify(servOfferingRepository, times(1)).findForUpdate(id, businessId);
         verify(servOfferingRepository, never()).save(any());
     }
 
@@ -159,7 +159,7 @@ public class ServiceOfferingServiceImplTest {
         serviceOffering.setStatus(ServiceOfferingStatus.ACTIVE);
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(serviceOffering));
+        when(servOfferingRepository.findForUpdate(id, businessId)).thenReturn(Optional.of(serviceOffering));
         when(servOfferingRepository.save(serviceOffering)).thenReturn(serviceOffering);
 
         servOfferingService.deleteServOffering(id);
@@ -167,7 +167,7 @@ public class ServiceOfferingServiceImplTest {
         assertEquals(ServiceOfferingStatus.INACTIVE, serviceOffering.getStatus());
 
         verify(currentBusinessContext).getCurrentBusinessId();
-        verify(servOfferingRepository).findByIdAndBusinessId(id, businessId);
+        verify(servOfferingRepository).findForUpdate(id, businessId);
         verify(servOfferingRepository).save(serviceOffering);
         verify(servOfferingRepository, never()).deleteById(anyLong());
     }
@@ -178,14 +178,14 @@ public class ServiceOfferingServiceImplTest {
         Long businessId = 1L;
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(servOfferingRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+        when(servOfferingRepository.findForUpdate(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> servOfferingService.deleteServOffering(id));
 
         assertEquals("Service offering not found with ID: " + id, exception.getMessage());
 
         verify(currentBusinessContext).getCurrentBusinessId();
-        verify(servOfferingRepository).findByIdAndBusinessId(id, businessId);
+        verify(servOfferingRepository).findForUpdate(id, businessId);
         verify(servOfferingRepository, never()).save(any());
         verify(servOfferingRepository, never()).deleteById(anyLong());
     }

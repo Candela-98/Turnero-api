@@ -159,6 +159,7 @@ public class AvailabilityServiceImpl implements AvailabilityService{
         validateDateRange(from, to);
 
         ServiceOffering serviceOffering = servOfferingRepository.findByIdAndBusinessId(serviceOfferingId, businessId)
+                .filter(service -> service.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Service offering not found."));
 
         if (!staffMemberRepository.existsByIdAndBusinessId(staffMemberId, businessId)) {

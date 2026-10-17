@@ -15,6 +15,7 @@ public interface ServiceOfferingMapper {
     @Mapping(target = "businessId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
     ServiceOffering toEntity(ServOfferingRequestDto dto);
 
     ServOfferingResponseDto toResponseDto(ServiceOffering entity);
