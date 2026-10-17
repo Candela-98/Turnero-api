@@ -582,6 +582,20 @@ public class StaffMemberServiceImplTest {
                 .isAvailable(available)
                 .build();
     }
+    @Test
+    void emptyPageDoesNotQueryServiceCounts() {
+        assertEquals(java.util.Map.of(), staffMemberService.getServiceCounts(List.of()));
+        verifyNoInteractions(staffMemberRepository, currentBusinessContext);
+    }
+    @Test
+    void countsTheRequestedPageInOneScopedQuery() {
+        var projection = mock(StaffMemberRepository.ServiceCount.class);
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
+        when(projection.getStaffMemberId()).thenReturn(10L);
+        when(projection.getServiceCount()).thenReturn(5L);
+        when(staffMemberRepository.countServicesForStaff(List.of(10L, 20L), 1L)).thenReturn(List.of(projection));
+        assertEquals(java.util.Map.of(10L, 5L), staffMemberService.getServiceCounts(List.of(10L, 20L)));
+        verify(staffMemberRepository, times(1)).countServicesForStaff(List.of(10L, 20L), 1L);
+        verifyNoMoreInteractions(staffMemberRepository);
+    }
 }
-
-

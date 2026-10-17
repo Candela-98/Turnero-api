@@ -569,10 +569,12 @@ Búsqueda parcial sin distinguir mayúsculas por nombre, rol y especialidad; com
 Response `200 OK` (reemplaza el array anterior):
 
 ```json
-{"data":[{"id":1,"business_id":1,"user_id":null,"name":"Ana","role_label":null,"specialty":null,"avatar_url":null,"status":"ACTIVE"}],"page":{"number":0,"size":20,"total_elements":1,"total_pages":1}}
+{"data":[{"id":1,"business_id":1,"user_id":null,"name":"Ana","role_label":null,"specialty":null,"avatar_url":null,"status":"ACTIVE","service_count":0}],"page":{"number":0,"size":20,"total_elements":1,"total_pages":1}}
 ```
 
-Conserva todos los campos de `StaffMemberResponseDto`; sin resultados devuelve `data: []`. No requiere migración. Integrar backend antes del frontend TURN-77.
+`service_count` se incluye en cada elemento del listado: cantidad de servicios asignados, incluidos los inactivos, excluyendo eliminados y servicios ajenos al negocio. Sin asignaciones vale 0. Se calcula mediante una única consulta agregada para los IDs de la página; no carga el catálogo ni consulta por profesional. Este campo derivado no se incluye en detalle/alta/edición ni en `/me`.
+
+Conserva los demás campos de `StaffMemberResponseDto`; sin resultados devuelve `data: []`. No requiere migración. Integrar backend antes del frontend TURN-77.
 
 ### GET `/api/v1/staff-members/me`
 
@@ -838,51 +840,41 @@ Reglas:
 
 ### GET `/api/v1/staff-members/{staff_member_id}/service-offerings`
 
-Admin autenticado.
+Admin autenticado. Devuelve un **array**, sin wrapper ni paginación, con las asociaciones actuales del profesional dentro del negocio. Incluye inactivos conservados; excluye servicios eliminados del catálogo. Profesional inexistente o ajeno: `404`.
 
 Response `200 OK`:
 
 ```json
-{
-  "data": [
-    {
-      "id": 20,
-      "name": "Corte + barba",
-      "category": "Combo",
-      "duration_minutes": 90,
-      "price_cents": 1650000,
-      "status": "ACTIVE"
-    }
-  ]
-}
+[
+  {
+    "id": 20,
+    "name": "Corte + barba",
+    "category": "Combo",
+    "duration_minutes": 90,
+    "price_cents": 1650000,
+    "status": "ACTIVE"
+  }
+]
 ```
 
 ### PUT `/api/v1/staff-members/{staff_member_id}/service-offerings`
 
-Admin autenticado. Reemplaza asociaciones del profesional.
-
-Request:
+Admin autenticado. Reemplaza el conjunto completo de asociaciones; admite profesionales activos e inactivos.
 
 ```json
-{
-  "service_offering_ids": [20, 21]
-}
+{ "service_offering_ids": [20, 21] }
 ```
 
-Response `200 OK`:
+Response **`204 No Content`**, sin cuerpo.
 
-```json
-{
-  "staff_member_id": 1,
-  "service_offering_ids": [20, 21]
-}
-```
-
-Reglas:
-
-- Staff y servicios deben pertenecer al negocio autenticado.
-- Servicios inactivos pueden rechazarse para nuevas asociaciones. Decision recomendada MVP: rechazar `INACTIVE` con `400 VALIDATION_ERROR`.
-- Remover una asociacion no modifica appointments existentes.
+- `[]` quita todas las asociaciones. Se normalizan duplicados; orden de IDs irrelevante.
+- Lista ausente/nula, elementos nulos o IDs no positivos: `400 VALIDATION_ERROR`.
+- Profesional o servicio inexistente, ajeno al negocio o servicio eliminado: `404 NOT_FOUND`.
+- Inactivo ya asociado: se puede conservar o quitar. Inactivo nuevo: `409 INVALID_STATE_TRANSITION`.
+- La condición de asociación existente se comprueba en la DB al guardar. Tras quitar un inactivo, no puede reasignarse mientras siga inactivo.
+- Transacción con bloqueo del profesional y servicios solicitados en orden de ID; validación previa a escrituras, actualización por diferencia y rollback completo ante errores. Reemplazos concurrentes se serializan sin mezclar conjuntos.
+- Remover asociaciones no modifica turnos futuros ni históricos. No requiere migraciones.
+- El catálogo de selección consume `GET /service-offerings?status=ACTIVE&q=...&page=0&size=20&sort=name,asc`; no descarga todo el catálogo.
 
 ## Customers
 

@@ -166,6 +166,15 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, Long> getServiceCounts(List<Long> staffIds) {
+        if (staffIds.isEmpty()) return java.util.Map.of();
+        return staffMemberRepository.countServicesForStaff(staffIds, currentBusinessContext.getCurrentBusinessId()).stream()
+                .collect(Collectors.toMap(StaffMemberRepository.ServiceCount::getStaffMemberId,
+                        StaffMemberRepository.ServiceCount::getServiceCount));
+    }
+
+    @Override
     public List<StaffMember> findAllStaffMember() {
 
         Long businessId = currentBusinessContext.getCurrentBusinessId();

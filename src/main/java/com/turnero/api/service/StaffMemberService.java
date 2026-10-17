@@ -25,6 +25,8 @@ public interface StaffMemberService {
             StaffMemberStatus status, int page, int size,
             Sort ordering);
 
+    java.util.Map<Long, Long> getServiceCounts(List<Long> staffIds);
+
     StaffMember updateStaffMember(StaffMemberUpdateRequestDto staffMemberUpdateDto, Long id);
 
     List<StaffWorkingHoursResponseDto> getWorkingHours(Long staffMemberId);
