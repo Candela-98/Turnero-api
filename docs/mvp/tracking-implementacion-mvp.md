@@ -268,3 +268,17 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - PRs TURN-78 creados el 2026-10-17: [backend #79](https://github.com/Candela-98/Turnero-api/pull/79) y [frontend #14](https://github.com/Candela-98/Turnero-frontend/pull/14), ambos sobre `feature/TURN-99-staff-form`. QA manual aprobada. Sin revisión de CI ni merge; ajustar bases al integrar TURN-99 y entregar backend primero.
 
 - Integración de dependencias autorizada por el usuario el 2026-10-17 sin esperar approvals: TURN-98 [#76](https://github.com/Candela-98/Turnero-api/pull/76), TURN-77 [#77](https://github.com/Candela-98/Turnero-api/pull/77) y TURN-99 [#78](https://github.com/Candela-98/Turnero-api/pull/78) mergeados, en ese orden, a `develop` con commits de merge. TURN-78 [#79](https://github.com/Candela-98/Turnero-api/pull/79) queda abierto sobre `develop`, sin conflictos; frontend relacionado [#14](https://github.com/Candela-98/Turnero-frontend/pull/14) sobre `dev`. Sin consultar CI. Integrar TURN-78 backend antes del frontend.
+
+
+## TURN-79 — Horarios semanales por profesional (2026-10-17)
+
+- Implementación en `feature/TURN-79-staff-hours`, basada en TURN-78. GET normaliza siete días sin escribir; PUT valida semana completa y conserva IDs, normaliza no disponibles a horas nulas y usa el bloqueo del profesional compartido con reservas públicas. Contrato y OpenAPI reflejan arrays directos y respuesta 200. Sin migraciones.
+- QA automatizada: suite Gradle completa aprobada; pruebas PostgreSQL de lectura sin escrituras, semana parcial/vacía, IDs estables, inactivos, aislamiento, rollback, concurrencia, disponibilidad efectiva y turnos intactos. Validación HTTP y servicio incluyen cuerpos mal formados y valores nulos.
+- QA manual pendiente: ver la [guía local TURN-79](../../../turnero-frontend/docs/pruebas-locales-turn-79.md). Reiniciar backend antes de probar.
+- Integración pendiente: TURN-78 backend #79 y frontend #14 siguen como dependencias. Preparar PRs separados después de la aprobación manual e integrar backend primero. No revisar CI ni mergear automáticamente. Agenda y formularios de turnos permanecen demo.
+
+- Verificación backend final: 527 pruebas aprobadas, sin errores, fallos ni omisiones, incluida validación estricta HH:mm (24:00 rechazada) y seis pruebas de integración PostgreSQL de horarios. Frontend completo: lint/TypeScript/119 unitarios/build y 307 E2E aprobados con 14 omisiones preexistentes. QA manual e integración siguen pendientes.
+
+- QA manual final aprobada por el usuario el 2026-10-17, incluidos los avisos informativos sobre límites del negocio en frontend. Creación de PRs separados autorizada; TURN-79 se entrega sobre las ramas de TURN-78 mientras #79/#14 permanezcan abiertos. Integrar backend antes que frontend y ajustar bases a develop/dev al integrar TURN-78. Sin revisión de CI ni merge automático.
+
+- PRs TURN-79 creados el 2026-10-17: [backend #80](https://github.com/Candela-98/Turnero-api/pull/80) y [frontend #15](https://github.com/Candela-98/Turnero-frontend/pull/15), ambos sobre feature/TURN-78-staff-services. QA manual aprobada; abiertos para revisión. Sin consultar CI ni mergear. Tras integrar TURN-78, ajustar bases a develop/dev e integrar TURN-79 backend primero.
