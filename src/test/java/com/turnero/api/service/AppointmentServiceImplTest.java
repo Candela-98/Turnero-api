@@ -56,6 +56,12 @@ class AppointmentServiceImplTest {
     @Mock
     private StaffMemberRepository staffMemberRepository;
 
+    @org.junit.jupiter.api.BeforeEach void activeStaffLock() {
+        lenient().when(staffMemberRepository.findByIdAndBusinessIdForUpdate(anyLong(), anyLong()))
+                .thenAnswer(call -> Optional.of(com.turnero.api.model.StaffMember.builder().id(call.getArgument(0))
+                        .businessId(call.getArgument(1)).status(com.turnero.api.model.enums.StaffMemberStatus.ACTIVE).build()));
+    }
+
     private AppointmentRequestDto getRequestDto() {
         return AppointmentRequestDto.builder()
                 .customerId(1L)
