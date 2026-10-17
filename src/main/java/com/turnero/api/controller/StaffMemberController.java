@@ -124,8 +124,11 @@ public class StaffMemberController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = StaffMemberSort.DEFAULT_PARAMETER) String sort) {
         var members = staffMemberService.listStaffMembers(q, status, page, size, StaffMemberSort.fromParameter(sort));
+        var counts = staffMemberService.getServiceCounts(members.getContent().stream().map(StaffMember::getId).toList());
+        var data = staffMemberMapper.toResponseDtoList(members.getContent());
+        data.forEach(member -> member.setServiceCount(counts.getOrDefault(member.getId(), 0L)));
         return ResponseEntity.ok(new StaffMemberPageResponseDto(
-                staffMemberMapper.toResponseDtoList(members.getContent()),
+                data,
                 new StaffMemberPageResponseDto.PageInfo(members.getNumber(), members.getSize(),
                         members.getTotalElements(), members.getTotalPages())));
     }

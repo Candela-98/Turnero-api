@@ -33,6 +33,10 @@ public class StaffMemberResponseDto {
     @Schema(description = "The staff member's avatar URL", example = "https://example.com/avatar.png")
     private String avatarUrl;
 
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    @Schema(description = "Assigned services count, including inactive and excluding removed services. Present in the paginated listing.", example = "5")
+    private Long serviceCount;
+
     @Schema(description = "The staff member's status", example = "ACTIVE")
     private StaffMemberStatus status;
 }
