@@ -4,7 +4,10 @@ import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursResponseDto;
-import com.turnero.api.exception.AppointmentOverlapException;
+import com.turnero.api.exception.StaffHasFutureAppointmentsException;
+import com.turnero.api.repository.BusinessRepository;
+import java.time.Clock;
+import java.time.ZoneId;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.exception.StaffUserAlreadyLinkedException;
 import com.turnero.api.model.BusinessHours;
@@ -49,6 +52,8 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     private final StaffMemberRepository staffMemberRepository;
     private final UserRepository userRepository;
     private final AppointmentRepository appointmentRepository;
+    private final BusinessRepository businessRepository;
+    private final Clock clock;
 
     @Override
     @Transactional
@@ -58,7 +63,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         if (staffMember.getUserId() != null) {
             userRepository.findByIdAndBusinessIdForUpdate(staffMember.getUserId(), businessId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found for current business"));
-            if (staffMemberRepository.existsByUserId(staffMember.getUserId())) {
+            if (staffMemberRepository.existsByUserIdAndDeletedAtIsNull(staffMember.getUserId())) {
                 throw new StaffUserAlreadyLinkedException();
             }
         }
@@ -101,7 +106,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
 
     @Override
     public java.util.Optional<StaffMember> findStaffMemberForUser(Long userId) {
-        return staffMemberRepository.findByUserIdAndBusinessId(userId, currentBusinessContext.getCurrentBusinessId());
+        return staffMemberRepository.findByUserIdAndBusinessIdAndDeletedAtIsNull(userId, currentBusinessContext.getCurrentBusinessId());
     }
 
     @Override
@@ -109,12 +114,20 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
         return staffMemberRepository.findByIdAndBusinessId(id, businessId)
+                .filter(member -> member.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + id));
     }
 
     @Override
+    @Transactional
     public StaffMember updateStaffMember(StaffMemberUpdateRequestDto staffMember, Long id) {
-        StaffMember staffMemberExist = findStaffMember(id);
+        StaffMember staffMemberExist = lockStaffMember(id);
+        if (staffMember.getStatus() == StaffMemberStatus.INACTIVE && staffMemberExist.getStatus() != StaffMemberStatus.INACTIVE) {
+            requireNoFutureAppointments(staffMemberExist);
+        }
+        boolean onlyStatus = staffMember.getName() == null && staffMember.getRoleLabel() == null
+                && staffMember.getSpecialty() == null && staffMember.getAvatarUrl() == null;
+        if (onlyStatus && (staffMember.getStatus() == null || staffMember.getStatus() == staffMemberExist.getStatus())) return staffMemberExist;
 
         if (staffMember.getName() != null) {
             staffMemberExist.setName(staffMember.getName());
@@ -136,6 +149,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
             staffMemberExist.setStatus(staffMember.getStatus());
         }
 
+        staffMemberExist.setUpdatedAt(LocalDateTime.now(clock));
         StaffMember updatedStaffMember = staffMemberRepository.save(staffMemberExist);
         log.info("Staffmember with id={} successfully updated.", id);
 
@@ -152,6 +166,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         Specification<StaffMember> filters = (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(builder.equal(root.get("businessId"), businessId));
+            predicates.add(builder.isNull(root.get("deletedAt")));
             if (search != null && !search.isEmpty()) {
                 String pattern = "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
                 predicates.add(builder.or(
@@ -178,7 +193,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     public List<StaffMember> findAllStaffMember() {
 
         Long businessId = currentBusinessContext.getCurrentBusinessId();
-        return staffMemberRepository.findAllByBusinessId(businessId);
+        return staffMemberRepository.findAllByBusinessId(businessId).stream().filter(member -> member.getDeletedAt() == null).toList();
     }
 
     @Override
@@ -260,30 +275,44 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         }
     }
 
-    @Override
-    public void deleteStaffMember(Long id) {
-        Long businessId = currentBusinessContext.getCurrentBusinessId();
-        StaffMember staffMember = staffMemberRepository.findByIdAndBusinessId(id, businessId)
+    private StaffMember lockStaffMember(Long id) {
+        return staffMemberRepository.findByIdAndBusinessIdForUpdate(id, currentBusinessContext.getCurrentBusinessId())
                 .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + id));
-
-        boolean hasFutureActiveAppointments =
-                appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
-                        businessId,
-                        id,
-                        List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED),
-                        LocalDateTime.now()
-                );
-
-        if (hasFutureActiveAppointments) {
-            throw new AppointmentOverlapException(
-                    "Staff member cannot be deactivated because it has future active appointments"
-            );
-        }
-
-        staffMember.setStatus(StaffMemberStatus.INACTIVE);
-        staffMember.setUpdatedAt(LocalDateTime.now());
-
-        staffMemberRepository.save(staffMember);
-        log.info("Staffmember with id={} successfully deactivated for businessId={}.", id, businessId);
     }
+
+    private void requireNoFutureAppointments(StaffMember member) {
+        var business = businessRepository.findById(member.getBusinessId())
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
+        var now = LocalDateTime.now(clock.withZone(ZoneId.of(business.getTimezone())));
+        if (appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+                member.getBusinessId(), member.getId(), List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED), now)) {
+            throw new StaffHasFutureAppointmentsException();
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteStaffMember(Long id) {
+        var member = lockStaffMember(id);
+        if (member.getStatus() == StaffMemberStatus.INACTIVE) return;
+        requireNoFutureAppointments(member);
+        member.setStatus(StaffMemberStatus.INACTIVE);
+        member.setUpdatedAt(LocalDateTime.now(clock));
+        staffMemberRepository.save(member);
+        log.info("Staffmember with id={} successfully deactivated.", id);
+    }
+    @Override
+    @Transactional
+    public void removeFromCatalog(Long id) {
+        var member = lockStaffMember(id);
+        if (member.getStatus() != StaffMemberStatus.INACTIVE) {
+            throw new com.turnero.api.exception.InvalidStateTransitionException("Deactivate the staff member before removing it from the list");
+        }
+        requireNoFutureAppointments(member);
+        var now = LocalDateTime.now(clock);
+        member.setDeletedAt(now);
+        member.setUpdatedAt(now);
+        staffMemberRepository.save(member);
+    }
+
 }

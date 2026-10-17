@@ -90,9 +90,10 @@ public class StaffMemberController {
 
     @Operation(
             summary = "Actualizar profesional",
-            description = "Actualiza los detalles de un profesional existente utilizando su ID"
+            description = "Actualiza datos o estado del profesional del negocio autenticado. Reactivar conserva relaciones; desactivar también por PATCH devuelve 409 STAFF_HAS_FUTURE_APPOINTMENTS ante turnos futuros pendientes o confirmados."
     )
     @ApiUpdateResponses
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "STAFF_HAS_FUTURE_APPOINTMENTS: turnos futuros pendientes o confirmados impiden desactivar")
     @PatchMapping("/{id}")
     public ResponseEntity<StaffMemberResponseDto> updateStaffMember(@Valid @RequestBody StaffMemberUpdateRequestDto staffDto, @PathVariable Long id) {
         var updatedStaffMember = staffMemberService.updateStaffMember(staffDto, id);
@@ -115,7 +116,7 @@ public class StaffMemberController {
 
     @Operation(
             summary = "Obtener todos los profesionales",
-            description = "Filtra por nombre, rol, especialidad y estado del negocio autenticado. Página desde 0, tamaño 1–100 (20 por defecto), q hasta 100 caracteres; orden name,asc o name,desc con id ascendente como desempate. Parámetros inválidos devuelven 400."
+            description = "Excluye eliminados y filtra por nombre, rol, especialidad y estado del negocio autenticado. Página desde 0, tamaño 1–100 (20 por defecto), q hasta 100 caracteres; orden name,asc o name,desc con id ascendente como desempate. Parámetros inválidos devuelven 400."
     )
     @ApiFindAllResponses
     @GetMapping
@@ -136,13 +137,23 @@ public class StaffMemberController {
     }
 
     @Operation(
-            summary = "Eliminar profesional",
-            description = "Elimina un profesional específico utilizando su ID"
+            summary = "Desactivar profesional",
+            description = "Baja lógica idempotente del profesional. Devuelve 204; 409 STAFF_HAS_FUTURE_APPOINTMENTS si tiene turnos futuros pendientes o confirmados. Conserva historial y relaciones."
     )
     @ApiDeleteResponses
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "STAFF_HAS_FUTURE_APPOINTMENTS: turnos futuros pendientes o confirmados impiden desactivar")
     @DeleteMapping("/{id}")
     public ResponseEntity<StaffMember> deleteStaffMember(@PathVariable Long id) {
         staffMemberService.deleteStaffMember(id);
         return ResponseEntity.noContent().build();
     }
+    @Operation(summary = "Eliminar profesional del listado", description = "Borrado lógico de un profesional inactivo; conserva historial y relaciones. No permite restaurarlo desde la app. Libera la vinculación operativa del usuario para otro perfil.")
+    @ApiDeleteResponses
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Requiere estado inactivo y no tener turnos futuros pendientes o confirmados")
+    @DeleteMapping("/{id}/catalog")
+    public ResponseEntity<Void> removeFromCatalog(@PathVariable Long id) {
+        staffMemberService.removeFromCatalog(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }

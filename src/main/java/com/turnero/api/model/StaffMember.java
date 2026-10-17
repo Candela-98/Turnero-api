@@ -42,4 +42,6 @@ public class StaffMember {
 
     private LocalDateTime updatedAt;
 
+    private LocalDateTime deletedAt;
+
 }
