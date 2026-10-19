@@ -35,7 +35,7 @@ public class CustomerController {
 
     @Operation(
             summary = "Crear cliente",
-            description = "Crea un nuevo cliente en el sistema"
+            description = "Crea un cliente ACTIVE del negocio autenticado. Nombre y phone_number obligatorios (máximo 100/30); email válido opcional (150) y notas internas opcionales (2000). Acepta phone como alias compatible. Campos inválidos responden 400."
     )
     @ApiCreateResponses
     @PostMapping
@@ -61,7 +61,7 @@ public class CustomerController {
 
     @Operation(
             summary = "Actualizar cliente",
-            description = "Actualiza los detalles de un cliente específico utilizando su ID"
+            description = "Edita parcialmente el cliente del negocio autenticado. Omisión/null conserva valores; email y notas vacíos los borran. Nombre/teléfono enviados no pueden estar vacíos. Clientes ajenos o inexistentes responden 404."
     )
     @ApiUpdateResponses
     @PatchMapping("/{id}")

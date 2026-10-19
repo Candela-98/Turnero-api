@@ -896,12 +896,20 @@ Request:
   "name": "Santiago Moreno",
   "email": "santiago.moreno@mail.demo",
   "phone_number": "+54 11 5555-5555",
-  "internal_notes": "Prefiere corte bajo.",
-  "status": "ACTIVE"
+  "internal_notes": "Prefiere corte bajo."
 }
 ```
 
 Response `201 Created`: customer detail.
+
+Reglas de alta y edición (TURN-100):
+
+- Alta: nombre y teléfono obligatorios; email y notas internas opcionales. Límites: nombre 100, teléfono 30, email 150 y notas 2000 caracteres. Email debe ser válido cuando se informa. Teléfono conserva su formato; no se infieren códigos de país.
+- `phone_number` es el campo canónico de alta; `phone` se conserva como alias compatible. El estado inicial es ACTIVE, asignado por backend; el negocio proviene de la sesión y no se vincula una cuenta de usuario.
+- Se recortan espacios exteriores. Email/notas vacíos se guardan como null y se omiten en respuestas. Las notas conservan saltos de línea internos y no se incluyen en el listado.
+- PATCH parcial: omisión o null conserva el valor existente; `email: ""` e `internal_notes: ""` permiten borrarlos. Nombre o teléfono enviados vacíos/blancos devuelven 400. Un cliente antiguo sin teléfono puede editar otros campos omitiendo `phone_number`.
+- El formulario TURN-100 envía solo nombre, teléfono, email y notas; no cambia estado, usuario, negocio ni fechas. La capacidad backend existente de cambiar estado se conserva para su flujo específico.
+- GET detalle y PATCH usan el negocio autenticado: inexistentes o ajenos responden 404. Validaciones responden 400 con errores por campo. No requiere migraciones y no cambia el booking público.
 
 ### GET `/api/v1/customers/{customer_id}`
 

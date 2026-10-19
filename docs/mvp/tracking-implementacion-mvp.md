@@ -295,3 +295,13 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - QA manual TURN-80 aprobada por el usuario el 2026-10-19, con clientes ficticios en la DB local. Autorizada la creación de PRs separados sobre develop/dev, sin consultar CI. Integración pendiente; backend primero.
 
 - PRs TURN-80 creados: [backend #82](https://github.com/Candela-98/Turnero-api/pull/82), base `develop`, y [frontend #17](https://github.com/Candela-98/Turnero-frontend/pull/17), base `dev`. QA manual aprobada; integración pendiente, backend primero. Sin consultar CI.
+
+## TURN-100 — Crear y editar clientes (2026-10-19)
+
+- Implementación local en `feature/TURN-100-customer-form`, sobre TURN-80. Alta canónica con phone_number (alias phone compatible), email opcional y notas persistidas. PATCH parcial valida blancos, normaliza opcionales y permite editar registros antiguos sin teléfono; conserva estado y aislamiento por negocio. Sin migraciones ni cambios al booking público.
+- Contrato y OpenAPI actualizados. Pruebas de escritura con sesión real y PostgreSQL para alta, alias, notas, límites, normalización, limpieza de opcionales y aislamiento.
+- QA backend completada: suite completa con 572 pruebas aprobadas, sin fallos ni omisiones; incluye 24 casos nuevos PostgreSQL de escritura de clientes. QA manual e integración pendientes. Guía frontend: `docs/pruebas-locales-turn-100.md`. Preparar PRs separados después de aprobación manual; mientras TURN-80 esté abierto, bases en su rama, luego develop/dev. Backend primero. Sin consultar CI ni mergear automáticamente.
+
+- Validación frontend TURN-100: lint final sin advertencias, TypeScript, 156 unitarios y build aprobados. Suite E2E completa con 376 aprobados y 14 omisiones preexistentes; 39 recorridos finales del formulario aprobados después de añadir dos casos y reforzar respuesta tardía. QA manual e integración pendientes.
+
+- QA manual TURN-100 aprobada por el usuario el 2026-10-19. Autorizada la integración de los PRs anteriores y la creación de los PRs de esta entrega contra develop/dev. Sin consultar CI.
