@@ -18,6 +18,7 @@ public interface StaffMemberMapper {
     @Mapping(target = "updatedAt", ignore = true)
     StaffMember toEntity(StaffMemberRequestDto dtoStaffMember);
 
+    @Mapping(target = "serviceCount", ignore = true)
     StaffMemberResponseDto toResponseDto(StaffMember staffMember);
 
     List<StaffMemberResponseDto> toResponseDtoList(List<StaffMember> staffMembers);

@@ -228,13 +228,17 @@ public class StaffMemberControllerTest {
         given(staffMapper.toResponseDtoList(List.of(staffMember1, staffMember2)))
                 .willReturn(List.of(getStaffMemberResponseDTO(id), getStaffMemberResponseDTO(2L)));
 
+        given(staffService.getServiceCounts(List.of(1L, 2L))).willReturn(java.util.Map.of(1L, 5L));
+
         //When + Then
         mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].id").value(1))
-                .andExpect(jsonPath("$.data[1].id").value(2));
+                .andExpect(jsonPath("$.data[1].id").value(2))
+                .andExpect(jsonPath("$.data[0].service_count").value(5))
+                .andExpect(jsonPath("$.data[1].service_count").value(0));
 
         then(staffService).should().listStaffMembers(null, null, 0, 20, com.turnero.api.service.StaffMemberSort.fromParameter(null));
         then(staffMapper).should().toResponseDtoList(List.of(staffMember1, staffMember2));

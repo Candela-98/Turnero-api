@@ -15,6 +15,22 @@ import java.util.List;
 import java.util.Optional;
 
 public interface StaffMemberRepository extends JpaRepository<StaffMember, Long>, JpaSpecificationExecutor<StaffMember> {
+    interface ServiceCount {
+        Long getStaffMemberId();
+        Long getServiceCount();
+    }
+
+    @Query("""
+        select association.staffMemberId as staffMemberId, count(association.id) as serviceCount
+        from StaffServiceOffering association
+        join StaffMember staff on staff.id = association.staffMemberId
+        join ServiceOffering offering on offering.id = association.serviceOfferingId
+        where staff.businessId = :businessId and offering.businessId = :businessId
+          and offering.deletedAt is null and staff.id in :staffIds
+        group by association.staffMemberId
+        """)
+    List<ServiceCount> countServicesForStaff(@Param("staffIds") List<Long> staffIds, @Param("businessId") Long businessId);
+
     boolean existsByUserId(Long userId);
 
     Optional<StaffMember> findByUserIdAndBusinessId(Long userId, Long businessId);

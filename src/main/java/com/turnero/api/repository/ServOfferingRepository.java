@@ -24,6 +24,10 @@ public interface ServOfferingRepository extends JpaRepository<ServiceOffering, L
     @Query("select s from ServiceOffering s where s.id = :id and s.businessId = :businessId and s.deletedAt is null")
     Optional<ServiceOffering> findForUpdate(Long id, Long businessId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from ServiceOffering s where s.id in :ids and s.businessId = :businessId and s.deletedAt is null order by s.id")
+    List<ServiceOffering> findAllForUpdate(@Param("ids") List<Long> ids, @Param("businessId") Long businessId);
+
     @Query("select (count(s) > 0) from ServiceOffering s where s.id = :id and s.businessId = :businessId and s.deletedAt is null")
     boolean existsByIdAndBusinessId(Long id, Long businessId);
 
