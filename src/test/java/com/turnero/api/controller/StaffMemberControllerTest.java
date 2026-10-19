@@ -581,4 +581,31 @@ public class StaffMemberControllerTest {
         mockMvc.perform(put(BASE_URL + "/1/working-hours").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
     }
+    @Test
+    void deletingWithFutureAppointmentsReturnsDomainConflict() throws Exception {
+        org.mockito.Mockito.doThrow(new com.turnero.api.exception.StaffHasFutureAppointmentsException())
+                .when(staffService).deleteStaffMember(1L);
+        mockMvc.perform(delete(BASE_URL + "/1")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STAFF_HAS_FUTURE_APPOINTMENTS"));
+    }
+
+    @Test
+    void patchingInactiveWithFutureAppointmentsReturnsDomainConflict() throws Exception {
+        org.mockito.Mockito.when(staffService.updateStaffMember(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(1L)))
+                .thenThrow(new com.turnero.api.exception.StaffHasFutureAppointmentsException());
+        mockMvc.perform(patch(BASE_URL + "/1").contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"INACTIVE\"}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STAFF_HAS_FUTURE_APPOINTMENTS"));
+    }
+
+    @Test void removingInactiveStaffReturns204() throws Exception {
+        mockMvc.perform(delete(BASE_URL + "/1/catalog")).andExpect(status().isNoContent());
+        then(staffService).should().removeFromCatalog(1L);
+    }
+    @Test void removingActiveStaffReturns409() throws Exception {
+        org.mockito.Mockito.doThrow(new com.turnero.api.exception.InvalidStateTransitionException("Deactivate first"))
+                .when(staffService).removeFromCatalog(1L);
+        mockMvc.perform(delete(BASE_URL + "/1/catalog")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"));
+    }
+
 }

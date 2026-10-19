@@ -115,7 +115,7 @@ class StaffMemberCreationPostgresIT {
         doThrow(new IllegalStateException("copy failed")).when(workingHours).saveAll(anyList());
         assertThatThrownBy(() -> service.saveStaffMember(member(userId))).hasMessage("copy failed");
         assertThat(staff.findAllByBusinessId(businessId)).isEmpty();
-        assertThat(staff.existsByUserId(userId)).isFalse();
+        assertThat(staff.existsByUserIdAndDeletedAtIsNull(userId)).isFalse();
     }
     @Test
     void serializesConcurrentLinksIntoOneSuccessAndOneConflict() throws Exception {

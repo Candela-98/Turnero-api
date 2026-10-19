@@ -87,10 +87,13 @@ public class StaffMemberControllerIT {
     @Autowired
     WebApplicationContext webApplicationContext;
 
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     private static final String BASE_URL = "/api/v1/staff-members";
 
     @BeforeEach
     void cleanDb() {
+        jdbc.update("insert into businesses (id,name,slug,timezone,status,onboarding_status,created_at,updated_at) select 1,'Studio','staff-status-it','UTC','ACTIVE','PENDING_SETUP',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP where not exists (select 1 from businesses where id=1)");
         appointmentRepository.deleteAll();
         staffWorkingHoursRepository.deleteAll();
         staffMemberRepository.deleteAll();
@@ -615,7 +618,7 @@ public class StaffMemberControllerIT {
     void updateStaffMember_whenAppointmentExists_shouldPreserveHistoricalAppointment() throws Exception {
         // Given
         StaffMember savedStaffMember = staffMemberRepository.save(getStaffMember());
-        var startsAt = java.time.LocalDateTime.now().plusDays(1);
+        var startsAt = java.time.LocalDateTime.now().minusDays(1);
 
         Appointment appointment = Appointment.builder()
                 .businessId(1L)
@@ -923,7 +926,7 @@ public class StaffMemberControllerIT {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.error").value("Conflict"))
-                .andExpect(jsonPath("$.code").value("CONFLICT"))
+                .andExpect(jsonPath("$.code").value("STAFF_HAS_FUTURE_APPOINTMENTS"))
                 .andExpect(jsonPath("$.message")
                         .value("Staff member cannot be deactivated because it has future active appointments"));
 
