@@ -86,6 +86,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
+    @ExceptionHandler(StaffHasFutureAppointmentsException.class)
+    public ResponseEntity<ErrorResponse> handleStaffFutureAppointments(StaffHasFutureAppointmentsException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now()).status(409).error("Conflict")
+                .code("STAFF_HAS_FUTURE_APPOINTMENTS").message(ex.getMessage())
+                .path(request.getRequestURI()).build());
+    }
+
     @ExceptionHandler(StaffUserAlreadyLinkedException.class)
     public ResponseEntity<ErrorResponse> handleStaffUserAlreadyLinked(StaffUserAlreadyLinkedException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse.builder()

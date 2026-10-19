@@ -26,14 +26,14 @@ public interface StaffMemberRepository extends JpaRepository<StaffMember, Long>,
         join StaffMember staff on staff.id = association.staffMemberId
         join ServiceOffering offering on offering.id = association.serviceOfferingId
         where staff.businessId = :businessId and offering.businessId = :businessId
-          and offering.deletedAt is null and staff.id in :staffIds
+          and staff.deletedAt is null and offering.deletedAt is null and staff.id in :staffIds
         group by association.staffMemberId
         """)
     List<ServiceCount> countServicesForStaff(@Param("staffIds") List<Long> staffIds, @Param("businessId") Long businessId);
 
-    boolean existsByUserId(Long userId);
+    boolean existsByUserIdAndDeletedAtIsNull(Long userId);
 
-    Optional<StaffMember> findByUserIdAndBusinessId(Long userId, Long businessId);
+    Optional<StaffMember> findByUserIdAndBusinessIdAndDeletedAtIsNull(Long userId, Long businessId);
 
     List<StaffMember> findAllByBusinessId(Long businessId);
 
@@ -43,7 +43,8 @@ public interface StaffMemberRepository extends JpaRepository<StaffMember, Long>,
 
     List<StaffMember> findAllByIdInAndBusinessIdAndStatus(List<Long> ids, Long businessId, StaffMemberStatus status);
 
-    boolean existsByIdAndBusinessId(Long id, Long businessId);
+    @Query("select (count(staff) > 0) from StaffMember staff where staff.id = :id and staff.businessId = :businessId and staff.deletedAt is null")
+    boolean existsByIdAndBusinessId(@Param("id") Long id, @Param("businessId") Long businessId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -51,6 +52,7 @@ public interface StaffMemberRepository extends JpaRepository<StaffMember, Long>,
         FROM StaffMember staffMember
         WHERE staffMember.id = :id
           AND staffMember.businessId = :businessId
+          AND staffMember.deletedAt IS NULL
         """)
     Optional<StaffMember> findByIdAndBusinessIdForUpdate(
             @Param("id") Long id,

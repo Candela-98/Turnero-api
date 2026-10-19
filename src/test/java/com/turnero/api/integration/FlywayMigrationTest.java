@@ -48,7 +48,7 @@ class FlywayMigrationTest {
 
         assertDoesNotThrow(flyway::migrate);
 
-        assertSuccessfulVersions("1", "3", "1002");
+        assertSuccessfulVersions("1", "3", "1002", "1003");
         assertCleanupIndexes();
     }
 
@@ -72,7 +72,7 @@ class FlywayMigrationTest {
 
         assertDoesNotThrow(flyway::migrate);
 
-        assertSuccessfulVersions("1", "3", "1000", "1001", "1002");
+        assertSuccessfulVersions("1", "3", "1000", "1001", "1002", "1003");
         assertCleanupIndexes();
     }
 
@@ -99,7 +99,7 @@ class FlywayMigrationTest {
                 .load();
         assertDoesNotThrow(updated::migrate);
 
-        assertSuccessfulVersions("1", "1000", "3", "1001", "1002");
+        assertSuccessfulVersions("1", "1000", "3", "1001", "1002", "1003");
         assertCleanupIndexes();
         assertThat(updated.validateWithResult().validationSuccessful).isTrue();
         assertThat(updated.migrate().migrationsExecuted).isZero();

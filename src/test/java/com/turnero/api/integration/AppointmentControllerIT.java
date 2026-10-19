@@ -147,6 +147,7 @@ public class AppointmentControllerIT {
         return StaffMember.builder()
                 .businessId(1L)
                 .name("Maria Gomez")
+                .status(com.turnero.api.model.enums.StaffMemberStatus.ACTIVE)
                 .specialty("Corte")
                 .build();
     }

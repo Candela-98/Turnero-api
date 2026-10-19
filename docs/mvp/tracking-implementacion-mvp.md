@@ -283,15 +283,29 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 
 - PRs TURN-79 creados el 2026-10-17: [backend #80](https://github.com/Candela-98/Turnero-api/pull/80) y [frontend #15](https://github.com/Candela-98/Turnero-frontend/pull/15), ambos sobre feature/TURN-78-staff-services. QA manual aprobada; abiertos para revisión. Sin consultar CI ni mergear. Tras integrar TURN-78, ajustar bases a develop/dev e integrar TURN-79 backend primero.
 
-## TURN-80 — Listado paginado de clientes (2026-10-19)
 
-- Implementación local en `feature/TURN-80-customer-list`, desde `develop`, independiente de TURN-101. Jira requiere paginación/búsqueda/estado, pero el GET previo devolvía un array completo: ahora `{ data, page }`, conservando los campos del resumen y excluyendo notas/fechas administrativas.
-- Consulta por negocio autenticado, búsqueda parcial por nombre/email sin mayúsculas y teléfono sin formato, filtros combinados, orden nombre/ID estable, límites y validación 400. Procesamiento en PostgreSQL y sin migraciones; las consultas internas existentes se conservan.
-- Suite backend completa: 548 pruebas aprobadas, sin fallos ni omisiones; 21 casos nuevos de listado PostgreSQL con sesión real, contactos opcionales, teléfono, paginación, parámetros inválidos y scoping. Contrato/OpenAPI y pruebas del array anterior actualizados.
-- QA manual e integración pendientes. Guía local en frontend `docs/pruebas-locales-turn-80.md`. Crear PRs separados después de aprobación manual, backend primero por el cambio del formato HTTP; bases develop/dev. Sin consultar CI ni mergear automáticamente.
 
-- Verificación final TURN-80: backend 548 pruebas aprobadas, sin fallos ni omisiones (21 casos PostgreSQL nuevos). Frontend `npm run check` completo aprobado: lint, TypeScript, 138 unitarios, build y 343 E2E aprobados / 14 omisiones preexistentes. Incluye los 27 recorridos de Clientes en los tres tamaños; los 3 casos de respuesta tardía se repitieron tras reforzar la espera de la fixture. Capturas de listado, filtros y contactos largos revisadas en 1440×900, 390×844 y 412×915; sin scroll horizontal ni infracciones axe básicas en los recorridos cubiertos. QA manual e integración pendientes.
+## TURN-101 — Detalle y estado de profesionales (2026-10-17)
 
-- QA manual TURN-80 aprobada por el usuario el 2026-10-19, con clientes ficticios en la DB local. Autorizada la creación de PRs separados sobre develop/dev, sin consultar CI. Integración pendiente; backend primero.
+- Implementación local en `feature/TURN-101-staff-status`, sobre TURN-79. Alcance ampliado por decisión del usuario: reactivar además de desactivar y conservar contexto de navegación del listado.
+- DELETE/PATCH transaccionales y con bloqueo; validación común de futuros PENDING/CONFIRMED en zona del negocio, `409 STAFF_HAS_FUTURE_APPOINTMENTS`, idempotencia y relaciones/historial intactos. Reserva pública refresca la entidad tras el bloqueo; API administrativa valida estado activo y coordina altas/reprogramaciones/reasignaciones. Las notas históricas siguen permitidas.
+- Contrato/OpenAPI actualizados. Sin migraciones. QA automática en curso; QA manual pendiente. Guía frontend: `../../../turnero-frontend/docs/pruebas-locales-turn-101.md`.
+- Integración pendiente: PRs separados solo después de QA manual aprobada; backend antes que frontend. Base TURN-79 mientras backend #80/frontend #15 sigan abiertos, luego develop/dev. Sin revisión de CI ni merge automático. Agenda y flujos de turnos frontend siguen demo.
 
-- PRs TURN-80 creados: [backend #82](https://github.com/Candela-98/Turnero-api/pull/82), base `develop`, y [frontend #17](https://github.com/Candela-98/Turnero-frontend/pull/17), base `dev`. QA manual aprobada; integración pendiente, backend primero. Sin consultar CI.
+- QA backend final: 544 pruebas aprobadas, sin fallos, errores ni omisiones. Incluye 15 casos PostgreSQL nuevos de estado, conflictos en ambos caminos, rollback, conservación de relaciones/historial, zona horaria, notas históricas, reasignación inválida y carreras con reservas públicas/administrativas en ambos órdenes. Validación HTTP del código de conflicto añadida. QA manual e integración pendientes.
+
+### Extensión TURN-101 — Eliminar profesionales inactivos (2026-10-17)
+
+- Detalle y cambios de estado aprobados manualmente por el usuario. Nueva solicitud: ocultar definitivamente del listado los profesionales previamente desactivados mediante borrado lógico.
+- Implementación local: DELETE `staff-members/{id}/catalog`, solo INACTIVE, scoping por negocio y bloqueo compartido con reactivación/reservas. Conserva historial y relaciones; excluye eliminados de listados y operaciones, sin restauración desde la app. Libera el vínculo operativo de cuenta para otro perfil, conservando `user_id` histórico y la cuenta.
+- Nueva migración Flyway V1003: `deleted_at`, índice único parcial de usuario no eliminado y restricción de eliminado inactivo. Reiniciar backend antes de probar frontend.
+- UI reutiliza menú/confirmación/avisos; eliminación desde listado o detalle, filtros y página conservados, caché limpiada tras éxito y reintento solo de lecturas. BFF probado mediante handler real, errores y cookie.
+- QA manual de esta extensión e integración pendientes. Guía local `docs/pruebas-locales-turn-101.md` en frontend. PRs separados después de aprobación manual; backend primero. Sin revisar CI ni mergear automáticamente.
+
+- QA final de la extensión: backend 550 pruebas aprobadas, sin fallos ni omisiones; frontend lint/TypeScript, 145 unitarios, build y suite E2E completa correctos (361 aprobados / 14 omisiones preexistentes). Los 45 recorridos de detalle/estado/eliminación pasan en desktop 1440×900 y mobile 390×844 / 412×915. Capturas de eliminación revisadas y axe básico sin infracciones en los recorridos cubiertos. QA manual de eliminación e integración pendientes.
+
+### Integración de dependencias TURN-101 (2026-10-19)
+
+- Por instrucción del usuario, TURN-78 [#79](https://github.com/Candela-98/Turnero-api/pull/79) y TURN-79 [#80](https://github.com/Candela-98/Turnero-api/pull/80) se integraron a `develop`, sin esperar approvals y sin consultar CI. Commits de merge: `336455f` y `ee0804c`.
+- Frontend relacionado: TURN-78 #14 y TURN-79 #15 integrados a `dev`, después de sus respectivos backends.
+- Solo permanece abierto TURN-101 backend [#81](https://github.com/Candela-98/Turnero-api/pull/81), con base `develop`. Frontend [#16](https://github.com/Candela-98/Turnero-frontend/pull/16) permanece abierto sobre `dev`; integrar backend antes que frontend. El usuario aprobó la entrega y pidió conservar estos últimos PRs abiertos.
