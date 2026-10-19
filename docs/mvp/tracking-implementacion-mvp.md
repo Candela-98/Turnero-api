@@ -302,3 +302,9 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - QA manual de esta extensión e integración pendientes. Guía local `docs/pruebas-locales-turn-101.md` en frontend. PRs separados después de aprobación manual; backend primero. Sin revisar CI ni mergear automáticamente.
 
 - QA final de la extensión: backend 550 pruebas aprobadas, sin fallos ni omisiones; frontend lint/TypeScript, 145 unitarios, build y suite E2E completa correctos (361 aprobados / 14 omisiones preexistentes). Los 45 recorridos de detalle/estado/eliminación pasan en desktop 1440×900 y mobile 390×844 / 412×915. Capturas de eliminación revisadas y axe básico sin infracciones en los recorridos cubiertos. QA manual de eliminación e integración pendientes.
+
+### Integración de dependencias TURN-101 (2026-10-19)
+
+- Por instrucción del usuario, TURN-78 [#79](https://github.com/Candela-98/Turnero-api/pull/79) y TURN-79 [#80](https://github.com/Candela-98/Turnero-api/pull/80) se integraron a `develop`, sin esperar approvals y sin consultar CI. Commits de merge: `336455f` y `ee0804c`.
+- Frontend relacionado: TURN-78 #14 y TURN-79 #15 integrados a `dev`, después de sus respectivos backends.
+- Solo permanece abierto TURN-101 backend [#81](https://github.com/Candela-98/Turnero-api/pull/81), con base `develop`. Frontend [#16](https://github.com/Candela-98/Turnero-frontend/pull/16) permanece abierto sobre `dev`; integrar backend antes que frontend. El usuario aprobó la entrega y pidió conservar estos últimos PRs abiertos.
