@@ -575,7 +575,10 @@ public class StaffMemberControllerTest {
                 .isAvailable(true)
                 .build();
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"{", "{}", "null", "[{\"day_of_week\":\"INVALID\"}]", "[{\"starts_at\":\"25:00\"}]", "[{\"starts_at\":\"24:00\"}]", "[{\"starts_at\":\"09:00:30\"}]"})
+    void malformedWorkingHoursReturns400(String body) throws Exception {
+        mockMvc.perform(put(BASE_URL + "/1/working-hours").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+    }
 }
-
-
-

@@ -379,7 +379,7 @@ public class StaffMemberServiceImplTest {
 
         List<StaffWorkingHoursResponseDto> response = staffMemberService.getWorkingHours(staffMemberId);
 
-        assertEquals(2, response.size());
+        assertEquals(7, response.size());
         assertEquals(DayOfWeek.MONDAY, response.get(0).getDayOfWeek());
         assertEquals(LocalTime.of(9, 0), response.get(0).getStartsAt());
         assertEquals(LocalTime.of(18, 0), response.get(0).getEndsAt());
@@ -420,7 +420,7 @@ public class StaffMemberServiceImplTest {
         List<StaffWorkingHoursRequestDto> request = fullWeekRequest();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(staffMemberId, businessId))
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, businessId))
                 .thenReturn(Optional.of(staffMember));
         when(staffWorkingHoursRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -432,7 +432,7 @@ public class StaffMemberServiceImplTest {
         assertEquals(LocalTime.of(17, 0), response.get(0).getEndsAt());
         assertTrue(response.get(0).isAvailable());
 
-        verify(staffWorkingHoursRepository).deleteAllByStaffMemberId(staffMemberId);
+        verify(staffWorkingHoursRepository, never()).deleteAllByStaffMemberId(anyLong());
         verify(staffWorkingHoursRepository).saveAll(argThat(saved -> {
             List<StaffWorkingHours> savedHours = (List<StaffWorkingHours>) saved;
             return savedHours.size() == 7
@@ -484,7 +484,7 @@ public class StaffMemberServiceImplTest {
         Long businessId = 1L;
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(staffMemberId, businessId))
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, businessId))
                 .thenReturn(Optional.empty());
 
         assertThrows(
@@ -540,7 +540,7 @@ public class StaffMemberServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(staffMemberId, businessId))
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, businessId))
                 .thenReturn(Optional.of(staffMember));
 
         assertThrows(
@@ -597,5 +597,15 @@ public class StaffMemberServiceImplTest {
         assertEquals(java.util.Map.of(10L, 5L), staffMemberService.getServiceCounts(List.of(10L, 20L)));
         verify(staffMemberRepository, times(1)).countServicesForStaff(List.of(10L, 20L), 1L);
         verifyNoMoreInteractions(staffMemberRepository);
+    }
+    @Test
+    void workingHoursRejectNullRowsDayAndAvailabilityBeforeWriting() {
+        assertInvalidWorkingHoursDoesNotModify(null);
+        var week = new java.util.ArrayList<>(fullWeekRequest()); week.set(0, null);
+        assertInvalidWorkingHoursDoesNotModify(week);
+        week = new java.util.ArrayList<>(fullWeekRequest()); week.getFirst().setDayOfWeek(null);
+        assertInvalidWorkingHoursDoesNotModify(week);
+        week = new java.util.ArrayList<>(fullWeekRequest()); week.getFirst().setIsAvailable(null);
+        assertInvalidWorkingHoursDoesNotModify(week);
     }
 }

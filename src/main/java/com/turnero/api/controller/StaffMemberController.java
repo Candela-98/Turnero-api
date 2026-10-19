@@ -80,6 +80,8 @@ public class StaffMemberController {
         return ResponseEntity.ok(new StaffMemberLinkResponseDto(member.map(staffMemberMapper::toResponseDto).orElse(null)));
     }
 
+    @Operation(summary = "Obtener semana laboral del profesional", description = "Array de siete días de lunes a domingo; los días faltantes se muestran no disponibles sin persistirlos. Horas HH:mm o null.")
+    @ApiFindByIdResponses
     @GetMapping("/{id}/working-hours")
     public ResponseEntity<List<StaffWorkingHoursResponseDto>> getWorkingHours(@PathVariable Long id) {
 
@@ -100,7 +102,7 @@ public class StaffMemberController {
 
     @Operation(
             summary = "Reemplazar horarios semanales del profesional",
-            description = "Reemplaza la semana completa de horarios de trabajo de un profesional"
+            description = "Reemplaza la semana completa mediante un array de siete días únicos. Guarda de forma atómica y conserva IDs existentes. Días no disponibles normalizan horas a null. No modifica turnos existentes."
     )
     @PutMapping("/{id}/working-hours")
     public ResponseEntity<List<StaffWorkingHoursResponseDto>> replaceWorkingHours(@PathVariable Long id,

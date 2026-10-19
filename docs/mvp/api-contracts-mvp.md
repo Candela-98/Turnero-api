@@ -660,57 +660,38 @@ Reglas:
 
 ### GET `/api/v1/staff-members/{staff_member_id}/working-hours`
 
-Admin autenticado.
+Admin autenticado, limitado al negocio de sesión. También admite profesionales inactivos.
 
-Response `200 OK`:
+Response `200 OK`: array directo de siete días, de MONDAY a SUNDAY; sin wrapper ni IDs.
 
 ```json
-{
-  "data": [
-    {
-      "id": 1,
-      "day_of_week": "TUESDAY",
-      "starts_at": "09:00",
-      "ends_at": "20:00",
-      "is_available": true
-    }
-  ]
-}
+[
+  {"day_of_week":"MONDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"TUESDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"WEDNESDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"THURSDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"FRIDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"SATURDAY","starts_at":null,"ends_at":null,"is_available":false},
+  {"day_of_week":"SUNDAY","starts_at":null,"ends_at":null,"is_available":false}
+]
 ```
+
+Los días sin fila persistida se presentan como no disponibles con horas nulas. GET no inserta ni modifica registros. Los días no disponibles siempre se devuelven con horas nulas.
 
 ### PUT `/api/v1/staff-members/{staff_member_id}/working-hours`
 
-Admin autenticado. Reemplaza semana completa del profesional.
-
-Request:
-
-```json
-{
-  "hours": [
-    {
-      "day_of_week": "MONDAY",
-      "starts_at": null,
-      "ends_at": null,
-      "is_available": false
-    },
-    {
-      "day_of_week": "TUESDAY",
-      "starts_at": "09:00",
-      "ends_at": "20:00",
-      "is_available": true
-    }
-  ]
-}
-```
-
-Response `200 OK`: semana completa actualizada.
+Admin autenticado. Reemplaza la semana completa; request y response `200 OK` usan el mismo array directo de siete días del ejemplo anterior. El response siempre queda ordenado de MONDAY a SUNDAY.
 
 Reglas:
 
-- `staff_member_id` debe pertenecer al negocio autenticado.
-- Deben enviarse exactamente los 7 dias, sin faltantes ni duplicados.
-- Si `is_available = true`, `starts_at` y `ends_at` son obligatorios.
-- `starts_at` debe ser menor que `ends_at`.
+- Profesional inexistente o de otro negocio: `404 NOT_FOUND` tanto en GET como en PUT.
+- Exactamente siete días únicos válidos. Lista, elementos, `day_of_week` e `is_available` no pueden ser nulos.
+- Horas en formato estricto `HH:mm`. Si `is_available=true`, inicio y fin son obligatorios y `starts_at < ends_at`; no admite rangos nocturnos.
+- Si `is_available=false`, ambas horas se normalizan a `null`.
+- Cuerpo mal formado, días duplicados/faltantes o valores inválidos: `400 VALIDATION_ERROR`, sin cambios parciales.
+- Escritura transaccional: bloquea la fila del profesional, actualiza horarios existentes conservando sus IDs e inserta únicamente días faltantes. El bloqueo también serializa con la reserva pública.
+- La disponibilidad efectiva es la intersección con los horarios del negocio y las demás reglas de reserva. No exige que la semana del profesional esté contenida en la del negocio.
+- No modifica turnos futuros ni históricos. No requiere migraciones.
 
 ## Service offerings
 

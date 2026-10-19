@@ -182,59 +182,56 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<StaffWorkingHoursResponseDto> getWorkingHours(Long staffMemberId) {
-
         findStaffMember(staffMemberId);
-
-        return staffWorkingHoursRepository
-                .findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId)
-                .stream()
-                .map(hour -> StaffWorkingHoursResponseDto.builder()
-                        .dayOfWeek(hour.getDayOfWeek())
-                        .startsAt(hour.getStartsAt())
-                        .endsAt(hour.getEndsAt())
-                        .isAvailable(hour.isAvailable())
-                        .build())
-                .toList();
+        return toCompleteWeek(staffWorkingHoursRepository.findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId));
     }
 
     @Override
     @Transactional
     public List<StaffWorkingHoursResponseDto> replaceWorkingHours(Long staffMemberId, List<StaffWorkingHoursRequestDto> workingHours) {
-
-        findStaffMember(staffMemberId);
-
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + staffMemberId));
         validateWorkingHours(workingHours);
+        var existing = staffWorkingHoursRepository.findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId).stream()
+                .collect(Collectors.toMap(StaffWorkingHours::getDayOfWeek, hour -> hour));
+        List<StaffWorkingHours> missing = new ArrayList<>();
+        for (var day : workingHours) {
+            var hour = existing.get(day.getDayOfWeek());
+            if (hour == null) {
+                hour = StaffWorkingHours.builder().staffMemberId(staffMemberId).dayOfWeek(day.getDayOfWeek()).build();
+                existing.put(day.getDayOfWeek(), hour);
+                missing.add(hour);
+            }
+            boolean available = day.getIsAvailable();
+            hour.setAvailable(available);
+            hour.setStartsAt(available ? day.getStartsAt() : null);
+            hour.setEndsAt(available ? day.getEndsAt() : null);
+        }
+        if (!missing.isEmpty()) staffWorkingHoursRepository.saveAll(missing);
+        return toCompleteWeek(new ArrayList<>(existing.values()));
+    }
 
-        staffWorkingHoursRepository.deleteAllByStaffMemberId(staffMemberId);
-
-        List<StaffWorkingHours> newWorkingHours = workingHours.stream()
-                .map(workingHour -> StaffWorkingHours.builder()
-                        .staffMemberId(staffMemberId)
-                        .dayOfWeek(workingHour.getDayOfWeek())
-                        .startsAt(workingHour.getStartsAt())
-                        .endsAt(workingHour.getEndsAt())
-                        .isAvailable(Boolean.TRUE.equals(workingHour.getIsAvailable()))
-                        .build())
-                .toList();
-
-        List<StaffWorkingHours> savedWorkingHours = staffWorkingHoursRepository.saveAll(newWorkingHours);
-
-        return savedWorkingHours.stream()
-                .map(hour -> StaffWorkingHoursResponseDto.builder()
-                        .dayOfWeek(hour.getDayOfWeek())
-                        .startsAt(hour.getStartsAt())
-                        .endsAt(hour.getEndsAt())
-                        .isAvailable(hour.isAvailable())
-                        .build())
-                .toList();
+    private List<StaffWorkingHoursResponseDto> toCompleteWeek(List<StaffWorkingHours> hours) {
+        var byDay = hours.stream().collect(Collectors.toMap(StaffWorkingHours::getDayOfWeek, hour -> hour));
+        return java.util.Arrays.stream(DayOfWeek.values()).map(day -> {
+            var hour = byDay.get(day);
+            boolean available = hour != null && hour.isAvailable();
+            return StaffWorkingHoursResponseDto.builder().dayOfWeek(day).isAvailable(available)
+                    .startsAt(available ? hour.getStartsAt() : null).endsAt(available ? hour.getEndsAt() : null).build();
+        }).toList();
     }
 
     private void validateWorkingHours(List<StaffWorkingHoursRequestDto> workingHours) {
-        if (workingHours.size() != 7) {
+        if (workingHours == null || workingHours.size() != 7) {
             throw new IllegalArgumentException("Working hours must contain exactly 7 days");
         }
 
+        if (workingHours.stream().anyMatch(hour -> hour == null || hour.getDayOfWeek() == null || hour.getIsAvailable() == null)) {
+            throw new IllegalArgumentException("Day of week and availability are required for every day");
+        }
         Set<DayOfWeek> days = workingHours.stream()
                 .map(StaffWorkingHoursRequestDto::getDayOfWeek)
                 .collect(Collectors.toSet());
