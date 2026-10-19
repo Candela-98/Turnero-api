@@ -9,9 +9,16 @@ import com.turnero.api.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Locale;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -97,6 +104,39 @@ public class CustomerServiceImpl implements CustomerService {
         return updatedCustomer;
     }
 
+    @Override
+    public Page<Customer> listCustomers(String q, CustomerStatus status, int page, int size, Sort sort) {
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        if (page < 0 || size < 1 || size > 100 || (q != null && q.length() > 100)) {
+            throw new IllegalArgumentException("Invalid customer list parameter");
+        }
+        String search = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
+        Specification<Customer> filters = (root, query, builder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(builder.equal(root.get("businessId"), businessId));
+            if (status != null) predicates.add(builder.equal(root.get("status"), status));
+            if (!search.isEmpty()) {
+                String escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+                String pattern = "%" + escaped + "%";
+                List<Predicate> matches = new ArrayList<>();
+                matches.add(builder.like(builder.lower(root.get("name")), pattern, '\\'));
+                matches.add(builder.like(builder.lower(root.get("email")), pattern, '\\'));
+                matches.add(builder.like(root.get("phoneNumber"), pattern, '\\'));
+                // Normalize only telephone-shaped queries; names/emails containing digits stay literal.
+                String digits = search.replaceAll("[^0-9]", "");
+                if (!digits.isEmpty() && search.matches("[0-9+().\\s-]+")) {
+                    var normalizedPhone = builder.function("regexp_replace", String.class,
+                            root.get("phoneNumber"), builder.literal("[^0-9]"), builder.literal(""), builder.literal("g"));
+                    matches.add(builder.like(normalizedPhone, "%" + digits + "%"));
+                }
+                predicates.add(builder.or(matches.toArray(new Predicate[0])));
+            }
+            return builder.and(predicates.toArray(new Predicate[0]));
+        };
+        return customerRepository.findAll(filters, PageRequest.of(page, size, sort));
+    }
+
+    @Override
     public List<Customer> findAllCustomer() {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
         return customerRepository.findAllByBusinessId(businessId);

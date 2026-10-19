@@ -2,6 +2,9 @@ package com.turnero.api.service;
 
 import com.turnero.api.dto.CustomerUpdateRequestDto;
 import com.turnero.api.model.Customer;
+import com.turnero.api.model.enums.CustomerStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -12,6 +15,8 @@ public interface CustomerService {
     Customer findCustomer(Long id);
 
     List<Customer> findAllCustomer();
+
+    Page<Customer> listCustomers(String q, CustomerStatus status, int page, int size, Sort sort);
 
     Customer updateCustomer(CustomerUpdateRequestDto customer, Long id);
 

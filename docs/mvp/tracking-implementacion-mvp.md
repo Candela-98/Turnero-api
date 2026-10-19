@@ -284,6 +284,7 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - PRs TURN-79 creados el 2026-10-17: [backend #80](https://github.com/Candela-98/Turnero-api/pull/80) y [frontend #15](https://github.com/Candela-98/Turnero-frontend/pull/15), ambos sobre feature/TURN-78-staff-services. QA manual aprobada; abiertos para revisión. Sin consultar CI ni mergear. Tras integrar TURN-78, ajustar bases a develop/dev e integrar TURN-79 backend primero.
 
 
+
 ## TURN-101 — Detalle y estado de profesionales (2026-10-17)
 
 - Implementación local en `feature/TURN-101-staff-status`, sobre TURN-79. Alcance ampliado por decisión del usuario: reactivar además de desactivar y conservar contexto de navegación del listado.
