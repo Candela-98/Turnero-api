@@ -293,3 +293,5 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - Verificación final TURN-80: backend 548 pruebas aprobadas, sin fallos ni omisiones (21 casos PostgreSQL nuevos). Frontend `npm run check` completo aprobado: lint, TypeScript, 138 unitarios, build y 343 E2E aprobados / 14 omisiones preexistentes. Incluye los 27 recorridos de Clientes en los tres tamaños; los 3 casos de respuesta tardía se repitieron tras reforzar la espera de la fixture. Capturas de listado, filtros y contactos largos revisadas en 1440×900, 390×844 y 412×915; sin scroll horizontal ni infracciones axe básicas en los recorridos cubiertos. QA manual e integración pendientes.
 
 - QA manual TURN-80 aprobada por el usuario el 2026-10-19, con clientes ficticios en la DB local. Autorizada la creación de PRs separados sobre develop/dev, sin consultar CI. Integración pendiente; backend primero.
+
+- PRs TURN-80 creados: [backend #82](https://github.com/Candela-98/Turnero-api/pull/82), base `develop`, y [frontend #17](https://github.com/Candela-98/Turnero-frontend/pull/17), base `dev`. QA manual aprobada; integración pendiente, backend primero. Sin consultar CI.
