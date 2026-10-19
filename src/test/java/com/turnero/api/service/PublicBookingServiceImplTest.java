@@ -70,6 +70,7 @@ class PublicBookingServiceImplTest {
     private static final String BUSINESS_SLUG = "barber-studio";
     private static final Long BUSINESS_ID = 1L;
 
+    @Mock private jakarta.persistence.EntityManager entityManager;
     @Mock private BusinessRepository businessRepository;
     @Mock private BookingSettingsRepository bookingSettingsRepository;
     @Mock private ServOfferingRepository servOfferingRepository;

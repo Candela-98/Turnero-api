@@ -574,11 +574,11 @@ Response `200 OK` (reemplaza el array anterior):
 
 `service_count` se incluye en cada elemento del listado: cantidad de servicios asignados, incluidos los inactivos, excluyendo eliminados y servicios ajenos al negocio. Sin asignaciones vale 0. Se calcula mediante una única consulta agregada para los IDs de la página; no carga el catálogo ni consulta por profesional. Este campo derivado no se incluye en detalle/alta/edición ni en `/me`.
 
-Conserva los demás campos de `StaffMemberResponseDto`; sin resultados devuelve `data: []`. No requiere migración. Integrar backend antes del frontend TURN-77.
+Conserva los demás campos de `StaffMemberResponseDto`; sin resultados devuelve `data: []`. Excluye profesionales eliminados (`deleted_at`), incluso con filtro INACTIVE. Integrar backend antes del frontend.
 
 ### GET `/api/v1/staff-members/me`
 
-Admin autenticado. Devuelve el profesional vinculado al usuario de sesión dentro del negocio autenticado, incluyendo inactivos y sin depender de búsqueda, estado ni paginación. No recibe un ID de usuario del cliente.
+Admin autenticado. Devuelve el profesional vinculado al usuario de sesión dentro del negocio autenticado, incluyendo inactivos, excluyendo eliminados y sin depender de búsqueda, estado ni paginación. No recibe un ID de usuario del cliente.
 
 Response `200 OK`: `{ "staff_member": StaffMemberResponseDto | null }`. `null` significa que el usuario todavía no tiene profesional vinculado. Sin sesión: `401`.
 
@@ -618,13 +618,13 @@ Response `201 Created`:
 
 Reglas:
 
-- Si se informa `user_id`, debe pertenecer al mismo negocio y no estar vinculado a otro staff member. Ante una vinculación existente (incluido profesional inactivo), responde `409` con `code: STAFF_USER_ALREADY_LINKED`. La creación se serializa por usuario y es transaccional junto con los horarios.
+- Si se informa `user_id`, debe pertenecer al mismo negocio y no estar vinculado a otro profesional no eliminado. Ante una vinculación existente (incluido profesional inactivo), responde `409` con `code: STAFF_USER_ALREADY_LINKED`. La creación se serializa por usuario y es transaccional junto con los horarios.
 - `name`: obligatorio, hasta 100 caracteres. `specialty`: obligatoria al crear, hasta 150. `role_label`: opcional, hasta 80 caracteres tanto en POST como en PATCH; 81 o más devuelve `400` con error de campo. No requiere migraciones.
 - Al crear, el backend crea `staff_working_hours` copiando `business_hours`.
 
 ### GET `/api/v1/staff-members/{staff_member_id}`
 
-Admin autenticado. Devuelve detalle.
+Admin autenticado. Devuelve detalle del profesional del negocio de sesión, también inactivos. Recurso inexistente, eliminado o ajeno devuelve 404; no modifica datos.
 
 ### PATCH `/api/v1/staff-members/{staff_member_id}`
 
@@ -646,15 +646,27 @@ Response `200 OK`: staff actualizado.
 
 ### DELETE `/api/v1/staff-members/{staff_member_id}`
 
-Admin autenticado. Baja logica.
+Admin autenticado. Baja lógica idempotente, respuesta `204 No Content`.
 
-Response `204 No Content`.
+- Setea `status=INACTIVE` sin borrar perfil, vínculo al usuario, servicios, horarios ni historial. No cambia la cuenta ni la sesión del usuario vinculado.
+- Si hay turnos `PENDING` o `CONFIRMED` cuyo `starts_at` es posterior al momento actual en la zona horaria del negocio, devuelve `409 STAFF_HAS_FUTURE_APPOINTMENTS` sin cambios parciales. No cancela ni reasigna turnos automáticamente.
+- Turnos pasados o con estado `CANCELLED`, `COMPLETED` y `NO_SHOW` no bloquean. Un profesional ya inactivo devuelve 204 sin modificar su timestamp.
+- PATCH con `status=INACTIVE` aplica exactamente la misma regla; si se mezclan campos y la baja entra en conflicto, todo el PATCH falla sin modificaciones.
+- PATCH con `{ "status": "ACTIVE" }` reactiva y devuelve `200` con el DTO existente. Conserva todas las relaciones; pedir un estado que ya tiene es idempotente.
+- GET/PATCH/DELETE usan el negocio autenticado y devuelven `404` para recursos ajenos o inexistentes.
+- Cambios de perfil/estado, reservas públicas y creación/reprogramación/reasignación administrativa se coordinan con bloqueo de la fila del profesional. La reserva pública vuelve a leer el estado tras adquirir el bloqueo. Si gana la baja, no puede crearse la reserva; si gana una reserva futura, la baja entra en conflicto.
+- La API administrativa rechaza asignaciones a profesionales inactivos con `409 INVALID_STATE_TRANSITION`; permite editar notas históricas. La reserva pública conserva su `403 FORBIDDEN` por profesional inactivo.
+- La desactivación conserva el profesional visible bajo Inactivos. Para retirarlo del listado usar el endpoint `/catalog` siguiente.
 
-Reglas:
+### DELETE `/api/v1/staff-members/{staff_member_id}/catalog`
 
-- No borra historial.
-- Setea `status = INACTIVE`.
-- Si tiene appointments futuros `PENDING` o `CONFIRMED`, responder `409 CONFLICT` o exigir cancelarlos/reasignarlos primero. Decision recomendada MVP: bloquear baja con turnos futuros activos.
+Admin autenticado. Borrado lógico definitivo para la interfaz, respuesta `204 No Content`.
+
+- Requiere profesional INACTIVE del negocio autenticado; un activo devuelve `409 INVALID_STATE_TRANSITION`. También protege contra inactivos heredados con turnos futuros PENDING/CONFIRMED (`409 STAFF_HAS_FUTURE_APPOINTMENTS`). Sin cambios parciales.
+- Marca `deleted_at` y `updated_at`. Desaparece de todos los filtros, contadores, `/me`, detalle, servicios y horarios operativos. GET/PATCH/DELETE y una segunda eliminación devuelven `404`; no se puede reactivar ni editar desde la app/API operativa.
+- Conserva la fila, `user_id`, servicios, horarios y turnos históricos; las lecturas de historial siguen resolviendo el nombre del profesional. No borra la cuenta ni cierra su sesión. La cuenta puede vincularse a un nuevo perfil; solo un perfil no eliminado puede vincularse a cada usuario.
+- Usa el mismo bloqueo transaccional que reactivación y reservas: si gana reactivación, eliminación responde 409; si gana eliminación, reactivación responde 404.
+- Requiere migración Flyway `V1003__staff_member_logical_removal.sql`: columna nullable, restricción de eliminados inactivos e índice único parcial por usuario para perfiles no eliminados. Se aplica al reiniciar backend, antes de integrar frontend.
 
 ## Staff working hours
 
@@ -1557,6 +1569,7 @@ POST   /api/v1/staff-members
 GET    /api/v1/staff-members/{staff_member_id}
 PATCH  /api/v1/staff-members/{staff_member_id}
 DELETE /api/v1/staff-members/{staff_member_id}
+DELETE /api/v1/staff-members/{staff_member_id}/catalog
 GET    /api/v1/staff-members/{staff_member_id}/working-hours
 PUT    /api/v1/staff-members/{staff_member_id}/working-hours
 GET    /api/v1/staff-members/{staff_member_id}/service-offerings

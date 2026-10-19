@@ -37,4 +37,6 @@ public interface StaffMemberService {
     );
 
     void deleteStaffMember(Long id);
+
+    void removeFromCatalog(Long id);
 }

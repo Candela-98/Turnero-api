@@ -4,7 +4,7 @@ import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursResponseDto;
-import com.turnero.api.exception.AppointmentOverlapException;
+import com.turnero.api.exception.StaffHasFutureAppointmentsException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
@@ -54,11 +54,18 @@ public class StaffMemberServiceImplTest {
     @Mock
     private AppointmentRepository appointmentRepository;
 
+    @Mock private com.turnero.api.repository.BusinessRepository businessRepository;
+    @org.mockito.Spy private java.time.Clock clock = java.time.Clock.systemUTC();
+    @org.junit.jupiter.api.BeforeEach void businessTime() {
+        lenient().when(businessRepository.findById(anyLong())).thenReturn(Optional.of(
+                com.turnero.api.model.Business.builder().timezone("UTC").build()));
+    }
+
     @Test
     void currentLink_isScopedToBusinessAndIncludesInactiveMembers() {
         var member = StaffMember.builder().userId(20L).businessId(1L).status(StaffMemberStatus.INACTIVE).build();
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
-        when(staffMemberRepository.findByUserIdAndBusinessId(20L, 1L)).thenReturn(Optional.of(member));
+        when(staffMemberRepository.findByUserIdAndBusinessIdAndDeletedAtIsNull(20L, 1L)).thenReturn(Optional.of(member));
         assertEquals(Optional.of(member), staffMemberService.findStaffMemberForUser(20L));
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(2L);
         assertTrue(staffMemberService.findStaffMemberForUser(20L).isEmpty());
@@ -198,7 +205,7 @@ public class StaffMemberServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.of(current));
         when(staffMemberRepository.save(current)).thenReturn(current);
 
         StaffMember result = staffMemberService.updateStaffMember(updatedStaff, id);
@@ -234,7 +241,7 @@ public class StaffMemberServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.of(current));
         when(staffMemberRepository.save(current)).thenReturn(current);
 
         staffMemberService.updateStaffMember(updateRequest, id);
@@ -252,7 +259,7 @@ public class StaffMemberServiceImplTest {
         Long businessId = 1L;
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.empty());
 
         StaffMemberUpdateRequestDto updateStaff = StaffMemberUpdateRequestDto.builder()
                 .name("New")
@@ -277,7 +284,7 @@ public class StaffMemberServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(staffMember));
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.of(staffMember));
         when(appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
                 eq(businessId),
                 eq(id),
@@ -292,7 +299,7 @@ public class StaffMemberServiceImplTest {
         assertNotNull(staffMember.getUpdatedAt());
 
         verify(currentBusinessContext).getCurrentBusinessId();
-        verify(staffMemberRepository).findByIdAndBusinessId(id, businessId);
+        verify(staffMemberRepository).findByIdAndBusinessIdForUpdate(id, businessId);
         verify(appointmentRepository).existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
                 eq(businessId),
                 eq(id),
@@ -310,7 +317,7 @@ public class StaffMemberServiceImplTest {
         Long businessId = 1L;
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> staffMemberService.deleteStaffMember(id));
@@ -318,7 +325,7 @@ public class StaffMemberServiceImplTest {
         assertEquals("Staffmember not found with ID: " + id, exception.getMessage());
 
         verify(currentBusinessContext).getCurrentBusinessId();
-        verify(staffMemberRepository).findByIdAndBusinessId(id, businessId);
+        verify(staffMemberRepository).findByIdAndBusinessIdForUpdate(id, businessId);
         verify(appointmentRepository, never()).existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
                 anyLong(),
                 anyLong(),
@@ -335,11 +342,11 @@ public class StaffMemberServiceImplTest {
         Long businessId = 1L;
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> staffMemberService.deleteStaffMember(id));
 
-        verify(staffMemberRepository).findByIdAndBusinessId(id, businessId);
+        verify(staffMemberRepository).findByIdAndBusinessIdForUpdate(id, businessId);
         verify(appointmentRepository, never()).existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
                 anyLong(),
                 anyLong(),
@@ -506,7 +513,7 @@ public class StaffMemberServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(staffMember));
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.of(staffMember));
         when(appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
                 eq(businessId),
                 eq(id),
@@ -514,8 +521,8 @@ public class StaffMemberServiceImplTest {
                 any(LocalDateTime.class)
         )).thenReturn(true);
 
-        AppointmentOverlapException exception = assertThrows(
-                AppointmentOverlapException.class,
+        StaffHasFutureAppointmentsException exception = assertThrows(
+                StaffHasFutureAppointmentsException.class,
                 () -> staffMemberService.deleteStaffMember(id)
         );
 

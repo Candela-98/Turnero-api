@@ -34,6 +34,8 @@ public class PublicBookingServiceImpl implements PublicBookingService{
     private final AppointmentRepository appointmentRepository;
     private final PublicTokenHasher publicTokenHasher;
 
+    private final jakarta.persistence.EntityManager entityManager;
+
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Override
@@ -430,6 +432,11 @@ public class PublicBookingServiceImpl implements PublicBookingService{
         StaffMember lockedStaffMember = staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff member not found with ID: " + staffMemberId));
 
+        // The professional may have been loaded before waiting for the row lock.
+        entityManager.refresh(lockedStaffMember);
+        if (lockedStaffMember.getStatus() != StaffMemberStatus.ACTIVE) {
+            throw new ForbiddenException("Staff member is not active");
+        }
         if (!isSlotAvailableForStaff(businessId, serviceOfferingId, lockedStaffMember.getId(), startsAt)) {
             throw new AppointmentOverlapException("The selected slot is not available");
         }

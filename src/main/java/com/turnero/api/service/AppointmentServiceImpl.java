@@ -12,6 +12,7 @@ import com.turnero.api.mapper.AppointmentMapper;
 import com.turnero.api.model.Appointment;
 import com.turnero.api.model.Customer;
 import com.turnero.api.model.ServiceOffering;
+import com.turnero.api.model.enums.StaffMemberStatus;
 
 import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.repository.AppointmentRepository;
@@ -55,6 +56,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         return savedCustomer.getId();
     }
 
+    private void lockActiveStaff(Long id, Long businessId) {
+        var member = staffMemberRepository.findByIdAndBusinessIdForUpdate(id, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff member not found."));
+        if (member.getStatus() != StaffMemberStatus.ACTIVE) throw new InvalidStateTransitionException("Staff member is not active");
+    }
+
     private void validateReferences(Appointment appointment, Long businessId) {
         if (!customerRepository.existsByIdAndBusinessId(appointment.getCustomerId(), businessId)) {
             throw new ResourceNotFoundException("Customer not found.");
@@ -89,6 +96,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional
     public AppointmentResponseDto saveAppointment(AppointmentRequestDto request) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
@@ -99,6 +107,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setCustomerId(customerId);
 
         validateReferences(appointment, businessId);
+        lockActiveStaff(appointment.getStaffMemberId(), businessId);
 
         validateNoOverlap(
                 appointment.getStaffMemberId(),
@@ -133,6 +142,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional
     public AppointmentResponseDto updateAppointment(
             Long id,
             AppointmentUpdateRequestDto request) {
@@ -148,6 +158,19 @@ public class AppointmentServiceImpl implements AppointmentService {
                 throw new ResourceNotFoundException("Customer not found.");
             }
             existingAppointment.setCustomerId(request.getCustomerId());
+        }
+
+        boolean changesSchedule = request.getStaffMemberId() != null || request.getStartsAt() != null || request.getServiceOfferingId() != null;
+        if (changesSchedule) {
+            Long target = request.getStaffMemberId() == null ? existingAppointment.getStaffMemberId() : request.getStaffMemberId();
+            java.util.stream.Stream.of(existingAppointment.getStaffMemberId(), target).distinct().sorted()
+                    .forEach(staffId -> {
+                        var member = staffMemberRepository.findByIdAndBusinessIdForUpdate(staffId, businessId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Staff member not found."));
+                        if (staffId.equals(target) && member.getStatus() != StaffMemberStatus.ACTIVE) {
+                            throw new InvalidStateTransitionException("Staff member is not active");
+                        }
+                    });
         }
 
         if (request.getStaffMemberId() != null) {
