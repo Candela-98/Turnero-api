@@ -2,19 +2,20 @@ package com.turnero.api.controller;
 
 import com.turnero.api.dto.CustomerRequestDto;
 import com.turnero.api.dto.CustomerResponseDto;
+import com.turnero.api.dto.CustomerPageResponseDto;
 import com.turnero.api.dto.CustomerUpdateRequestDto;
 import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
 import com.turnero.api.openapi.*;
 import com.turnero.api.service.CustomerService;
+import com.turnero.api.service.CustomerSort;
+import com.turnero.api.model.enums.CustomerStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(
         name = "Customers",
@@ -72,13 +73,21 @@ public class CustomerController {
 
     @Operation(
             summary = "Listar clientes",
-            description = "Obtiene una lista de todos los clientes registrados en el sistema")
+            description = "Busca por nombre, email o teléfono del negocio autenticado. El teléfono ignora formato. Página desde 0; tamaño 1–100 (20 por defecto); búsqueda hasta 100 caracteres; orden name,asc o name,desc con id ascendente como desempate. Parámetros inválidos devuelven 400.")
     @ApiFindAllResponses
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Parámetros de listado inválidos")
     @GetMapping
-    public ResponseEntity<List<CustomerResponseDto>> listCustomer() {
-        var customers = customerService.findAllCustomer();
-        var customersResponseDto = customerMapper.toSummaryResponseDtoList(customers);
-        return ResponseEntity.ok(customersResponseDto);
+    public ResponseEntity<CustomerPageResponseDto> listCustomer(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) CustomerStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = CustomerSort.DEFAULT_PARAMETER) String sort) {
+        var customers = customerService.listCustomers(q, status, page, size, CustomerSort.fromParameter(sort));
+        return ResponseEntity.ok(new CustomerPageResponseDto(
+                customerMapper.toSummaryResponseDtoList(customers.getContent()),
+                new CustomerPageResponseDto.PageInfo(customers.getNumber(), customers.getSize(),
+                        customers.getTotalElements(), customers.getTotalPages())));
     }
 
     @Operation(

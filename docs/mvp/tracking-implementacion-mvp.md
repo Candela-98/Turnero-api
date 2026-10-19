@@ -282,3 +282,14 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - QA manual final aprobada por el usuario el 2026-10-17, incluidos los avisos informativos sobre límites del negocio en frontend. Creación de PRs separados autorizada; TURN-79 se entrega sobre las ramas de TURN-78 mientras #79/#14 permanezcan abiertos. Integrar backend antes que frontend y ajustar bases a develop/dev al integrar TURN-78. Sin revisión de CI ni merge automático.
 
 - PRs TURN-79 creados el 2026-10-17: [backend #80](https://github.com/Candela-98/Turnero-api/pull/80) y [frontend #15](https://github.com/Candela-98/Turnero-frontend/pull/15), ambos sobre feature/TURN-78-staff-services. QA manual aprobada; abiertos para revisión. Sin consultar CI ni mergear. Tras integrar TURN-78, ajustar bases a develop/dev e integrar TURN-79 backend primero.
+
+## TURN-80 — Listado paginado de clientes (2026-10-19)
+
+- Implementación local en `feature/TURN-80-customer-list`, desde `develop`, independiente de TURN-101. Jira requiere paginación/búsqueda/estado, pero el GET previo devolvía un array completo: ahora `{ data, page }`, conservando los campos del resumen y excluyendo notas/fechas administrativas.
+- Consulta por negocio autenticado, búsqueda parcial por nombre/email sin mayúsculas y teléfono sin formato, filtros combinados, orden nombre/ID estable, límites y validación 400. Procesamiento en PostgreSQL y sin migraciones; las consultas internas existentes se conservan.
+- Suite backend completa: 548 pruebas aprobadas, sin fallos ni omisiones; 21 casos nuevos de listado PostgreSQL con sesión real, contactos opcionales, teléfono, paginación, parámetros inválidos y scoping. Contrato/OpenAPI y pruebas del array anterior actualizados.
+- QA manual e integración pendientes. Guía local en frontend `docs/pruebas-locales-turn-80.md`. Crear PRs separados después de aprobación manual, backend primero por el cambio del formato HTTP; bases develop/dev. Sin consultar CI ni mergear automáticamente.
+
+- Verificación final TURN-80: backend 548 pruebas aprobadas, sin fallos ni omisiones (21 casos PostgreSQL nuevos). Frontend `npm run check` completo aprobado: lint, TypeScript, 138 unitarios, build y 343 E2E aprobados / 14 omisiones preexistentes. Incluye los 27 recorridos de Clientes en los tres tamaños; los 3 casos de respuesta tardía se repitieron tras reforzar la espera de la fixture. Capturas de listado, filtros y contactos largos revisadas en 1440×900, 390×844 y 412×915; sin scroll horizontal ni infracciones axe básicas en los recorridos cubiertos. QA manual e integración pendientes.
+
+- QA manual TURN-80 aprobada por el usuario el 2026-10-19, con clientes ficticios en la DB local. Autorizada la creación de PRs separados sobre develop/dev, sin consultar CI. Integración pendiente; backend primero.

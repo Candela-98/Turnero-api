@@ -298,7 +298,7 @@ class CustomerControllerIT {
         // Then
         String json = result.getResponse().getContentAsString();
 
-        List<CustomerResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<CustomerResponseDto> response = objectMapper.readerFor(new TypeReference<List<CustomerResponseDto>>() {}).readValue(objectMapper.readTree(json).get("data"));
 
         assertThat(response)
                 .extracting(CustomerResponseDto::getName)
@@ -320,7 +320,7 @@ class CustomerControllerIT {
         // Then
         String json = result.getResponse().getContentAsString();
 
-        List<Customer> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<Customer> response = objectMapper.readerFor(new TypeReference<List<Customer>>() {}).readValue(objectMapper.readTree(json).get("data"));
 
         assertThat(response).isEmpty();
     }

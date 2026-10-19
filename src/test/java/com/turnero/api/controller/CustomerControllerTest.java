@@ -22,6 +22,9 @@ import com.turnero.api.mapper.CustomerMapper;
 import com.turnero.api.model.Customer;
 import com.turnero.api.model.enums.CustomerStatus;
 import com.turnero.api.service.CustomerService;
+import com.turnero.api.service.CustomerSort;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -306,8 +309,8 @@ class CustomerControllerTest {
         var response1 = getCustomerSummaryResponseDto(id);
         var response2 = getCustomerSummaryResponseDto(13L);
 
-        given(customerService.findAllCustomer())
-                .willReturn(List.of(customer1, customer2));
+        given(customerService.listCustomers(null, null, 0, 20, CustomerSort.fromParameter(null)))
+                .willReturn(new PageImpl<>(List.of(customer1, customer2), PageRequest.of(0, 20), 2));
         given(customerMapper.toSummaryResponseDtoList(List.of(customer1, customer2)))
                 .willReturn(List.of(response1, response2));
 
@@ -316,14 +319,14 @@ class CustomerControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(12))
-                .andExpect(jsonPath("$[0].name").value("Juan"))
-                .andExpect(jsonPath("$[0].internal_notes").doesNotExist())
-                .andExpect(jsonPath("$[1].id").value(13))
-                .andExpect(jsonPath("$[1].name").value("Juan"));
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(12))
+                .andExpect(jsonPath("$.data[0].name").value("Juan"))
+                .andExpect(jsonPath("$.data[0].internal_notes").doesNotExist())
+                .andExpect(jsonPath("$.data[1].id").value(13))
+                .andExpect(jsonPath("$.data[1].name").value("Juan"));
 
-        then(customerService).should().findAllCustomer();
+        then(customerService).should().listCustomers(null, null, 0, 20, CustomerSort.fromParameter(null));
         then(customerMapper).should().toSummaryResponseDtoList(List.of(customer1, customer2));
     }
 

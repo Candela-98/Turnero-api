@@ -873,7 +873,17 @@ size=20
 sort=name,asc
 ```
 
-Response `200 OK`: page de `CustomerSummary`.
+Response `200 OK` (reemplaza el array anterior):
+
+```json
+{"data":[{"id":10,"name":"Santiago Moreno","email":"santiago@example.com","phone_number":"+54 (11) 5555-5555","status":"ACTIVE"}],"page":{"number":0,"size":20,"total_elements":1,"total_pages":1}}
+```
+
+- Búsqueda parcial por nombre/email sin distinguir mayúsculas. Las entradas telefónicas con dígitos, espacios, `+`, guiones, puntos o paréntesis comparan solo dígitos; no infieren códigos de país y no alteran el teléfono guardado. Los comodines SQL se tratan como texto literal.
+- Búsqueda y estado se combinan, siempre limitados al negocio de la sesión. Filtrado, orden y paginación ocurren en la DB, sin descargar el catálogo completo.
+- Defaults: página 0, tamaño 20, orden `name,asc`. Tamaño permitido 1–100, `q` hasta 100 caracteres, estados ACTIVE/INACTIVE; omitir status incluye ambos. Orden alternativo `name,desc`; ambos usan `id,asc` como desempate. Parámetros inválidos devuelven 400.
+- El resumen conserva id, nombre, email, teléfono y estado. Los contactos nulos se omiten; nunca incluye notas internas ni fechas administrativas. Sin coincidencias: `data: []` y metadatos de página.
+- El endpoint conserva autenticación/autorización admin. No requiere migraciones; integrar backend TURN-80 antes del frontend por el cambio de formato. Las consultas internas de clientes mantienen su contrato.
 
 ### POST `/api/v1/customers`
 
