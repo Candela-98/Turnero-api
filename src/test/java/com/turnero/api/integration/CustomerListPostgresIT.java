@@ -80,6 +80,7 @@ class CustomerListPostgresIT {
     }
     JsonNode list(String... parameters) throws Exception {
         var request = get("/api/v1/customers").cookie(owner);
+        if (!java.util.Arrays.asList(parameters).contains("status")) request.param("status", "ALL");
         for (int i = 0; i < parameters.length; i += 2) request.param(parameters[i], parameters[i + 1]);
         return json.readTree(mvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     }
@@ -143,7 +144,7 @@ class CustomerListPostgresIT {
     }
     @ParameterizedTest
     @ValueSource(strings = {"page=-1", "page=x", "page=2147483648", "size=0", "size=101", "size=x",
-            "status=ALL", "status=active", "sort=id,asc", "sort=name,up", "sort=name,asc,id,desc"})
+            "status=UNKNOWN", "status=active", "sort=id,asc", "sort=name,up", "sort=name,asc,id,desc"})
     void rejectsInvalidParameters(String pair) throws Exception {
         var parts = pair.split("=", 2);
         mvc.perform(get("/api/v1/customers").cookie(owner).param(parts[0], parts[1])).andExpect(status().isBadRequest());

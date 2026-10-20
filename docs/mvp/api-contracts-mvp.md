@@ -273,7 +273,8 @@ Nota: los valores concretos de negocio en los ejemplos son ilustrativos del cont
   "name": "Santiago Moreno",
   "email": "santiago.moreno@mail.demo",
   "phone_number": "+54 11 5555-5555",
-  "status": "ACTIVE"
+  "status": "ACTIVE",
+  "public_booking_blocked": false
 }
 ```
 
@@ -878,7 +879,8 @@ Admin autenticado.
 Query params:
 
 ```text
-status=ACTIVE|INACTIVE
+status=ACTIVE|INACTIVE|ALL
+public_booking_blocked=true|false (opcional)
 q=santiago
 page=0
 size=20
@@ -893,9 +895,9 @@ Response `200 OK` (reemplaza el array anterior):
 
 - Búsqueda parcial por nombre/email sin distinguir mayúsculas. Las entradas telefónicas con dígitos, espacios, `+`, guiones, puntos o paréntesis comparan solo dígitos; no infieren códigos de país y no alteran el teléfono guardado. Los comodines SQL se tratan como texto literal.
 - Búsqueda y estado se combinan, siempre limitados al negocio de la sesión. Filtrado, orden y paginación ocurren en la DB, sin descargar el catálogo completo.
-- Defaults: página 0, tamaño 20, orden `name,asc`. Tamaño permitido 1–100, `q` hasta 100 caracteres, estados ACTIVE/INACTIVE; omitir status incluye ambos. Orden alternativo `name,desc`; ambos usan `id,asc` como desempate. Parámetros inválidos devuelven 400.
-- El resumen conserva id, nombre, email, teléfono y estado. Los contactos nulos se omiten; nunca incluye notas internas ni fechas administrativas. Sin coincidencias: `data: []` y metadatos de página.
-- El endpoint conserva autenticación/autorización admin. No requiere migraciones; integrar backend TURN-80 antes del frontend por el cambio de formato. Las consultas internas de clientes mantienen su contrato.
+- Defaults: página 0, tamaño 20, orden `name,asc`. Tamaño permitido 1–100, `q` hasta 100 caracteres, estados ACTIVE/INACTIVE/ALL; omitir status devuelve ACTIVE (sin archivar). INACTIVE significa archivado y ALL incluye ambos. public_booking_blocked es independiente del archivo y omitirlo incluye permitidos y bloqueados. Orden alternativo `name,desc`; ambos usan `id,asc` como desempate. Parámetros inválidos devuelven 400.
+- El resumen conserva id, nombre, email, teléfono, estado y public_booking_blocked. Nunca incluye public_booking_block_reason. Los contactos nulos se omiten; nunca incluye notas internas ni fechas administrativas. Sin coincidencias: `data: []` y metadatos de página.
+- El endpoint conserva autenticación/autorización admin. TURN-102 requiere la migración V1004; integrar backend antes del frontend por los nuevos campos y el filtro de archivo predeterminado. Las consultas internas de clientes mantienen su contrato.
 
 ### POST `/api/v1/customers`
 
@@ -962,14 +964,39 @@ Response `200 OK`: customer actualizado.
 
 ### DELETE `/api/v1/customers/{customer_id}`
 
-Admin autenticado. Baja logica.
+Admin autenticado. Archivo lógico, independiente del bloqueo de reservas públicas.
 
 Response `204 No Content`.
 
 Reglas:
 
 - Setea `status = INACTIVE`.
-- No borra historial.
+- Conserva datos, notas y turnos; no cancela reservas ni modifica el bloqueo público.
+- PATCH con solo status ACTIVE restaura la ficha, conservando el bloqueo.
+
+### Archivo y bloqueo público — TURN-102
+
+Migración V1004: public_booking_blocked BOOLEAN NOT NULL DEFAULT FALSE y public_booking_block_reason VARCHAR(500) nullable. Los INACTIVE existentes pasan a interpretarse como archivados sin cambiar registros ni relaciones. Crear cliente siempre inicia ACTIVE y sin bloqueo; flags de alta no son editables.
+
+Detalle administrativo incorpora public_booking_blocked y, cuando está bloqueado, public_booking_block_reason. El listado expone solo el indicador. PATCH admite:
+
+```json
+{"public_booking_blocked":true,"public_booking_block_reason":"Ausencias reiteradas"}
+```
+
+```json
+{"public_booking_blocked":false}
+```
+
+Bloquear exige motivo interno no blanco de 1–500 caracteres y al menos email o teléfono con dígitos. Desbloquear limpia el motivo vigente. Omitir/null conserva valores; un motivo sin bloqueo produce 400. Ninguna acción cambia el archivo de manera implícita. Ediciones posteriores tampoco pueden dejar una ficha bloqueada sin contacto utilizable.
+
+La creación pública de turnos comprueba contactos antes de persistir. Email: trim y comparación case-insensitive. Teléfono: dígitos exactos, sin inferir país. Cualquier ficha coincidente bloqueada del negocio impide reservar, incluso archivada o con contactos compartidos. No es identidad verificada; nuevos contactos pueden eludir el bloqueo.
+
+- 403 CUSTOMER_BOOKING_BLOCKED: contactar al negocio. Nunca expone el motivo privado.
+- 409 CUSTOMER_IDENTITY_AMBIGUOUS: contactar al negocio, sin elegir ni fusionar fichas arbitrariamente.
+- Reutilización: email único primero, luego teléfono único; cero coincidencias crea una ficha. Una reserva exitosa restaura al archivado no bloqueado en la misma transacción, conservando nombre, contacto y notas; un fallo posterior revierte la restauración.
+- Se bloquean y refrescan las filas coincidentes por ID ascendente para coordinar reserva y cambios administrativos. Los índices por negocio/contacto soportan la búsqueda.
+- El bloqueo no afecta turnos existentes, su cancelación ni asignaciones administrativas. La futura agenda real debe advertir al admin; la agenda demo no cambia.
 
 ## Appointments admin
 

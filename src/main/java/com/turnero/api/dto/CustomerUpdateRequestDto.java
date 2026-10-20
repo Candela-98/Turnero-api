@@ -44,4 +44,9 @@ public class CustomerUpdateRequestDto {
 
     @Schema(description = "The customer's status", example = "ACTIVE")
     private CustomerStatus status;
+
+    private Boolean publicBookingBlocked;
+
+    @Size(max = 500, message = "The blocking reason must have at most 500 characters.")
+    private String publicBookingBlockReason;
 }

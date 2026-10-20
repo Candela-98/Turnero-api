@@ -326,3 +326,12 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - Conflictos de documentación resueltos conservando las dos entregas; en el BFF se conservaron las pruebas de Clientes y Profesionales (53 pruebas locales aprobadas). TURN-100 actualizado sobre las bases integradas develop/dev. QA manual aprobada; abrir ambos PRs y mantenerlos sin mergear.
 
 - PRs TURN-100 creados y abiertos: [backend #83](https://github.com/Candela-98/Turnero-api/pull/83), base `develop`, y [frontend #18](https://github.com/Candela-98/Turnero-frontend/pull/18), base `dev`. Integrar backend primero. Comprobación local tras integrar dependencias: 24 casos PostgreSQL de escritura aprobados, 179 unitarios frontend, lint y TypeScript aprobados. Sin consultar CI.
+
+## TURN-102 — Detalle, archivo y bloqueo público de clientes (2026-10-19)
+
+- Implementación en feature/TURN-102-customer-archive-block, basada en TURN-100. Jira actualizado a alcance Fullstack, dos PRs backend/frontend después de QA manual. Mantiene estado In Progress.
+- DELETE archiva, PATCH status ACTIVE restaura. Bloqueo y motivo privados independientes por PATCH; listado por defecto sin archivar, filtros combinados y motivo excluido del resumen. V1004 conserva registros e historial y habilita bloqueo false inicial.
+- Reserva pública compara email o teléfono por negocio, bloquea cualquier coincidencia restringida, reutiliza ficha única y restaura al archivado en la misma transacción. Errores públicos genéricos y sin motivo privado. Locks/refresh evitan restaurar por encima de un bloqueo concurrente. Asignación administrativa permitida y turnos existentes conservados.
+- QA automática final: suite backend completa con 609 pruebas aprobadas, 0 errores/omisiones. Incluye migración desde registros anteriores, coincidencias y bloqueo público por contactos, restauración/rollback, bloqueo concurrente y reserva administrativa permitida. Frontend: lint, TypeScript, build, 222 unitarios y 490 E2E aprobados; 14 omisiones preexistentes. Capturas revisadas en los tres viewports. QA manual e integración pendientes. Contrato en api-contracts-mvp.md, guía compartida en frontend docs/pruebas-locales-turn-102.md. Backend antes de frontend; no se consulta CI.
+
+- QA manual TURN-102 aprobada por el usuario y creación de ambos PRs autorizada el 2026-10-20. TURN-100 continúa abierto (#83 API / #18 frontend): base inmediata feature/TURN-100-customer-form en ambos repos; retarget a develop/dev tras integrar la dependencia. Integración pendiente, backend primero. Sin consultar CI.

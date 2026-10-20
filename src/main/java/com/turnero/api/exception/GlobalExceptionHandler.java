@@ -86,6 +86,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
+    @ExceptionHandler(CustomerBookingBlockedException.class)
+    public ResponseEntity<ErrorResponse> handleCustomerBookingBlocked(CustomerBookingBlockedException ex, HttpServletRequest request) {
+        return customerBookingError(403, "Forbidden", "CUSTOMER_BOOKING_BLOCKED", request);
+    }
+
+    @ExceptionHandler(CustomerIdentityAmbiguousException.class)
+    public ResponseEntity<ErrorResponse> handleCustomerIdentityAmbiguous(CustomerIdentityAmbiguousException ex, HttpServletRequest request) {
+        return customerBookingError(409, "Conflict", "CUSTOMER_IDENTITY_AMBIGUOUS", request);
+    }
+
+    private ResponseEntity<ErrorResponse> customerBookingError(int status, String error, String code, HttpServletRequest request) {
+        return ResponseEntity.status(status).body(ErrorResponse.builder().timestamp(LocalDateTime.now())
+                .status(status).error(error).code(code).message("Contact the business to arrange your appointment.")
+                .path(request.getRequestURI()).build());
+    }
+
     @ExceptionHandler(StaffHasFutureAppointmentsException.class)
     public ResponseEntity<ErrorResponse> handleStaffFutureAppointments(StaffHasFutureAppointmentsException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse.builder()

@@ -40,6 +40,13 @@ public class Customer {
     @Column(columnDefinition = "TEXT")
     private String internalNotes;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean publicBookingBlocked = false;
+
+    @Column(length = 500)
+    private String publicBookingBlockReason;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

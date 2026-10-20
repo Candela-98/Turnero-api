@@ -309,7 +309,7 @@ class CustomerControllerTest {
         var response1 = getCustomerSummaryResponseDto(id);
         var response2 = getCustomerSummaryResponseDto(13L);
 
-        given(customerService.listCustomers(null, null, 0, 20, CustomerSort.fromParameter(null)))
+        given(customerService.listCustomers(null, CustomerStatus.ACTIVE, null, 0, 20, CustomerSort.fromParameter(null)))
                 .willReturn(new PageImpl<>(List.of(customer1, customer2), PageRequest.of(0, 20), 2));
         given(customerMapper.toSummaryResponseDtoList(List.of(customer1, customer2)))
                 .willReturn(List.of(response1, response2));
@@ -326,7 +326,7 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.data[1].id").value(13))
                 .andExpect(jsonPath("$.data[1].name").value("Juan"));
 
-        then(customerService).should().listCustomers(null, null, 0, 20, CustomerSort.fromParameter(null));
+        then(customerService).should().listCustomers(null, CustomerStatus.ACTIVE, null, 0, 20, CustomerSort.fromParameter(null));
         then(customerMapper).should().toSummaryResponseDtoList(List.of(customer1, customer2));
     }
 
