@@ -49,8 +49,9 @@ class FlywayMigrationTest {
 
         assertDoesNotThrow(flyway::migrate);
 
-        assertSuccessfulVersions("1", "3");
+        assertSuccessfulVersions("1", "3", "4");
         assertCleanupIndexes();
+        assertPublicTokenCleanupIndexes();
     }
 
     @Test
@@ -73,8 +74,9 @@ class FlywayMigrationTest {
 
         assertDoesNotThrow(flyway::migrate);
 
-        assertSuccessfulVersions("1", "3", "1000");
+        assertSuccessfulVersions("1", "3", "4", "1000");
         assertCleanupIndexes();
+        assertPublicTokenCleanupIndexes();
     }
 
     @Test
@@ -100,8 +102,26 @@ class FlywayMigrationTest {
                 .load();
         assertDoesNotThrow(updated::migrate);
 
-        assertSuccessfulVersions("1", "1000", "3");
+        assertSuccessfulVersions("1", "1000", "3", "4");
         assertCleanupIndexes();
+        assertPublicTokenCleanupIndexes();
+        assertThat(updated.validateWithResult().validationSuccessful).isTrue();
+        assertThat(updated.migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
+    void shouldUpgradeFromV3ToV4AndValidateRepeatedMigration() throws Exception {
+        Flyway previous = configuration().target("3").load();
+        assertDoesNotThrow(previous::migrate);
+        assertSuccessfulVersions("1", "3");
+        assertThat(cleanupIndexes("appointment_public_tokens")).isEmpty();
+
+        Flyway updated = configuration().load();
+        assertThat(updated.migrate().migrationsExecuted).isEqualTo(1);
+
+        assertSuccessfulVersions("1", "3", "4");
+        assertCleanupIndexes();
+        assertPublicTokenCleanupIndexes();
         assertThat(updated.validateWithResult().validationSuccessful).isTrue();
         assertThat(updated.migrate().migrationsExecuted).isZero();
     }
@@ -148,6 +168,10 @@ class FlywayMigrationTest {
     }
 
     private List<CleanupIndex> cleanupIndexes() throws Exception {
+        return cleanupIndexes("user_sessions");
+    }
+
+    private List<CleanupIndex> cleanupIndexes(String tableName) throws Exception {
         List<CleanupIndex> indexes = new ArrayList<>();
         try (Connection connection = connection();
              Statement statement = connection.createStatement();
@@ -163,13 +187,15 @@ class FlywayMigrationTest {
                      JOIN pg_namespace n ON n.oid = t.relnamespace
                      JOIN pg_am am ON am.oid = c.relam
                      WHERE n.nspname = current_schema()
-                       AND t.relname = 'user_sessions'
+                       AND t.relname = '%s'
                        AND c.relname IN (
                            'idx_user_sessions_cleanup_expires_at',
-                           'idx_user_sessions_cleanup_revoked_at'
+                           'idx_user_sessions_cleanup_revoked_at',
+                           'idx_public_tokens_cleanup_expires',
+                           'idx_public_tokens_cleanup_used'
                        )
                      ORDER BY c.relname
-                     """)) {
+                     """.formatted(tableName))) {
             while (rows.next()) {
                 indexes.add(new CleanupIndex(
                         rows.getString("index_name"), rows.getString("column_name"),
@@ -189,6 +215,12 @@ class FlywayMigrationTest {
         assertThat(cleanupIndexes()).containsExactly(
                 new CleanupIndex("idx_user_sessions_cleanup_expires_at", "expires_at", "revoked_at IS NULL"),
                 new CleanupIndex("idx_user_sessions_cleanup_revoked_at", "revoked_at", "revoked_at IS NOT NULL"));
+    }
+
+    private void assertPublicTokenCleanupIndexes() throws Exception {
+        assertThat(cleanupIndexes("appointment_public_tokens")).containsExactly(
+                new CleanupIndex("idx_public_tokens_cleanup_expires", "expires_at", "used_at IS NULL"),
+                new CleanupIndex("idx_public_tokens_cleanup_used", "used_at", "used_at IS NOT NULL"));
     }
 
     private record CleanupIndex(String name, String column, String predicate) {

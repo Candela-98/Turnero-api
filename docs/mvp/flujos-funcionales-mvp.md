@@ -626,3 +626,62 @@ Al crear appointment:
 - `price_cents` se copia desde el servicio.
 
 Esto preserva historial aunque cambie el servicio despues.
+
+## Limpieza operativa de tokens públicos (TURN-111)
+
+### Objetivo
+
+Evitar el crecimiento indefinido de la tabla `appointment_public_tokens` mediante la eliminación periódica de tokens vencidos o utilizados que hayan superado el período de retención.
+
+### Reglas de limpieza
+
+- Retención predeterminada de 30 días.
+- Si el token fue utilizado (`used_at IS NOT NULL`), se considera candidato cuando `used_at` es anterior al cutoff.
+- Si el token no fue utilizado (`used_at IS NULL`), se considera candidato cuando `expires_at` es anterior al cutoff.
+- Los tokens vigentes y no utilizados se conservan.
+- Los tokens cuya fecha coincide exactamente con el cutoff también se conservan.
+- El cutoff se calcula según la zona horaria del negocio correspondiente.
+
+### Ejecución automática
+
+- `PublicTokenCleanupScheduler` ejecuta el proceso diariamente mediante un cron configurable, inicialmente a las 03:00.
+- `PublicTokenCleanupServiceImpl` obtiene los negocios ordenados por ID y calcula el cutoff de cada uno utilizando un único instante de referencia.
+- El proceso selecciona hasta 500 candidatos en total por ejecución, con tamaño configurable.
+- El Repository selecciona IDs y vuelve a verificar la pertenencia al negocio y la elegibilidad antes de eliminar.
+- El proceso es idempotente: puede ejecutarse repetidamente sin volver a eliminar registros que ya no existen.
+- Si existen más candidatos que el límite configurado, los restantes quedan para ejecuciones posteriores.
+
+### Configuración
+
+Las propiedades se encuentran en `application.yml`:
+
+```yaml
+public-token:
+  cleanup:
+    retention-days: ${PUBLIC_TOKEN_CLEANUP_RETENTION_DAYS:30}
+    batch-size: ${PUBLIC_TOKEN_CLEANUP_BATCH_SIZE:500}
+    cron: "${PUBLIC_TOKEN_CLEANUP_CRON:0 0 3 * * *}"
+```
+
+### Base de datos
+
+La migración `V4__add_public_token_cleanup_indexes.sql` incorpora índices parciales sobre `expires_at` y `used_at` para optimizar la selección de candidatos.
+
+### Observabilidad y seguridad
+
+- El Scheduler registra únicamente `deletedCount` y `durationMs`.
+- No se registran tokens, hashes ni datos personales.
+- La selección y eliminación se ejecutan dentro de una transacción.
+- El proceso respeta la separación de datos entre negocios.
+
+### Verificación
+
+La implementación cuenta con tests unitarios y de integración con PostgreSQL 16 mediante Testcontainers, incluyendo retención, zonas horarias, límites de lote, idempotencia, transacciones y concurrencia.
+
+Para ejecutar la suite de tests:
+
+```powershell
+.\gradlew.bat test --no-daemon
+```
+
+La configuración del MVP contempla una única instancia ejecutando el Scheduler. En un despliegue con múltiples instancias será necesario coordinar la ejecución del job para evitar ejecuciones simultáneas innecesarias.
