@@ -21,6 +21,14 @@ import java.util.List;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(ErrorResponse.builder().timestamp(LocalDateTime.now())
+                .status(400).error("Bad Request").code("VALIDATION_ERROR").message("Invalid request body")
+                .path(request.getRequestURI()).build());
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         ErrorResponse error = ErrorResponse.builder()
@@ -76,6 +84,22 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(StaffHasFutureAppointmentsException.class)
+    public ResponseEntity<ErrorResponse> handleStaffFutureAppointments(StaffHasFutureAppointmentsException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now()).status(409).error("Conflict")
+                .code("STAFF_HAS_FUTURE_APPOINTMENTS").message(ex.getMessage())
+                .path(request.getRequestURI()).build());
+    }
+
+    @ExceptionHandler(StaffUserAlreadyLinkedException.class)
+    public ResponseEntity<ErrorResponse> handleStaffUserAlreadyLinked(StaffUserAlreadyLinkedException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse.builder()
+                .timestamp(LocalDateTime.now()).status(409).error("Conflict")
+                .code("STAFF_USER_ALREADY_LINKED").message(ex.getMessage())
+                .path(request.getRequestURI()).build());
     }
 
     @ExceptionHandler(Exception.class)

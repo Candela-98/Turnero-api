@@ -1,5 +1,8 @@
 package com.turnero.api.controller;
 
+import com.turnero.api.dto.StaffMemberPageResponseDto;
+import com.turnero.api.dto.StaffMemberLinkResponseDto;
+import com.turnero.api.auth.AuthenticatedUserContext;
 import com.turnero.api.dto.StaffMemberRequestDto;
 import com.turnero.api.dto.StaffMemberResponseDto;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
@@ -7,13 +10,18 @@ import com.turnero.api.dto.StaffWorkingHoursRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursResponseDto;
 import com.turnero.api.mapper.StaffMemberMapper;
 import com.turnero.api.model.StaffMember;
+import com.turnero.api.model.enums.StaffMemberStatus;
 import com.turnero.api.openapi.*;
 import com.turnero.api.service.StaffMemberService;
+import com.turnero.api.service.StaffMemberSort;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,24 +36,27 @@ import java.util.List;
 @RequestMapping("/api/v1/staff-members")
 public class StaffMemberController {
 
+    private final AuthenticatedUserContext authenticatedUserContext;
     private final StaffMemberService staffMemberService;
     private final StaffMemberMapper staffMemberMapper;
 
-    public StaffMemberController(StaffMemberService staffMemberService, StaffMemberMapper staffMemberMapper) {
+    public StaffMemberController(StaffMemberService staffMemberService, StaffMemberMapper staffMemberMapper, AuthenticatedUserContext authenticatedUserContext) {
+        this.authenticatedUserContext = authenticatedUserContext;
         this.staffMemberService = staffMemberService;
         this.staffMemberMapper = staffMemberMapper;
     }
 
     @Operation(
             summary = "Crear profesional",
-            description = "Crea un nuevo profesional en el sistema"
+            description = "Crea un profesional activo y copia los horarios del negocio. Rol de hasta 80 caracteres. Si user_id ya está vinculado, devuelve 409 STAFF_USER_ALREADY_LINKED."
     )
     @ApiCreateResponses
+    @ApiResponse(responseCode = "409", description = "STAFF_USER_ALREADY_LINKED: el usuario ya está vinculado a un profesional")
     @PostMapping
     public ResponseEntity<StaffMemberResponseDto> saveStaffMember(@Valid @RequestBody StaffMemberRequestDto staffDto) {
         var staff = staffMemberMapper.toEntity(staffDto);
-        staffMemberService.saveStaffMember(staff);
-        var staffResponseDto = staffMemberMapper.toResponseDto(staff);
+        var saved = staffMemberService.saveStaffMember(staff);
+        var staffResponseDto = staffMemberMapper.toResponseDto(saved);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(staffResponseDto);
     }
@@ -62,6 +73,15 @@ public class StaffMemberController {
         return ResponseEntity.ok(staffResponseDto);
     }
 
+    @Operation(summary = "Obtener mi profesional vinculado", description = "Consulta por usuario de sesión y negocio autenticado, independiente de filtros, estado y paginación. Devuelve staff_member null si no existe vinculación; incluye profesionales inactivos.")
+    @GetMapping("/me")
+    public ResponseEntity<StaffMemberLinkResponseDto> findCurrentStaffMember() {
+        var member = staffMemberService.findStaffMemberForUser(authenticatedUserContext.getRequiredUser().getId());
+        return ResponseEntity.ok(new StaffMemberLinkResponseDto(member.map(staffMemberMapper::toResponseDto).orElse(null)));
+    }
+
+    @Operation(summary = "Obtener semana laboral del profesional", description = "Array de siete días de lunes a domingo; los días faltantes se muestran no disponibles sin persistirlos. Horas HH:mm o null.")
+    @ApiFindByIdResponses
     @GetMapping("/{id}/working-hours")
     public ResponseEntity<List<StaffWorkingHoursResponseDto>> getWorkingHours(@PathVariable Long id) {
 
@@ -70,9 +90,10 @@ public class StaffMemberController {
 
     @Operation(
             summary = "Actualizar profesional",
-            description = "Actualiza los detalles de un profesional existente utilizando su ID"
+            description = "Actualiza datos o estado del profesional del negocio autenticado. Reactivar conserva relaciones; desactivar también por PATCH devuelve 409 STAFF_HAS_FUTURE_APPOINTMENTS ante turnos futuros pendientes o confirmados."
     )
     @ApiUpdateResponses
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "STAFF_HAS_FUTURE_APPOINTMENTS: turnos futuros pendientes o confirmados impiden desactivar")
     @PatchMapping("/{id}")
     public ResponseEntity<StaffMemberResponseDto> updateStaffMember(@Valid @RequestBody StaffMemberUpdateRequestDto staffDto, @PathVariable Long id) {
         var updatedStaffMember = staffMemberService.updateStaffMember(staffDto, id);
@@ -82,7 +103,7 @@ public class StaffMemberController {
 
     @Operation(
             summary = "Reemplazar horarios semanales del profesional",
-            description = "Reemplaza la semana completa de horarios de trabajo de un profesional"
+            description = "Reemplaza la semana completa mediante un array de siete días únicos. Guarda de forma atómica y conserva IDs existentes. Días no disponibles normalizan horas a null. No modifica turnos existentes."
     )
     @PutMapping("/{id}/working-hours")
     public ResponseEntity<List<StaffWorkingHoursResponseDto>> replaceWorkingHours(@PathVariable Long id,
@@ -95,24 +116,44 @@ public class StaffMemberController {
 
     @Operation(
             summary = "Obtener todos los profesionales",
-            description = "Obtiene una lista de todos los profesionales registrados en el sistema"
+            description = "Excluye eliminados y filtra por nombre, rol, especialidad y estado del negocio autenticado. Página desde 0, tamaño 1–100 (20 por defecto), q hasta 100 caracteres; orden name,asc o name,desc con id ascendente como desempate. Parámetros inválidos devuelven 400."
     )
     @ApiFindAllResponses
     @GetMapping
-    public ResponseEntity<List<StaffMemberResponseDto>> findAllStaffMember() {
-        var staffMembers = staffMemberService.findAllStaffMember();
-        var staffMembersResponseDto = staffMemberMapper.toResponseDtoList(staffMembers);
-        return ResponseEntity.ok(staffMembersResponseDto);
+    public ResponseEntity<StaffMemberPageResponseDto> findAllStaffMember(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) StaffMemberStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = StaffMemberSort.DEFAULT_PARAMETER) String sort) {
+        var members = staffMemberService.listStaffMembers(q, status, page, size, StaffMemberSort.fromParameter(sort));
+        var counts = staffMemberService.getServiceCounts(members.getContent().stream().map(StaffMember::getId).toList());
+        var data = staffMemberMapper.toResponseDtoList(members.getContent());
+        data.forEach(member -> member.setServiceCount(counts.getOrDefault(member.getId(), 0L)));
+        return ResponseEntity.ok(new StaffMemberPageResponseDto(
+                data,
+                new StaffMemberPageResponseDto.PageInfo(members.getNumber(), members.getSize(),
+                        members.getTotalElements(), members.getTotalPages())));
     }
 
     @Operation(
-            summary = "Eliminar profesional",
-            description = "Elimina un profesional específico utilizando su ID"
+            summary = "Desactivar profesional",
+            description = "Baja lógica idempotente del profesional. Devuelve 204; 409 STAFF_HAS_FUTURE_APPOINTMENTS si tiene turnos futuros pendientes o confirmados. Conserva historial y relaciones."
     )
     @ApiDeleteResponses
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "STAFF_HAS_FUTURE_APPOINTMENTS: turnos futuros pendientes o confirmados impiden desactivar")
     @DeleteMapping("/{id}")
     public ResponseEntity<StaffMember> deleteStaffMember(@PathVariable Long id) {
         staffMemberService.deleteStaffMember(id);
         return ResponseEntity.noContent().build();
     }
+    @Operation(summary = "Eliminar profesional del listado", description = "Borrado lógico de un profesional inactivo; conserva historial y relaciones. No permite restaurarlo desde la app. Libera la vinculación operativa del usuario para otro perfil.")
+    @ApiDeleteResponses
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Requiere estado inactivo y no tener turnos futuros pendientes o confirmados")
+    @DeleteMapping("/{id}/catalog")
+    public ResponseEntity<Void> removeFromCatalog(@PathVariable Long id) {
+        staffMemberService.removeFromCatalog(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }

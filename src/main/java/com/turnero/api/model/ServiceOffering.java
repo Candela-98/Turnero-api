@@ -40,4 +40,6 @@ public class ServiceOffering {
 
     private LocalDateTime updatedAt;
 
+    private LocalDateTime deletedAt;
+
 }

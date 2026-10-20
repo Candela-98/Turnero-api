@@ -98,8 +98,8 @@ public class ServOfferingController {
     }
 
     @Operation(
-            summary = "Eliminar servicio ofrecido",
-            description = "Elimina un servicio ofrecido específico utilizando su ID"
+            summary = "Desactivar servicio ofrecido",
+            description = "Marca el servicio como inactivo, conservando sus datos"
     )
     @ApiDeleteResponses
     @DeleteMapping("/{id}")
@@ -107,4 +107,12 @@ public class ServOfferingController {
         servOfferingService.deleteServOffering(id);
         return ResponseEntity.noContent().build();
     }
+    @Operation(summary = "Eliminar servicio del catálogo", description = "Borrado lógico irreversible desde la app. Requiere estado INACTIVE; conserva referencias históricas. Un servicio activo devuelve 409 y uno eliminado o de otro negocio devuelve 404.")
+    @ApiDeleteResponses
+    @DeleteMapping("/{id}/catalog")
+    public ResponseEntity<Void> removeFromCatalog(@PathVariable Long id) {
+        servOfferingService.removeFromCatalog(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }

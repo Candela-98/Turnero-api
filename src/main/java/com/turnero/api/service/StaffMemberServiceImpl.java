@@ -4,8 +4,12 @@ import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.StaffMemberUpdateRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursRequestDto;
 import com.turnero.api.dto.StaffWorkingHoursResponseDto;
-import com.turnero.api.exception.AppointmentOverlapException;
+import com.turnero.api.exception.StaffHasFutureAppointmentsException;
+import com.turnero.api.repository.BusinessRepository;
+import java.time.Clock;
+import java.time.ZoneId;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.exception.StaffUserAlreadyLinkedException;
 import com.turnero.api.model.BusinessHours;
 import com.turnero.api.model.StaffMember;
 import com.turnero.api.model.StaffWorkingHours;
@@ -17,13 +21,23 @@ import com.turnero.api.repository.BusinessHoursRepository;
 import com.turnero.api.repository.StaffMemberRepository;
 import com.turnero.api.repository.StaffWorkingHoursRepository;
 import com.turnero.api.repository.UserRepository;
+
+import jakarta.persistence.criteria.Predicate;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -38,14 +52,20 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     private final StaffMemberRepository staffMemberRepository;
     private final UserRepository userRepository;
     private final AppointmentRepository appointmentRepository;
+    private final BusinessRepository businessRepository;
+    private final Clock clock;
 
     @Override
+    @Transactional
     public StaffMember saveStaffMember(StaffMember staffMember) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
-        if (staffMember.getUserId() != null &&
-                !userRepository.existsByIdAndBusinessId(staffMember.getUserId(), businessId)) {
-            throw new ResourceNotFoundException("User not found for current business");
+        if (staffMember.getUserId() != null) {
+            userRepository.findByIdAndBusinessIdForUpdate(staffMember.getUserId(), businessId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found for current business"));
+            if (staffMemberRepository.existsByUserIdAndDeletedAtIsNull(staffMember.getUserId())) {
+                throw new StaffUserAlreadyLinkedException();
+            }
         }
 
         List<BusinessHours> businessHours = businessHoursRepository.findAllByBusinessId(businessId);
@@ -85,16 +105,29 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     }
 
     @Override
+    public java.util.Optional<StaffMember> findStaffMemberForUser(Long userId) {
+        return staffMemberRepository.findByUserIdAndBusinessIdAndDeletedAtIsNull(userId, currentBusinessContext.getCurrentBusinessId());
+    }
+
+    @Override
     public StaffMember findStaffMember(Long id) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
         return staffMemberRepository.findByIdAndBusinessId(id, businessId)
+                .filter(member -> member.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + id));
     }
 
     @Override
+    @Transactional
     public StaffMember updateStaffMember(StaffMemberUpdateRequestDto staffMember, Long id) {
-        StaffMember staffMemberExist = findStaffMember(id);
+        StaffMember staffMemberExist = lockStaffMember(id);
+        if (staffMember.getStatus() == StaffMemberStatus.INACTIVE && staffMemberExist.getStatus() != StaffMemberStatus.INACTIVE) {
+            requireNoFutureAppointments(staffMemberExist);
+        }
+        boolean onlyStatus = staffMember.getName() == null && staffMember.getRoleLabel() == null
+                && staffMember.getSpecialty() == null && staffMember.getAvatarUrl() == null;
+        if (onlyStatus && (staffMember.getStatus() == null || staffMember.getStatus() == staffMemberExist.getStatus())) return staffMemberExist;
 
         if (staffMember.getName() != null) {
             staffMemberExist.setName(staffMember.getName());
@@ -116,6 +149,7 @@ public class StaffMemberServiceImpl implements StaffMemberService {
             staffMemberExist.setStatus(staffMember.getStatus());
         }
 
+        staffMemberExist.setUpdatedAt(LocalDateTime.now(clock));
         StaffMember updatedStaffMember = staffMemberRepository.save(staffMemberExist);
         log.info("Staffmember with id={} successfully updated.", id);
 
@@ -123,66 +157,96 @@ public class StaffMemberServiceImpl implements StaffMemberService {
     }
 
     @Override
-    public List<StaffMember> findAllStaffMember() {
-
+    public Page<StaffMember> listStaffMembers(String q, StaffMemberStatus status, int page, int size, Sort ordering) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
-        return staffMemberRepository.findAllByBusinessId(businessId);
+        if (page < 0 || size < 1 || size > 100 || (q != null && q.length() > 100)) {
+            throw new IllegalArgumentException("Invalid staff member list parameter");
+        }
+        String search = q == null ? null : q.trim().toLowerCase(Locale.ROOT);
+        Specification<StaffMember> filters = (root, query, builder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(builder.equal(root.get("businessId"), businessId));
+            predicates.add(builder.isNull(root.get("deletedAt")));
+            if (search != null && !search.isEmpty()) {
+                String pattern = "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+                predicates.add(builder.or(
+                        builder.like(builder.lower(root.get("name")), pattern, '\\'),
+                        builder.like(builder.lower(root.get("roleLabel")), pattern, '\\'),
+                        builder.like(builder.lower(root.get("specialty")), pattern, '\\')));
+            }
+            if (status != null) predicates.add(builder.equal(root.get("status"), status));
+            return builder.and(predicates.toArray(new Predicate[0]));
+        };
+        return staffMemberRepository.findAll(filters, PageRequest.of(page, size, ordering));
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, Long> getServiceCounts(List<Long> staffIds) {
+        if (staffIds.isEmpty()) return java.util.Map.of();
+        return staffMemberRepository.countServicesForStaff(staffIds, currentBusinessContext.getCurrentBusinessId()).stream()
+                .collect(Collectors.toMap(StaffMemberRepository.ServiceCount::getStaffMemberId,
+                        StaffMemberRepository.ServiceCount::getServiceCount));
+    }
+
+    @Override
+    public List<StaffMember> findAllStaffMember() {
+
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        return staffMemberRepository.findAllByBusinessId(businessId).stream().filter(member -> member.getDeletedAt() == null).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<StaffWorkingHoursResponseDto> getWorkingHours(Long staffMemberId) {
-
         findStaffMember(staffMemberId);
-
-        return staffWorkingHoursRepository
-                .findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId)
-                .stream()
-                .map(hour -> StaffWorkingHoursResponseDto.builder()
-                        .dayOfWeek(hour.getDayOfWeek())
-                        .startsAt(hour.getStartsAt())
-                        .endsAt(hour.getEndsAt())
-                        .isAvailable(hour.isAvailable())
-                        .build())
-                .toList();
+        return toCompleteWeek(staffWorkingHoursRepository.findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId));
     }
 
     @Override
     @Transactional
     public List<StaffWorkingHoursResponseDto> replaceWorkingHours(Long staffMemberId, List<StaffWorkingHoursRequestDto> workingHours) {
-
-        findStaffMember(staffMemberId);
-
+        Long businessId = currentBusinessContext.getCurrentBusinessId();
+        staffMemberRepository.findByIdAndBusinessIdForUpdate(staffMemberId, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + staffMemberId));
         validateWorkingHours(workingHours);
+        var existing = staffWorkingHoursRepository.findAllByStaffMemberIdOrderByDayOfWeekAsc(staffMemberId).stream()
+                .collect(Collectors.toMap(StaffWorkingHours::getDayOfWeek, hour -> hour));
+        List<StaffWorkingHours> missing = new ArrayList<>();
+        for (var day : workingHours) {
+            var hour = existing.get(day.getDayOfWeek());
+            if (hour == null) {
+                hour = StaffWorkingHours.builder().staffMemberId(staffMemberId).dayOfWeek(day.getDayOfWeek()).build();
+                existing.put(day.getDayOfWeek(), hour);
+                missing.add(hour);
+            }
+            boolean available = day.getIsAvailable();
+            hour.setAvailable(available);
+            hour.setStartsAt(available ? day.getStartsAt() : null);
+            hour.setEndsAt(available ? day.getEndsAt() : null);
+        }
+        if (!missing.isEmpty()) staffWorkingHoursRepository.saveAll(missing);
+        return toCompleteWeek(new ArrayList<>(existing.values()));
+    }
 
-        staffWorkingHoursRepository.deleteAllByStaffMemberId(staffMemberId);
-
-        List<StaffWorkingHours> newWorkingHours = workingHours.stream()
-                .map(workingHour -> StaffWorkingHours.builder()
-                        .staffMemberId(staffMemberId)
-                        .dayOfWeek(workingHour.getDayOfWeek())
-                        .startsAt(workingHour.getStartsAt())
-                        .endsAt(workingHour.getEndsAt())
-                        .isAvailable(Boolean.TRUE.equals(workingHour.getIsAvailable()))
-                        .build())
-                .toList();
-
-        List<StaffWorkingHours> savedWorkingHours = staffWorkingHoursRepository.saveAll(newWorkingHours);
-
-        return savedWorkingHours.stream()
-                .map(hour -> StaffWorkingHoursResponseDto.builder()
-                        .dayOfWeek(hour.getDayOfWeek())
-                        .startsAt(hour.getStartsAt())
-                        .endsAt(hour.getEndsAt())
-                        .isAvailable(hour.isAvailable())
-                        .build())
-                .toList();
+    private List<StaffWorkingHoursResponseDto> toCompleteWeek(List<StaffWorkingHours> hours) {
+        var byDay = hours.stream().collect(Collectors.toMap(StaffWorkingHours::getDayOfWeek, hour -> hour));
+        return java.util.Arrays.stream(DayOfWeek.values()).map(day -> {
+            var hour = byDay.get(day);
+            boolean available = hour != null && hour.isAvailable();
+            return StaffWorkingHoursResponseDto.builder().dayOfWeek(day).isAvailable(available)
+                    .startsAt(available ? hour.getStartsAt() : null).endsAt(available ? hour.getEndsAt() : null).build();
+        }).toList();
     }
 
     private void validateWorkingHours(List<StaffWorkingHoursRequestDto> workingHours) {
-        if (workingHours.size() != 7) {
+        if (workingHours == null || workingHours.size() != 7) {
             throw new IllegalArgumentException("Working hours must contain exactly 7 days");
         }
 
+        if (workingHours.stream().anyMatch(hour -> hour == null || hour.getDayOfWeek() == null || hour.getIsAvailable() == null)) {
+            throw new IllegalArgumentException("Day of week and availability are required for every day");
+        }
         Set<DayOfWeek> days = workingHours.stream()
                 .map(StaffWorkingHoursRequestDto::getDayOfWeek)
                 .collect(Collectors.toSet());
@@ -211,30 +275,44 @@ public class StaffMemberServiceImpl implements StaffMemberService {
         }
     }
 
-    @Override
-    public void deleteStaffMember(Long id) {
-        Long businessId = currentBusinessContext.getCurrentBusinessId();
-        StaffMember staffMember = staffMemberRepository.findByIdAndBusinessId(id, businessId)
+    private StaffMember lockStaffMember(Long id) {
+        return staffMemberRepository.findByIdAndBusinessIdForUpdate(id, currentBusinessContext.getCurrentBusinessId())
                 .orElseThrow(() -> new ResourceNotFoundException("Staffmember not found with ID: " + id));
-
-        boolean hasFutureActiveAppointments =
-                appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
-                        businessId,
-                        id,
-                        List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED),
-                        LocalDateTime.now()
-                );
-
-        if (hasFutureActiveAppointments) {
-            throw new AppointmentOverlapException(
-                    "Staff member cannot be deactivated because it has future active appointments"
-            );
-        }
-
-        staffMember.setStatus(StaffMemberStatus.INACTIVE);
-        staffMember.setUpdatedAt(LocalDateTime.now());
-
-        staffMemberRepository.save(staffMember);
-        log.info("Staffmember with id={} successfully deactivated for businessId={}.", id, businessId);
     }
+
+    private void requireNoFutureAppointments(StaffMember member) {
+        var business = businessRepository.findById(member.getBusinessId())
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
+        var now = LocalDateTime.now(clock.withZone(ZoneId.of(business.getTimezone())));
+        if (appointmentRepository.existsByBusinessIdAndStaffMemberIdAndStatusInAndStartsAtAfter(
+                member.getBusinessId(), member.getId(), List.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED), now)) {
+            throw new StaffHasFutureAppointmentsException();
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteStaffMember(Long id) {
+        var member = lockStaffMember(id);
+        if (member.getStatus() == StaffMemberStatus.INACTIVE) return;
+        requireNoFutureAppointments(member);
+        member.setStatus(StaffMemberStatus.INACTIVE);
+        member.setUpdatedAt(LocalDateTime.now(clock));
+        staffMemberRepository.save(member);
+        log.info("Staffmember with id={} successfully deactivated.", id);
+    }
+    @Override
+    @Transactional
+    public void removeFromCatalog(Long id) {
+        var member = lockStaffMember(id);
+        if (member.getStatus() != StaffMemberStatus.INACTIVE) {
+            throw new com.turnero.api.exception.InvalidStateTransitionException("Deactivate the staff member before removing it from the list");
+        }
+        requireNoFutureAppointments(member);
+        var now = LocalDateTime.now(clock);
+        member.setDeletedAt(now);
+        member.setUpdatedAt(now);
+        staffMemberRepository.save(member);
+    }
+
 }

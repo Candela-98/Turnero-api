@@ -3,6 +3,8 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.ServOfferingUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.exception.InvalidStateTransitionException;
+import org.springframework.transaction.annotation.Transactional;
 import com.turnero.api.model.ServiceOffering;
 import com.turnero.api.model.enums.ServiceOfferingStatus;
 import com.turnero.api.repository.ServOfferingRepository;
@@ -16,6 +18,7 @@ import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -31,6 +34,9 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     public ServiceOffering saveServiceOffering(ServiceOffering serviceOffering) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
         serviceOffering.setBusinessId(businessId);
+        LocalDateTime now = LocalDateTime.now();
+        serviceOffering.setCreatedAt(now);
+        serviceOffering.setUpdatedAt(now);
 
         if (serviceOffering.getStatus() == null) {
             serviceOffering.setStatus(ServiceOfferingStatus.ACTIVE);
@@ -46,6 +52,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
         return servOfferingRepository.findByIdAndBusinessId(id, businessId)
+                .filter(service -> service.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Service offering not found with ID: " + id));
     }
 
@@ -61,6 +68,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
         Specification<ServiceOffering> filters = (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(builder.equal(root.get("businessId"), businessId));
+            predicates.add(builder.isNull(root.get("deletedAt")));
             if (search != null && !search.isEmpty()) {
                 String pattern = "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
                 predicates.add(builder.or(
@@ -80,8 +88,9 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     }
 
     @Override
+    @Transactional
     public ServiceOffering updateServOffering(ServOfferingUpdateRequestDto servOfferigUpdateDto, Long id) {
-        ServiceOffering currentServOffering = findServiceOffering(id);
+        ServiceOffering currentServOffering = findForUpdate(id);
 
         if (servOfferigUpdateDto.getName() != null) {
             currentServOffering.setName(servOfferigUpdateDto.getName());
@@ -103,6 +112,7 @@ public class ServOfferingServiceImpl implements ServOfferingService {
             currentServOffering.setStatus(servOfferigUpdateDto.getStatus());
         }
 
+        currentServOffering.setUpdatedAt(LocalDateTime.now());
         ServiceOffering updatedServiceOffering = servOfferingRepository.save(currentServOffering);
 
         log.info("Service offering with id={} successfully updated.", id);
@@ -112,15 +122,33 @@ public class ServOfferingServiceImpl implements ServOfferingService {
     }
 
     @Override
+    @Transactional
     public void deleteServOffering(Long id) {
-        Long businessId = currentBusinessContext.getCurrentBusinessId();
-        ServiceOffering serviceOffering = servOfferingRepository.findByIdAndBusinessId(id, businessId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Service offering not found with ID: " + id));
+        ServiceOffering serviceOffering = findForUpdate(id);
 
         serviceOffering.setStatus(ServiceOfferingStatus.INACTIVE);
+        serviceOffering.setUpdatedAt(LocalDateTime.now());
 
         servOfferingRepository.save(serviceOffering);
 
-        log.info("Service offering with id={} successfully deactivated for businessId={}.", id, businessId);
+        log.info("Service offering with id={} successfully deactivated for businessId={}.", id, serviceOffering.getBusinessId());
     }
+    @Override
+    @Transactional
+    public void removeFromCatalog(Long id) {
+        ServiceOffering service = findForUpdate(id);
+        if (service.getStatus() != ServiceOfferingStatus.INACTIVE) {
+            throw new InvalidStateTransitionException("Deactivate the service before removing it from the catalog");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        service.setDeletedAt(now);
+        service.setUpdatedAt(now);
+        servOfferingRepository.save(service);
+    }
+
+    private ServiceOffering findForUpdate(Long id) {
+        return servOfferingRepository.findForUpdate(id, currentBusinessContext.getCurrentBusinessId())
+                .orElseThrow(() -> new ResourceNotFoundException("Service offering not found with ID: " + id));
+    }
+
 }

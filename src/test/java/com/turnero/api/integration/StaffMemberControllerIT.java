@@ -87,10 +87,13 @@ public class StaffMemberControllerIT {
     @Autowired
     WebApplicationContext webApplicationContext;
 
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     private static final String BASE_URL = "/api/v1/staff-members";
 
     @BeforeEach
     void cleanDb() {
+        jdbc.update("insert into businesses (id,name,slug,timezone,status,onboarding_status,created_at,updated_at) select 1,'Studio','staff-status-it','UTC','ACTIVE','PENDING_SETUP',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP where not exists (select 1 from businesses where id=1)");
         appointmentRepository.deleteAll();
         staffWorkingHoursRepository.deleteAll();
         staffMemberRepository.deleteAll();
@@ -237,6 +240,26 @@ public class StaffMemberControllerIT {
                 .filter(workingHour -> workingHour.getDayOfWeek() == dayOfWeek)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Missing working hours for " + dayOfWeek));
+    }
+
+    @Test
+    void myStaffLink_usesSessionAndBusinessAndIncludesInactiveStaff() throws Exception {
+        var cookie = adminAuth().ownerSessionCookie(1L);
+        Long ownerId = sessionService.validateSession(cookie.getValue()).getUserId();
+        mockMvc.perform(get(BASE_URL + "/me").cookie(cookie)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.staff_member").isEmpty());
+        StaffMember member = getStaffMember();
+        member.setUserId(ownerId);
+        member.setStatus(StaffMemberStatus.INACTIVE);
+        var saved = staffMemberRepository.saveAndFlush(member);
+        mockMvc.perform(get(BASE_URL + "/me").cookie(cookie)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.staff_member.id").value(saved.getId()))
+                .andExpect(jsonPath("$.staff_member.status").value("INACTIVE"));
+        var otherCookie = adminAuth().ownerSessionCookie(2L);
+        mockMvc.perform(get(BASE_URL + "/me").cookie(otherCookie).param("user_id", ownerId.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.staff_member").isEmpty());
+        MockMvcBuilders.webAppContextSetup(webApplicationContext).build().perform(get(BASE_URL + "/me"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -504,7 +527,7 @@ public class StaffMemberControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<StaffMemberResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<StaffMemberResponseDto> response = objectMapper.readValue(objectMapper.readTree(json).get("data").toString(), new TypeReference<>() {});
 
         assertThat(response)
                 .extracting(StaffMemberResponseDto::getName)
@@ -525,16 +548,77 @@ public class StaffMemberControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<StaffMember> response = objectMapper.readValue(json, new TypeReference<>() {});
+        List<StaffMember> response = objectMapper.readValue(objectMapper.readTree(json).get("data").toString(), new TypeReference<>() {});
 
         assertThat(response).isEmpty();
+    }
+
+    @Test
+    void listStaffMembers_filtersSearchesAndScopesWithStablePagination() throws Exception {
+        StaffMember first = staffMemberRepository.save(StaffMember.builder().businessId(1L)
+                .name("Ana").roleLabel("Directora").specialty(null).status(StaffMemberStatus.ACTIVE).build());
+        StaffMember second = staffMemberRepository.save(StaffMember.builder().businessId(1L)
+                .name("Ana").roleLabel(null).specialty("Colorista").status(StaffMemberStatus.INACTIVE).build());
+        staffMemberRepository.save(StaffMember.builder().businessId(2L).name("Ana")
+                .roleLabel("Directora").specialty("Colorista").status(StaffMemberStatus.ACTIVE).build());
+        for (String search : List.of("aNA", "RECT", "LORIS")) {
+            mockMvc.perform(get(BASE_URL).param("q", search))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.page.total_elements").value(search.equals("aNA") ? 2 : 1));
+        }
+        for (String sort : List.of("name,asc", "name,desc")) {
+            mockMvc.perform(get(BASE_URL).param("size", "1").param("sort", sort))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(first.getId()))
+                    .andExpect(jsonPath("$.page.total_pages").value(2));
+            mockMvc.perform(get(BASE_URL).param("size", "1").param("page", "1").param("sort", sort))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(second.getId()));
+        }
+        mockMvc.perform(get(BASE_URL).param("q", "ANA").param("status", "INACTIVE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(second.getId()))
+                .andExpect(jsonPath("$.page.total_elements").value(1));
+        mockMvc.perform(get(BASE_URL).param("q", "Directora").param("status", "INACTIVE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+        mockMvc.perform(get(BASE_URL).param("q", "%"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+        mockMvc.perform(get(BASE_URL).param("page", "10"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void listStaffMembers_preservesOptionalFieldsDefaultsAndNameOrdering() throws Exception {
+        staffMemberRepository.save(StaffMember.builder().businessId(1L).name("Zoe")
+                .status(StaffMemberStatus.ACTIVE).build());
+        staffMemberRepository.save(StaffMember.builder().businessId(1L).name("Ana")
+                .status(StaffMemberStatus.INACTIVE).build());
+        mockMvc.perform(get(BASE_URL))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].name").value("Ana"))
+                .andExpect(jsonPath("$.data[0].role_label").isEmpty())
+                .andExpect(jsonPath("$.data[0].specialty").isEmpty())
+                .andExpect(jsonPath("$.data[0].avatar_url").isEmpty())
+                .andExpect(jsonPath("$.data[0].business_id").value(1))
+                .andExpect(jsonPath("$.page.number").value(0)).andExpect(jsonPath("$.page.size").value(20));
+        mockMvc.perform(get(BASE_URL).param("sort", "name,desc").param("size", "100"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].name").value("Zoe"));
+        mockMvc.perform(get(BASE_URL).param("q", "x".repeat(100)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void listStaffMembers_rejectsInvalidParameters() throws Exception {
+        String[][] invalid = {{"page", "-1"}, {"page", "abc"}, {"size", "0"}, {"size", "101"},
+                {"q", "x".repeat(101)}, {"status", "ALL"}, {"sort", "id,asc"},
+                {"sort", "name,invalid"}, {"sort", "name,asc,id"}};
+        for (String[] parameter : invalid) {
+            mockMvc.perform(get(BASE_URL).param(parameter[0], parameter[1]))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test
     void updateStaffMember_whenAppointmentExists_shouldPreserveHistoricalAppointment() throws Exception {
         // Given
         StaffMember savedStaffMember = staffMemberRepository.save(getStaffMember());
-        var startsAt = java.time.LocalDateTime.now().plusDays(1);
+        var startsAt = java.time.LocalDateTime.now().minusDays(1);
 
         Appointment appointment = Appointment.builder()
                 .businessId(1L)
@@ -842,7 +926,7 @@ public class StaffMemberControllerIT {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.error").value("Conflict"))
-                .andExpect(jsonPath("$.code").value("CONFLICT"))
+                .andExpect(jsonPath("$.code").value("STAFF_HAS_FUTURE_APPOINTMENTS"))
                 .andExpect(jsonPath("$.message")
                         .value("Staff member cannot be deactivated because it has future active appointments"));
 

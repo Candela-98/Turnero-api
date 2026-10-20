@@ -2,7 +2,6 @@ package com.turnero.api.service;
 
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.ServOfferingResponseDto;
-import com.turnero.api.exception.AppointmentOverlapException;
 import com.turnero.api.exception.ResourceNotFoundException;
 import com.turnero.api.mapper.ServiceOfferingMapper;
 import com.turnero.api.model.ServiceOffering;
@@ -91,116 +90,82 @@ public class StaffServOfferingServiceImplTest {
         assertThat(result.get(0).getName()).isEqualTo("Haircut");
     }
 
-    @Test
-    void replacesServiceOfferings_replacesAssociations() {
-        Long businessId = 1L;
-        Long staffMemberId = 10L;
-        List<Long> serviceOfferingIds = List.of(20L, 30L);
-
-        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.existsByIdAndBusinessId(staffMemberId, businessId)).thenReturn(true);
-        when(servOfferingRepository.findAllByIdInAndBusinessId(serviceOfferingIds, businessId))
-                .thenReturn(List.of(
-                        ServiceOffering.builder().id(20L).businessId(businessId).status(ServiceOfferingStatus.ACTIVE).build(),
-                        ServiceOffering.builder().id(30L).businessId(businessId).status(ServiceOfferingStatus.ACTIVE).build()
-                ));
-
-        staffServOfferingService.replaceServiceOfferings(staffMemberId, serviceOfferingIds);
-        verify(staffServiceOfferingRepository).deleteAllByStaffMemberId(staffMemberId);
-        verify(staffServiceOfferingRepository).saveAll(anyList());
+    private void staffExists() {
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
+        when(staffMemberRepository.findByIdAndBusinessIdForUpdate(10L, 1L))
+                .thenReturn(java.util.Optional.of(new com.turnero.api.model.StaffMember()));
     }
-
+    private ServiceOffering offering(long id, ServiceOfferingStatus status) {
+        return ServiceOffering.builder().id(id).businessId(1L).status(status).build();
+    }
+    private StaffServiceOffering association(long id) {
+        return StaffServiceOffering.builder().id(id).staffMemberId(10L).serviceOfferingId(id).build();
+    }
     @Test
-    void replacesServiceOfferings_rejectsStaffFromOtherBusiness() {
-        Long businessId = 1L;
-        Long staffMemberId = 10L;
-        List<Long> serviceOfferingIds = List.of(20L, 30L);
-
-        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.existsByIdAndBusinessId(staffMemberId, businessId)).thenReturn(false);
-
-        assertThrows(ResourceNotFoundException.class, () -> staffServOfferingService.replaceServiceOfferings
-                (10L, List.of(1L))
-        );
-
+    void replacesByDifferenceRetainingExistingInactiveRowsAndNormalizingIds() {
+        staffExists();
+        var retained = association(20L);
+        var removed = association(40L);
+        when(staffServiceOfferingRepository.findAllByStaffMemberId(10L)).thenReturn(List.of(retained, removed));
+        when(servOfferingRepository.findAllForUpdate(List.of(20L, 30L), 1L)).thenReturn(List.of(
+                offering(20L, ServiceOfferingStatus.INACTIVE), offering(30L, ServiceOfferingStatus.ACTIVE)));
+        staffServOfferingService.replaceServiceOfferings(10L, List.of(30L, 20L, 30L));
+        verify(staffServiceOfferingRepository).deleteAll(List.of(removed));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<StaffServiceOffering>> added = ArgumentCaptor.forClass(List.class);
+        verify(staffServiceOfferingRepository).saveAll(added.capture());
+        assertThat(added.getValue()).extracting(StaffServiceOffering::getServiceOfferingId).containsExactly(30L);
+        verify(staffServiceOfferingRepository, never()).deleteAllByStaffMemberId(anyLong());
+    }
+    @Test
+    void rejectsForeignOrMissingStaffBeforeReadingServices() {
+        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(1L);
+        assertThrows(ResourceNotFoundException.class, () -> staffServOfferingService.replaceServiceOfferings(10L, List.of(1L)));
+        verifyNoInteractions(servOfferingRepository, staffServiceOfferingRepository);
+    }
+    @Test
+    void rejectsMissingForeignOrRemovedServicesBeforeMutating() {
+        staffExists();
+        when(servOfferingRepository.findAllForUpdate(List.of(20L, 30L), 1L))
+                .thenReturn(List.of(offering(20L, ServiceOfferingStatus.ACTIVE)));
+        assertThrows(ResourceNotFoundException.class, () -> staffServOfferingService.replaceServiceOfferings(10L, List.of(20L, 30L)));
+        verify(staffServiceOfferingRepository, never()).deleteAll(anyList());
+        verify(staffServiceOfferingRepository, never()).saveAll(anyList());
+    }
+    @Test
+    void rejectsNewInactiveAssociation() {
+        staffExists();
+        when(servOfferingRepository.findAllForUpdate(List.of(30L), 1L))
+                .thenReturn(List.of(offering(30L, ServiceOfferingStatus.INACTIVE)));
+        assertThrows(com.turnero.api.exception.InvalidStateTransitionException.class,
+                () -> staffServOfferingService.replaceServiceOfferings(10L, List.of(30L)));
+        verify(staffServiceOfferingRepository, never()).deleteAll(anyList());
+        verify(staffServiceOfferingRepository, never()).saveAll(anyList());
+    }
+    @Test
+    void emptySelectionRemovesAllIncludingInactiveWithoutLoadingCatalog() {
+        staffExists();
+        var old = association(20L);
+        when(staffServiceOfferingRepository.findAllByStaffMemberId(10L)).thenReturn(List.of(old));
+        staffServOfferingService.replaceServiceOfferings(10L, List.of());
+        verify(staffServiceOfferingRepository).deleteAll(List.of(old));
+        verify(staffServiceOfferingRepository, never()).saveAll(anyList());
         verifyNoInteractions(servOfferingRepository);
     }
-
     @Test
-    void replaceServiceOfferings_rejectsServicesFromOtherBusiness() {
-        Long businessId = 1L;
-        Long staffMemberId = 10L;
-        List<Long> serviceOfferingIds = List.of(20L, 30L);
-
-        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.existsByIdAndBusinessId(staffMemberId, businessId)).thenReturn(true);
-        when(servOfferingRepository.findAllByIdInAndBusinessId(serviceOfferingIds, businessId))
-                .thenReturn(List.of(
-                        ServiceOffering.builder()
-                                        .id(20L)
-                                .businessId(businessId)
-                                .status(ServiceOfferingStatus.ACTIVE)
-                                .build()
-                ));
-
-        assertThrows(ResourceNotFoundException.class, () -> staffServOfferingService.replaceServiceOfferings
-                (staffMemberId, serviceOfferingIds));
-
-        verify(staffServiceOfferingRepository, never()).deleteAllByStaffMemberId(anyLong());
+    void unchangedSelectionDoesNotRewriteRows() {
+        staffExists();
+        when(staffServiceOfferingRepository.findAllByStaffMemberId(10L)).thenReturn(List.of(association(20L)));
+        when(servOfferingRepository.findAllForUpdate(List.of(20L), 1L)).thenReturn(List.of(offering(20L, ServiceOfferingStatus.INACTIVE)));
+        staffServOfferingService.replaceServiceOfferings(10L, List.of(20L));
+        verify(staffServiceOfferingRepository, never()).deleteAll(anyList());
         verify(staffServiceOfferingRepository, never()).saveAll(anyList());
     }
-
     @Test
-    void replaceServiceOfferings_rejectsInactiveServices() {
-        Long businessId = 1L;
-        Long staffMemberId = 10L;
-        List<Long> serviceOfferingIds = List.of(20L, 30L);
-
-        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.existsByIdAndBusinessId(staffMemberId, businessId)).thenReturn(true);
-        when(servOfferingRepository.findAllByIdInAndBusinessId(serviceOfferingIds, businessId))
-                .thenReturn(List.of(
-                        ServiceOffering.builder()
-                                .id(20L)
-                                .businessId(businessId)
-                                .status(ServiceOfferingStatus.ACTIVE)
-                                .build(),
-                        ServiceOffering.builder()
-                                .id(30L)
-                                .businessId(businessId)
-                                .status(ServiceOfferingStatus.INACTIVE)
-                                .build()
-                ));
-
-        assertThrows(AppointmentOverlapException.class, () ->
-                staffServOfferingService.replaceServiceOfferings(staffMemberId, serviceOfferingIds)
-        );
-
-        verify(staffServiceOfferingRepository, never()).deleteAllByStaffMemberId(anyLong());
-        verify(staffServiceOfferingRepository, never()).saveAll(anyList());
-    }
-
-    @Test
-    void replacesServiceOfferings_removesDuplicates() {
-        Long businessId = 1L;
-        Long staffMemberId = 10L;
-        List<Long> serviceOfferingIds = List.of(20L, 20L, 30L);
-
-        when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(staffMemberRepository.existsByIdAndBusinessId(staffMemberId, businessId)).thenReturn(true);
-        when(servOfferingRepository.findAllByIdInAndBusinessId(List.of(20L, 30L), businessId))
-                .thenReturn(List.of(
-                        ServiceOffering.builder().id(20L).businessId(businessId).status(ServiceOfferingStatus.ACTIVE).build(),
-                        ServiceOffering.builder().id(30L).businessId(businessId).status(ServiceOfferingStatus.ACTIVE).build()
-                ));
-
-        staffServOfferingService.replaceServiceOfferings(staffMemberId, serviceOfferingIds);
-        verify(staffServiceOfferingRepository).deleteAllByStaffMemberId(staffMemberId);
-        ArgumentCaptor<List<StaffServiceOffering>> captor =
-                ArgumentCaptor.forClass(List.class);
-
-        verify(staffServiceOfferingRepository).saveAll(captor.capture());
-
-        assertThat(captor.getValue()).hasSize(2);
+    void rejectsInvalidIdsEvenForInternalCalls() {
+        for (List<Long> ids : java.util.Arrays.asList(null, java.util.Arrays.asList((Long) null), List.of(0L), List.of(-1L))) {
+            assertThrows(IllegalArgumentException.class, () -> staffServOfferingService.replaceServiceOfferings(10L, ids));
+        }
+        verifyNoInteractions(staffMemberRepository, staffServiceOfferingRepository, servOfferingRepository);
     }
 }

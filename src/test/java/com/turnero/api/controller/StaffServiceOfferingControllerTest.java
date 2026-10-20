@@ -96,5 +96,29 @@ public class StaffServiceOfferingControllerTest {
                 .should()
                 .replaceServiceOfferings(staffMemberId, List.of(10L, 20L));
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"{}", "{\"service_offering_ids\":null}", "{\"service_offering_ids\":[null]}", "{\"service_offering_ids\":[0]}", "{\"service_offering_ids\":[-1]}"})
+    void rejectsInvalidLists(String json) throws Exception {
+        mockMvc.perform(put(BASE_URL + "/1/service-offerings").contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(staffServiceOfferingService);
+    }
+    @Test
+    void acceptsAnEmptySelection() throws Exception {
+        mockMvc.perform(put(BASE_URL + "/1/service-offerings").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"service_offering_ids\":[]}"))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+        then(staffServiceOfferingService).should().replaceServiceOfferings(1L, List.of());
+    }
+    @Test
+    void preservesConflictAndNotFoundStatuses() throws Exception {
+        org.mockito.Mockito.doThrow(new com.turnero.api.exception.InvalidStateTransitionException("Inactive"))
+                .when(staffServiceOfferingService).replaceServiceOfferings(1L, List.of(20L));
+        mockMvc.perform(put(BASE_URL + "/1/service-offerings").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"service_offering_ids\":[20]}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"));
+        given(staffServiceOfferingService.getServiceOfferings(99L))
+                .willThrow(new com.turnero.api.exception.ResourceNotFoundException("Missing"));
+        mockMvc.perform(get(BASE_URL + "/99/service-offerings")).andExpect(status().isNotFound());
+    }
 }
-

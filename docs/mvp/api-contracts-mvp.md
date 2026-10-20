@@ -564,7 +564,25 @@ size=20
 sort=name,asc
 ```
 
-Response `200 OK`: page de `StaffMemberSummary`.
+Búsqueda parcial sin distinguir mayúsculas por nombre, rol y especialidad; combinable con estado y limitada al negocio autenticado. Se escapan comodines SQL. `page` >= 0, `size` 1–100 (predeterminado 20), `q` máximo 100 caracteres. Orden permitido: `name,asc` (predeterminado) o `name,desc`, siempre con `id,asc` como desempate. Parámetros inválidos: `400`.
+
+Response `200 OK` (reemplaza el array anterior):
+
+```json
+{"data":[{"id":1,"business_id":1,"user_id":null,"name":"Ana","role_label":null,"specialty":null,"avatar_url":null,"status":"ACTIVE","service_count":0}],"page":{"number":0,"size":20,"total_elements":1,"total_pages":1}}
+```
+
+`service_count` se incluye en cada elemento del listado: cantidad de servicios asignados, incluidos los inactivos, excluyendo eliminados y servicios ajenos al negocio. Sin asignaciones vale 0. Se calcula mediante una única consulta agregada para los IDs de la página; no carga el catálogo ni consulta por profesional. Este campo derivado no se incluye en detalle/alta/edición ni en `/me`.
+
+Conserva los demás campos de `StaffMemberResponseDto`; sin resultados devuelve `data: []`. Excluye profesionales eliminados (`deleted_at`), incluso con filtro INACTIVE. Integrar backend antes del frontend.
+
+### GET `/api/v1/staff-members/me`
+
+Admin autenticado. Devuelve el profesional vinculado al usuario de sesión dentro del negocio autenticado, incluyendo inactivos, excluyendo eliminados y sin depender de búsqueda, estado ni paginación. No recibe un ID de usuario del cliente.
+
+Response `200 OK`: `{ "staff_member": StaffMemberResponseDto | null }`. `null` significa que el usuario todavía no tiene profesional vinculado. Sin sesión: `401`.
+
+El formulario usa esta consulta para deshabilitar la vinculación cuando ya existe o mientras no se pudo comprobar. El POST conserva `409 STAFF_USER_ALREADY_LINKED` como protección ante concurrencia.
 
 ### POST `/api/v1/staff-members`
 
@@ -600,12 +618,13 @@ Response `201 Created`:
 
 Reglas:
 
-- Si se informa `user_id`, debe pertenecer al mismo negocio y no estar vinculado a otro staff member.
+- Si se informa `user_id`, debe pertenecer al mismo negocio y no estar vinculado a otro profesional no eliminado. Ante una vinculación existente (incluido profesional inactivo), responde `409` con `code: STAFF_USER_ALREADY_LINKED`. La creación se serializa por usuario y es transaccional junto con los horarios.
+- `name`: obligatorio, hasta 100 caracteres. `specialty`: obligatoria al crear, hasta 150. `role_label`: opcional, hasta 80 caracteres tanto en POST como en PATCH; 81 o más devuelve `400` con error de campo. No requiere migraciones.
 - Al crear, el backend crea `staff_working_hours` copiando `business_hours`.
 
 ### GET `/api/v1/staff-members/{staff_member_id}`
 
-Admin autenticado. Devuelve detalle.
+Admin autenticado. Devuelve detalle del profesional del negocio de sesión, también inactivos. Recurso inexistente, eliminado o ajeno devuelve 404; no modifica datos.
 
 ### PATCH `/api/v1/staff-members/{staff_member_id}`
 
@@ -627,71 +646,64 @@ Response `200 OK`: staff actualizado.
 
 ### DELETE `/api/v1/staff-members/{staff_member_id}`
 
-Admin autenticado. Baja logica.
+Admin autenticado. Baja lógica idempotente, respuesta `204 No Content`.
 
-Response `204 No Content`.
+- Setea `status=INACTIVE` sin borrar perfil, vínculo al usuario, servicios, horarios ni historial. No cambia la cuenta ni la sesión del usuario vinculado.
+- Si hay turnos `PENDING` o `CONFIRMED` cuyo `starts_at` es posterior al momento actual en la zona horaria del negocio, devuelve `409 STAFF_HAS_FUTURE_APPOINTMENTS` sin cambios parciales. No cancela ni reasigna turnos automáticamente.
+- Turnos pasados o con estado `CANCELLED`, `COMPLETED` y `NO_SHOW` no bloquean. Un profesional ya inactivo devuelve 204 sin modificar su timestamp.
+- PATCH con `status=INACTIVE` aplica exactamente la misma regla; si se mezclan campos y la baja entra en conflicto, todo el PATCH falla sin modificaciones.
+- PATCH con `{ "status": "ACTIVE" }` reactiva y devuelve `200` con el DTO existente. Conserva todas las relaciones; pedir un estado que ya tiene es idempotente.
+- GET/PATCH/DELETE usan el negocio autenticado y devuelven `404` para recursos ajenos o inexistentes.
+- Cambios de perfil/estado, reservas públicas y creación/reprogramación/reasignación administrativa se coordinan con bloqueo de la fila del profesional. La reserva pública vuelve a leer el estado tras adquirir el bloqueo. Si gana la baja, no puede crearse la reserva; si gana una reserva futura, la baja entra en conflicto.
+- La API administrativa rechaza asignaciones a profesionales inactivos con `409 INVALID_STATE_TRANSITION`; permite editar notas históricas. La reserva pública conserva su `403 FORBIDDEN` por profesional inactivo.
+- La desactivación conserva el profesional visible bajo Inactivos. Para retirarlo del listado usar el endpoint `/catalog` siguiente.
 
-Reglas:
+### DELETE `/api/v1/staff-members/{staff_member_id}/catalog`
 
-- No borra historial.
-- Setea `status = INACTIVE`.
-- Si tiene appointments futuros `PENDING` o `CONFIRMED`, responder `409 CONFLICT` o exigir cancelarlos/reasignarlos primero. Decision recomendada MVP: bloquear baja con turnos futuros activos.
+Admin autenticado. Borrado lógico definitivo para la interfaz, respuesta `204 No Content`.
+
+- Requiere profesional INACTIVE del negocio autenticado; un activo devuelve `409 INVALID_STATE_TRANSITION`. También protege contra inactivos heredados con turnos futuros PENDING/CONFIRMED (`409 STAFF_HAS_FUTURE_APPOINTMENTS`). Sin cambios parciales.
+- Marca `deleted_at` y `updated_at`. Desaparece de todos los filtros, contadores, `/me`, detalle, servicios y horarios operativos. GET/PATCH/DELETE y una segunda eliminación devuelven `404`; no se puede reactivar ni editar desde la app/API operativa.
+- Conserva la fila, `user_id`, servicios, horarios y turnos históricos; las lecturas de historial siguen resolviendo el nombre del profesional. No borra la cuenta ni cierra su sesión. La cuenta puede vincularse a un nuevo perfil; solo un perfil no eliminado puede vincularse a cada usuario.
+- Usa el mismo bloqueo transaccional que reactivación y reservas: si gana reactivación, eliminación responde 409; si gana eliminación, reactivación responde 404.
+- Requiere migración Flyway `V1003__staff_member_logical_removal.sql`: columna nullable, restricción de eliminados inactivos e índice único parcial por usuario para perfiles no eliminados. Se aplica al reiniciar backend, antes de integrar frontend.
 
 ## Staff working hours
 
 ### GET `/api/v1/staff-members/{staff_member_id}/working-hours`
 
-Admin autenticado.
+Admin autenticado, limitado al negocio de sesión. También admite profesionales inactivos.
 
-Response `200 OK`:
+Response `200 OK`: array directo de siete días, de MONDAY a SUNDAY; sin wrapper ni IDs.
 
 ```json
-{
-  "data": [
-    {
-      "id": 1,
-      "day_of_week": "TUESDAY",
-      "starts_at": "09:00",
-      "ends_at": "20:00",
-      "is_available": true
-    }
-  ]
-}
+[
+  {"day_of_week":"MONDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"TUESDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"WEDNESDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"THURSDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"FRIDAY","starts_at":"09:00","ends_at":"18:00","is_available":true},
+  {"day_of_week":"SATURDAY","starts_at":null,"ends_at":null,"is_available":false},
+  {"day_of_week":"SUNDAY","starts_at":null,"ends_at":null,"is_available":false}
+]
 ```
+
+Los días sin fila persistida se presentan como no disponibles con horas nulas. GET no inserta ni modifica registros. Los días no disponibles siempre se devuelven con horas nulas.
 
 ### PUT `/api/v1/staff-members/{staff_member_id}/working-hours`
 
-Admin autenticado. Reemplaza semana completa del profesional.
-
-Request:
-
-```json
-{
-  "hours": [
-    {
-      "day_of_week": "MONDAY",
-      "starts_at": null,
-      "ends_at": null,
-      "is_available": false
-    },
-    {
-      "day_of_week": "TUESDAY",
-      "starts_at": "09:00",
-      "ends_at": "20:00",
-      "is_available": true
-    }
-  ]
-}
-```
-
-Response `200 OK`: semana completa actualizada.
+Admin autenticado. Reemplaza la semana completa; request y response `200 OK` usan el mismo array directo de siete días del ejemplo anterior. El response siempre queda ordenado de MONDAY a SUNDAY.
 
 Reglas:
 
-- `staff_member_id` debe pertenecer al negocio autenticado.
-- Deben enviarse exactamente los 7 dias, sin faltantes ni duplicados.
-- Si `is_available = true`, `starts_at` y `ends_at` son obligatorios.
-- `starts_at` debe ser menor que `ends_at`.
+- Profesional inexistente o de otro negocio: `404 NOT_FOUND` tanto en GET como en PUT.
+- Exactamente siete días únicos válidos. Lista, elementos, `day_of_week` e `is_available` no pueden ser nulos.
+- Horas en formato estricto `HH:mm`. Si `is_available=true`, inicio y fin son obligatorios y `starts_at < ends_at`; no admite rangos nocturnos.
+- Si `is_available=false`, ambas horas se normalizan a `null`.
+- Cuerpo mal formado, días duplicados/faltantes o valores inválidos: `400 VALIDATION_ERROR`, sin cambios parciales.
+- Escritura transaccional: bloquea la fila del profesional, actualiza horarios existentes conservando sus IDs e inserta únicamente días faltantes. El bloqueo también serializa con la reserva pública.
+- La disponibilidad efectiva es la intersección con los horarios del negocio y las demás reglas de reserva. No exige que la semana del profesional esté contenida en la del negocio.
+- No modifica turnos futuros ni históricos. No requiere migraciones.
 
 ## Service offerings
 
@@ -803,55 +815,59 @@ Reglas:
 - Setea `status = INACTIVE`.
 - No borra historial.
 
+### DELETE `/api/v1/service-offerings/{service_offering_id}/catalog`
+
+Admin autenticado. Elimina del catálogo mediante borrado lógico independiente de desactivar.
+
+Response `204 No Content`. `409 Conflict` si el servicio está activo; `404 Not Found` si no existe, ya fue eliminado o pertenece a otro negocio.
+
+Reglas:
+
+- Requiere `status = INACTIVE` y asigna `deleted_at` / `updated_at`.
+- Excluye el servicio de listado, categorías, selección para nuevos turnos, booking público y asociaciones nuevas. Una categoría sigue visible si otro servicio no eliminado la utiliza.
+- GET y PATCH del catálogo devuelven 404 para eliminados; no se restauran desde la app.
+- Conserva la fila y las referencias históricas de turnos; las consultas históricas y la cancelación de turnos existentes pueden seguir recuperando sus datos.
+- Editar, desactivar y eliminar serializan sus cambios con bloqueo de fila dentro de una transacción para evitar una restauración concurrente.
+
 ## Asociacion staff-service
 
 ### GET `/api/v1/staff-members/{staff_member_id}/service-offerings`
 
-Admin autenticado.
+Admin autenticado. Devuelve un **array**, sin wrapper ni paginación, con las asociaciones actuales del profesional dentro del negocio. Incluye inactivos conservados; excluye servicios eliminados del catálogo. Profesional inexistente o ajeno: `404`.
 
 Response `200 OK`:
 
 ```json
-{
-  "data": [
-    {
-      "id": 20,
-      "name": "Corte + barba",
-      "category": "Combo",
-      "duration_minutes": 90,
-      "price_cents": 1650000,
-      "status": "ACTIVE"
-    }
-  ]
-}
+[
+  {
+    "id": 20,
+    "name": "Corte + barba",
+    "category": "Combo",
+    "duration_minutes": 90,
+    "price_cents": 1650000,
+    "status": "ACTIVE"
+  }
+]
 ```
 
 ### PUT `/api/v1/staff-members/{staff_member_id}/service-offerings`
 
-Admin autenticado. Reemplaza asociaciones del profesional.
-
-Request:
+Admin autenticado. Reemplaza el conjunto completo de asociaciones; admite profesionales activos e inactivos.
 
 ```json
-{
-  "service_offering_ids": [20, 21]
-}
+{ "service_offering_ids": [20, 21] }
 ```
 
-Response `200 OK`:
+Response **`204 No Content`**, sin cuerpo.
 
-```json
-{
-  "staff_member_id": 1,
-  "service_offering_ids": [20, 21]
-}
-```
-
-Reglas:
-
-- Staff y servicios deben pertenecer al negocio autenticado.
-- Servicios inactivos pueden rechazarse para nuevas asociaciones. Decision recomendada MVP: rechazar `INACTIVE` con `400 VALIDATION_ERROR`.
-- Remover una asociacion no modifica appointments existentes.
+- `[]` quita todas las asociaciones. Se normalizan duplicados; orden de IDs irrelevante.
+- Lista ausente/nula, elementos nulos o IDs no positivos: `400 VALIDATION_ERROR`.
+- Profesional o servicio inexistente, ajeno al negocio o servicio eliminado: `404 NOT_FOUND`.
+- Inactivo ya asociado: se puede conservar o quitar. Inactivo nuevo: `409 INVALID_STATE_TRANSITION`.
+- La condición de asociación existente se comprueba en la DB al guardar. Tras quitar un inactivo, no puede reasignarse mientras siga inactivo.
+- Transacción con bloqueo del profesional y servicios solicitados en orden de ID; validación previa a escrituras, actualización por diferencia y rollback completo ante errores. Reemplazos concurrentes se serializan sin mezclar conjuntos.
+- Remover asociaciones no modifica turnos futuros ni históricos. No requiere migraciones.
+- El catálogo de selección consume `GET /service-offerings?status=ACTIVE&q=...&page=0&size=20&sort=name,asc`; no descarga todo el catálogo.
 
 ## Customers
 
@@ -869,7 +885,17 @@ size=20
 sort=name,asc
 ```
 
-Response `200 OK`: page de `CustomerSummary`.
+Response `200 OK` (reemplaza el array anterior):
+
+```json
+{"data":[{"id":10,"name":"Santiago Moreno","email":"santiago@example.com","phone_number":"+54 (11) 5555-5555","status":"ACTIVE"}],"page":{"number":0,"size":20,"total_elements":1,"total_pages":1}}
+```
+
+- Búsqueda parcial por nombre/email sin distinguir mayúsculas. Las entradas telefónicas con dígitos, espacios, `+`, guiones, puntos o paréntesis comparan solo dígitos; no infieren códigos de país y no alteran el teléfono guardado. Los comodines SQL se tratan como texto literal.
+- Búsqueda y estado se combinan, siempre limitados al negocio de la sesión. Filtrado, orden y paginación ocurren en la DB, sin descargar el catálogo completo.
+- Defaults: página 0, tamaño 20, orden `name,asc`. Tamaño permitido 1–100, `q` hasta 100 caracteres, estados ACTIVE/INACTIVE; omitir status incluye ambos. Orden alternativo `name,desc`; ambos usan `id,asc` como desempate. Parámetros inválidos devuelven 400.
+- El resumen conserva id, nombre, email, teléfono y estado. Los contactos nulos se omiten; nunca incluye notas internas ni fechas administrativas. Sin coincidencias: `data: []` y metadatos de página.
+- El endpoint conserva autenticación/autorización admin. No requiere migraciones; integrar backend TURN-80 antes del frontend por el cambio de formato. Las consultas internas de clientes mantienen su contrato.
 
 ### POST `/api/v1/customers`
 
@@ -1535,6 +1561,7 @@ POST   /api/v1/staff-members
 GET    /api/v1/staff-members/{staff_member_id}
 PATCH  /api/v1/staff-members/{staff_member_id}
 DELETE /api/v1/staff-members/{staff_member_id}
+DELETE /api/v1/staff-members/{staff_member_id}/catalog
 GET    /api/v1/staff-members/{staff_member_id}/working-hours
 PUT    /api/v1/staff-members/{staff_member_id}/working-hours
 GET    /api/v1/staff-members/{staff_member_id}/service-offerings
