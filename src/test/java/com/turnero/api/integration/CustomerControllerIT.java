@@ -282,6 +282,7 @@ class CustomerControllerIT {
         Customer customer2 = new Customer();
         customer2.setBusinessId(1L);
         customer2.setName("Maria Gomez");
+        customer2.setStatus(CustomerStatus.ACTIVE);
         customer2.setEmail("maria@mail.com");
         customer2.setPhoneNumber("1199999999");
         customer2.setCreatedAt(LocalDateTime.of(2026, 2, 25, 10, 30));

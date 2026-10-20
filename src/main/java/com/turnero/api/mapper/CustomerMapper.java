@@ -17,6 +17,8 @@ public interface CustomerMapper {
     @Mapping(source = "name", target = "name")
     @Mapping(target = "businessId", ignore = true)
     @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "publicBookingBlocked", ignore = true)
+    @Mapping(target = "publicBookingBlockReason", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -25,6 +27,7 @@ public interface CustomerMapper {
     CustomerResponseDto toResponseDto(Customer customer);
 
     @Named("toSummaryResponseDto")
+    @Mapping(target = "publicBookingBlockReason", ignore = true)
     @Mapping(target = "internalNotes", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

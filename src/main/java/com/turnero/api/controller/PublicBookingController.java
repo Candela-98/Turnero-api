@@ -53,6 +53,9 @@ public class PublicBookingController {
         }
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Crear reserva pública", description = "Reutiliza una ficha por email o teléfono del negocio. Una reserva exitosa restaura al archivado no bloqueado. Los bloqueos administrativos rechazan la reserva sin revelar el motivo interno.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "CUSTOMER_BOOKING_BLOCKED: contactar al negocio; también puede indicar que la reserva pública no está habilitada")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "CUSTOMER_IDENTITY_AMBIGUOUS o conflicto de disponibilidad: contactar al negocio o elegir otro horario según el código")
     @PostMapping("/{businessSlug}/appointments")
     public ResponseEntity<PublicAppointmentResponseDto> createAppointment(@PathVariable String businessSlug, @Valid @RequestBody PublicAppointmentRequestDto request) {
 

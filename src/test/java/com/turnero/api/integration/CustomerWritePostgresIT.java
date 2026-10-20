@@ -84,6 +84,7 @@ class CustomerWritePostgresIT {
     }
     JsonNode list(String... parameters) throws Exception {
         var request = get("/api/v1/customers").cookie(owner);
+        if (!java.util.Arrays.asList(parameters).contains("status")) request.param("status", "ALL");
         for (int i = 0; i < parameters.length; i += 2) request.param(parameters[i], parameters[i + 1]);
         return json.readTree(mvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     }
