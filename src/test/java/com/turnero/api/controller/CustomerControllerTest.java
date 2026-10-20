@@ -382,7 +382,7 @@ class CustomerControllerTest {
         return CustomerRequestDto.builder()
                 .name("Juan")
                 .email("juan@mail.com")
-                .phone("1122334455")
+                .phoneNumber("1122334455")
                 .build();
     }
 

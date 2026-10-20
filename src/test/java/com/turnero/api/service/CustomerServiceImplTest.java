@@ -36,6 +36,7 @@ public class CustomerServiceImplTest {
     void saveCustomer_shouldSaveAndReturnCustomer() {
         Customer customer = new Customer();
         customer.setName("Candela");
+        customer.setPhoneNumber("123");
         customer.setEmail("candela@mail.com");
 
         when(customerRepository.save(customer)).thenReturn(customer);

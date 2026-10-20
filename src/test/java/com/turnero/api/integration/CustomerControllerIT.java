@@ -415,7 +415,7 @@ class CustomerControllerIT {
         return CustomerRequestDto.builder()
                 .name("Juan Perez")
                 .email("juan@mail.com")
-                .phone("1122334455")
+                .phoneNumber("1122334455")
                 .build();
     }
 

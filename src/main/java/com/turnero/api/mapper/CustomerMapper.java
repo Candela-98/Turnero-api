@@ -15,11 +15,9 @@ public interface CustomerMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(source = "name", target = "name")
-    @Mapping(source = "phone", target = "phoneNumber")
     @Mapping(target = "businessId", ignore = true)
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "status", ignore = true)
-    @Mapping(target = "internalNotes", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Customer toEntity(CustomerRequestDto dtoCustomer);

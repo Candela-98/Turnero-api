@@ -34,6 +34,10 @@ public class CustomerServiceImpl implements CustomerService {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
         customer.setBusinessId(businessId);
+        customer.setName(customer.getName().trim());
+        customer.setPhoneNumber(customer.getPhoneNumber().trim());
+        customer.setEmail(optionalText(customer.getEmail()));
+        customer.setInternalNotes(optionalText(customer.getInternalNotes()));
         customer.setStatus(CustomerStatus.ACTIVE);
         customer.setCreatedAt(LocalDateTime.now());
         customer.setUpdatedAt(LocalDateTime.now());
@@ -78,19 +82,19 @@ public class CustomerServiceImpl implements CustomerService {
         Customer currentCustomer = findCustomer(id);
 
         if (customer.getName() != null) {
-            currentCustomer.setName(customer.getName());
+            currentCustomer.setName(customer.getName().trim());
         }
 
         if (customer.getEmail() != null) {
-            currentCustomer.setEmail(customer.getEmail());
+            currentCustomer.setEmail(optionalText(customer.getEmail()));
         }
 
         if (customer.getPhoneNumber() != null) {
-            currentCustomer.setPhoneNumber(customer.getPhoneNumber());
+            currentCustomer.setPhoneNumber(customer.getPhoneNumber().trim());
         }
 
         if (customer.getInternalNotes() != null) {
-            currentCustomer.setInternalNotes(customer.getInternalNotes());
+            currentCustomer.setInternalNotes(optionalText(customer.getInternalNotes()));
         }
 
         if (customer.getStatus() != null) {
@@ -102,6 +106,10 @@ public class CustomerServiceImpl implements CustomerService {
         Customer updatedCustomer = customerRepository.save(currentCustomer);
         log.info("Customer with id={} successfully updated", id);
         return updatedCustomer;
+    }
+
+    private static String optionalText(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     @Override
