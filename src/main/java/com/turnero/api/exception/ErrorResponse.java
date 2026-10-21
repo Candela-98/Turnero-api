@@ -31,6 +31,10 @@ public class ErrorResponse {
     @Schema(description = "Request path", example = "/api/v1/appointments")
     private String path;
 
+    public String getPath() {
+        return ErrorPathSanitizer.sanitize(path);
+    }
+
     @Schema(description = "The timestamp when the error occurred", example = "2024-12-01T10:00:00")
     private LocalDateTime timestamp;
 }

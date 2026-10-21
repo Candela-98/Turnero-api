@@ -44,7 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(PublicBookingController.class)
+@WebMvcTest(controllers = PublicBookingController.class, properties = "public-booking.rate-limit.enabled=false")
 class PublicBookingControllerTest {
 
     private static final String BUSINESS_SLUG = "barber-studio";
