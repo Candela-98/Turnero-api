@@ -371,3 +371,9 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 
 - El usuario confirmó «Veo todo ok, armá el PR»: aprobación manual de la agenda y autorización de publicación de los dos PRs acordados. Bases remotas verificadas: backend develop 75fdcbc; frontend dev 87cbb44, ambas sin avances adicionales. Mantener orden de integración TURN-90 → TURN-70; PR #85 excluido.
 - QA acumulada: backend 638 tests y benchmark PostgreSQL descartable de 100.000 filas; frontend lint/TypeScript/271 unitarios/build, suite completa previa 506 aprobados/7 omisiones y recorridos afectados finales 72 de agenda + 9 de navegación/Hoy, en los tres tamaños. Script reutilizable: 15 tests Python con API simulada; su ejecución autenticada contra DB local sigue pendiente y no se presenta como aprobada. No se consultó CI ni se integró automáticamente.
+
+### PRs publicados (2026-10-23)
+
+- Backend TURN-90: [PR #87](https://github.com/Candela-98/Turnero-api/pull/87), `feature/TURN-90-agenda-read` → `develop`.
+- Frontend TURN-70: [PR #20](https://github.com/Candela-98/Turnero-frontend/pull/20), `feature/TURN-70-real-agenda` → `dev`.
+- Aprobación manual y publicación autorizadas por el usuario. Integrar backend #87 antes de frontend #20. El script local conserva pendiente su ejecución autenticada real; 15 pruebas simuladas aprobadas. PR #85 excluido. Sin consultar CI ni realizar merge automático.
