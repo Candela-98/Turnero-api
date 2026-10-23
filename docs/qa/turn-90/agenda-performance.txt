@@ -1,0 +1,185 @@
+PostgreSQL 16 / disposable Testcontainers; 100000 appointments across 2 businesses / 365 days; existing indexes only. Exact repository SQL below. Two JDBC statements/page (count + joined projection) at sizes 1, 50 and 100; service adds one business timezone lookup.
+
+SELECT a.*, c.id AS c_id, c.name AS c_name, c.email AS c_email, c.phone_number AS c_phone, c.status AS c_status,
+    s.id AS s_id, s.name AS s_name, s.category AS s_category, s.status AS s_status,
+    p.id AS p_id, p.name AS p_name, p.role_label AS p_role, p.avatar_url AS p_avatar, p.status AS p_status, p.deleted_at AS p_deleted_at
+FROM appointments a
+LEFT JOIN customers c ON c.id = a.customer_id AND c.business_id = a.business_id
+LEFT JOIN service_offerings s ON s.id = a.service_offering_id AND s.business_id = a.business_id
+LEFT JOIN staff_members p ON p.id = a.staff_member_id AND p.business_id = a.business_id
+ WHERE a.business_id = :business AND ((a.starts_at >= :from0 AND a.starts_at < :to0)) ORDER BY a.starts_at ASC, a.id ASC LIMIT :limit OFFSET :offset
+MapSqlParameterSource {business=5, from0=2026-10-20T00:00, to0=2026-10-21T00:00, limit=50, offset=0}
+Limit  (cost=3.66..149.67 rows=50 width=2532) (actual time=0.151..0.214 rows=50 loops=1)
+  Buffers: shared hit=67
+  ->  Incremental Sort  (cost=3.66..870.94 rows=297 width=2532) (actual time=0.150..0.208 rows=50 loops=1)
+        Sort Key: a.starts_at, a.id
+        Presorted Key: a.starts_at
+        Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 34kB  Peak Memory: 34kB
+        Buffers: shared hit=67
+        ->  Nested Loop Left Join  (cost=0.72..857.75 rows=297 width=2532) (actual time=0.056..0.172 rows=59 loops=1)
+              Join Filter: (p.id = a.staff_member_id)
+              Buffers: shared hit=67
+              ->  Nested Loop Left Join  (cost=0.58..845.13 rows=297 width=1486) (actual time=0.043..0.141 rows=59 loops=1)
+                    Join Filter: (s.id = a.service_offering_id)
+                    Buffers: shared hit=65
+                    ->  Nested Loop Left Join  (cost=0.43..832.51 rows=297 width=964) (actual time=0.034..0.113 rows=59 loops=1)
+                          Join Filter: (c.id = a.customer_id)
+                          Buffers: shared hit=63
+                          ->  Index Scan using idx_appointments_business_starts_at on appointments a  (cost=0.29..819.90 rows=297 width=184) (actual time=0.021..0.079 rows=59 loops=1)
+                                Index Cond: ((business_id = '5'::bigint) AND (starts_at >= '2026-10-20 00:00:00'::timestamp without time zone) AND (starts_at < '2026-10-21 00:00:00'::timestamp without time zone))
+                                Buffers: shared hit=61
+                          ->  Materialize  (cost=0.14..8.16 rows=1 width=788) (actual time=0.000..0.000 rows=1 loops=59)
+                                Buffers: shared hit=2
+                                ->  Index Scan using idx_customers_business_archive_block on customers c  (cost=0.14..8.16 rows=1 width=788) (actual time=0.007..0.007 rows=1 loops=1)
+                                      Index Cond: (business_id = '5'::bigint)
+                                      Buffers: shared hit=2
+                    ->  Materialize  (cost=0.14..8.17 rows=1 width=530) (actual time=0.000..0.000 rows=1 loops=59)
+                          Buffers: shared hit=2
+                          ->  Index Scan using idx_service_offerings_business_id on service_offerings s  (cost=0.14..8.16 rows=1 width=530) (actual time=0.007..0.007 rows=1 loops=1)
+                                Index Cond: (business_id = '5'::bigint)
+                                Buffers: shared hit=2
+              ->  Materialize  (cost=0.14..8.16 rows=1 width=1054) (actual time=0.000..0.000 rows=1 loops=59)
+                    Buffers: shared hit=2
+                    ->  Index Scan using idx_staff_members_business_id on staff_members p  (cost=0.14..8.16 rows=1 width=1054) (actual time=0.006..0.006 rows=1 loops=1)
+                          Index Cond: (business_id = '5'::bigint)
+                          Buffers: shared hit=2
+Planning Time: 0.328 ms
+Execution Time: 0.296 ms
+
+SELECT COUNT(*) FROM appointments a WHERE a.business_id = :business AND ((a.starts_at >= :from0 AND a.starts_at < :to0))
+MapSqlParameterSource {business=5, from0=2026-10-20T00:00, to0=2026-10-21T00:00, limit=50, offset=0}
+Aggregate  (cost=772.17..772.18 rows=1 width=8) (actual time=0.368..0.369 rows=1 loops=1)
+  Buffers: shared hit=276
+  ->  Bitmap Heap Scan on appointments a  (cost=8.08..771.43 rows=297 width=0) (actual time=0.079..0.347 rows=274 loops=1)
+        Recheck Cond: ((business_id = '5'::bigint) AND (starts_at >= '2026-10-20 00:00:00'::timestamp without time zone) AND (starts_at < '2026-10-21 00:00:00'::timestamp without time zone))
+        Heap Blocks: exact=274
+        Buffers: shared hit=276
+        ->  Bitmap Index Scan on idx_appointments_business_starts_at  (cost=0.00..8.01 rows=297 width=0) (actual time=0.048..0.048 rows=274 loops=1)
+              Index Cond: ((business_id = '5'::bigint) AND (starts_at >= '2026-10-20 00:00:00'::timestamp without time zone) AND (starts_at < '2026-10-21 00:00:00'::timestamp without time zone))
+              Buffers: shared hit=2
+Planning Time: 0.067 ms
+Execution Time: 0.400 ms
+
+SELECT a.*, c.id AS c_id, c.name AS c_name, c.email AS c_email, c.phone_number AS c_phone, c.status AS c_status,
+    s.id AS s_id, s.name AS s_name, s.category AS s_category, s.status AS s_status,
+    p.id AS p_id, p.name AS p_name, p.role_label AS p_role, p.avatar_url AS p_avatar, p.status AS p_status, p.deleted_at AS p_deleted_at
+FROM appointments a
+LEFT JOIN customers c ON c.id = a.customer_id AND c.business_id = a.business_id
+LEFT JOIN service_offerings s ON s.id = a.service_offering_id AND s.business_id = a.business_id
+LEFT JOIN staff_members p ON p.id = a.staff_member_id AND p.business_id = a.business_id
+ WHERE a.business_id = :business AND ((a.starts_at >= :from0 AND a.starts_at < :to0)) AND a.status IN (:statuses) AND a.staff_member_id = :staff_member_id ORDER BY a.starts_at ASC, a.id ASC LIMIT :limit OFFSET :offset
+MapSqlParameterSource {business=5, from0=2026-10-01T00:00, to0=2026-11-01T00:00, statuses=[PENDING, CONFIRMED], staff_member_id=5, limit=50, offset=0}
+Limit  (cost=2.14..65.26 rows=50 width=2532) (actual time=0.563..0.617 rows=50 loops=1)
+  Buffers: shared hit=889
+  ->  Incremental Sort  (cost=2.14..3509.06 rows=2778 width=2532) (actual time=0.563..0.611 rows=50 loops=1)
+        Sort Key: a.starts_at, a.id
+        Presorted Key: a.starts_at
+        Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 33kB  Peak Memory: 33kB
+        Buffers: shared hit=889
+        ->  Nested Loop Left Join  (cost=0.72..3396.97 rows=2778 width=2532) (actual time=0.493..0.575 rows=58 loops=1)
+              Buffers: shared hit=889
+              ->  Nested Loop Left Join  (cost=0.58..3354.08 rows=2778 width=1486) (actual time=0.481..0.544 rows=58 loops=1)
+                    Join Filter: (s.id = a.service_offering_id)
+                    Buffers: shared hit=887
+                    ->  Nested Loop Left Join  (cost=0.43..3304.24 rows=2778 width=964) (actual time=0.471..0.517 rows=58 loops=1)
+                          Join Filter: (c.id = a.customer_id)
+                          Buffers: shared hit=885
+                          ->  Index Scan using idx_appointments_staff_starts_at on appointments a  (cost=0.29..3254.42 rows=2778 width=184) (actual time=0.455..0.482 rows=58 loops=1)
+                                Index Cond: ((staff_member_id = '5'::bigint) AND (starts_at >= '2026-10-01 00:00:00'::timestamp without time zone) AND (starts_at < '2026-11-01 00:00:00'::timestamp without time zone))
+                                Filter: (((status)::text = ANY ('{PENDING,CONFIRMED}'::text[])) AND (business_id = '5'::bigint))
+                                Rows Removed by Filter: 822
+                                Buffers: shared hit=883
+                          ->  Materialize  (cost=0.14..8.16 rows=1 width=788) (actual time=0.000..0.000 rows=1 loops=58)
+                                Buffers: shared hit=2
+                                ->  Index Scan using idx_customers_business_archive_block on customers c  (cost=0.14..8.16 rows=1 width=788) (actual time=0.009..0.009 rows=1 loops=1)
+                                      Index Cond: (business_id = '5'::bigint)
+                                      Buffers: shared hit=2
+                    ->  Materialize  (cost=0.14..8.17 rows=1 width=530) (actual time=0.000..0.000 rows=1 loops=58)
+                          Buffers: shared hit=2
+                          ->  Index Scan using idx_service_offerings_business_id on service_offerings s  (cost=0.14..8.16 rows=1 width=530) (actual time=0.006..0.006 rows=1 loops=1)
+                                Index Cond: (business_id = '5'::bigint)
+                                Buffers: shared hit=2
+              ->  Materialize  (cost=0.14..8.17 rows=1 width=1054) (actual time=0.000..0.000 rows=1 loops=58)
+                    Buffers: shared hit=2
+                    ->  Index Scan using idx_staff_members_business_id on staff_members p  (cost=0.14..8.16 rows=1 width=1054) (actual time=0.006..0.006 rows=1 loops=1)
+                          Index Cond: (business_id = '5'::bigint)
+                          Filter: (id = '5'::bigint)
+                          Buffers: shared hit=2
+Planning Time: 0.326 ms
+Execution Time: 0.704 ms
+
+SELECT COUNT(*) FROM appointments a WHERE a.business_id = :business AND ((a.starts_at >= :from0 AND a.starts_at < :to0)) AND a.status IN (:statuses) AND a.staff_member_id = :staff_member_id
+MapSqlParameterSource {business=5, from0=2026-10-01T00:00, to0=2026-11-01T00:00, statuses=[PENDING, CONFIRMED], staff_member_id=5, limit=50, offset=0}
+Aggregate  (cost=1943.41..1943.42 rows=1 width=8) (actual time=1.939..1.939 rows=1 loops=1)
+  Buffers: shared hit=410
+  ->  Bitmap Heap Scan on appointments a  (cost=136.30..1936.46 rows=2778 width=0) (actual time=0.355..1.812 rows=1644 loops=1)
+        Recheck Cond: ((business_id = '5'::bigint) AND (starts_at >= '2026-10-01 00:00:00'::timestamp without time zone) AND (starts_at < '2026-11-01 00:00:00'::timestamp without time zone))
+        Filter: (((status)::text = ANY ('{PENDING,CONFIRMED}'::text[])) AND (staff_member_id = '5'::bigint))
+        Rows Removed by Filter: 5206
+        Heap Blocks: exact=396
+        Buffers: shared hit=410
+        ->  Bitmap Index Scan on idx_appointments_business_starts_at  (cost=0.00..135.60 rows=6985 width=0) (actual time=0.308..0.308 rows=6850 loops=1)
+              Index Cond: ((business_id = '5'::bigint) AND (starts_at >= '2026-10-01 00:00:00'::timestamp without time zone) AND (starts_at < '2026-11-01 00:00:00'::timestamp without time zone))
+              Buffers: shared hit=14
+Planning Time: 0.094 ms
+Execution Time: 1.974 ms
+
+SELECT a.*, c.id AS c_id, c.name AS c_name, c.email AS c_email, c.phone_number AS c_phone, c.status AS c_status,
+    s.id AS s_id, s.name AS s_name, s.category AS s_category, s.status AS s_status,
+    p.id AS p_id, p.name AS p_name, p.role_label AS p_role, p.avatar_url AS p_avatar, p.status AS p_status, p.deleted_at AS p_deleted_at
+FROM appointments a
+LEFT JOIN customers c ON c.id = a.customer_id AND c.business_id = a.business_id
+LEFT JOIN service_offerings s ON s.id = a.service_offering_id AND s.business_id = a.business_id
+LEFT JOIN staff_members p ON p.id = a.staff_member_id AND p.business_id = a.business_id
+ WHERE a.business_id = :business AND ((a.starts_at >= :from0 AND a.starts_at < :to0)) ORDER BY a.starts_at DESC, a.id ASC LIMIT :limit OFFSET :offset
+MapSqlParameterSource {business=5, from0=2026-10-20T00:00, to0=2026-10-21T00:00, limit=50, offset=0}
+Limit  (cost=3.66..149.67 rows=50 width=2532) (actual time=0.126..0.182 rows=50 loops=1)
+  Buffers: shared hit=66
+  ->  Incremental Sort  (cost=3.66..870.94 rows=297 width=2532) (actual time=0.125..0.177 rows=50 loops=1)
+        Sort Key: a.starts_at DESC, a.id
+        Presorted Key: a.starts_at
+        Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 33kB  Peak Memory: 33kB
+        Buffers: shared hit=66
+        ->  Nested Loop Left Join  (cost=0.72..857.75 rows=297 width=2532) (actual time=0.047..0.135 rows=58 loops=1)
+              Join Filter: (p.id = a.staff_member_id)
+              Buffers: shared hit=66
+              ->  Nested Loop Left Join  (cost=0.58..845.13 rows=297 width=1486) (actual time=0.036..0.105 rows=58 loops=1)
+                    Join Filter: (s.id = a.service_offering_id)
+                    Buffers: shared hit=64
+                    ->  Nested Loop Left Join  (cost=0.43..832.51 rows=297 width=964) (actual time=0.027..0.079 rows=58 loops=1)
+                          Join Filter: (c.id = a.customer_id)
+                          Buffers: shared hit=62
+                          ->  Index Scan Backward using idx_appointments_business_starts_at on appointments a  (cost=0.29..819.90 rows=297 width=184) (actual time=0.015..0.045 rows=58 loops=1)
+                                Index Cond: ((business_id = '5'::bigint) AND (starts_at >= '2026-10-20 00:00:00'::timestamp without time zone) AND (starts_at < '2026-10-21 00:00:00'::timestamp without time zone))
+                                Buffers: shared hit=60
+                          ->  Materialize  (cost=0.14..8.16 rows=1 width=788) (actual time=0.000..0.000 rows=1 loops=58)
+                                Buffers: shared hit=2
+                                ->  Index Scan using idx_customers_business_archive_block on customers c  (cost=0.14..8.16 rows=1 width=788) (actual time=0.007..0.007 rows=1 loops=1)
+                                      Index Cond: (business_id = '5'::bigint)
+                                      Buffers: shared hit=2
+                    ->  Materialize  (cost=0.14..8.17 rows=1 width=530) (actual time=0.000..0.000 rows=1 loops=58)
+                          Buffers: shared hit=2
+                          ->  Index Scan using idx_service_offerings_business_id on service_offerings s  (cost=0.14..8.16 rows=1 width=530) (actual time=0.006..0.006 rows=1 loops=1)
+                                Index Cond: (business_id = '5'::bigint)
+                                Buffers: shared hit=2
+              ->  Materialize  (cost=0.14..8.16 rows=1 width=1054) (actual time=0.000..0.000 rows=1 loops=58)
+                    Buffers: shared hit=2
+                    ->  Index Scan using idx_staff_members_business_id on staff_members p  (cost=0.14..8.16 rows=1 width=1054) (actual time=0.004..0.004 rows=1 loops=1)
+                          Index Cond: (business_id = '5'::bigint)
+                          Buffers: shared hit=2
+Planning Time: 0.288 ms
+Execution Time: 0.281 ms
+
+SELECT COUNT(*) FROM appointments a WHERE a.business_id = :business AND ((a.starts_at >= :from0 AND a.starts_at < :to0))
+MapSqlParameterSource {business=5, from0=2026-10-20T00:00, to0=2026-10-21T00:00, limit=50, offset=0}
+Aggregate  (cost=772.17..772.18 rows=1 width=8) (actual time=0.331..0.332 rows=1 loops=1)
+  Buffers: shared hit=276
+  ->  Bitmap Heap Scan on appointments a  (cost=8.08..771.43 rows=297 width=0) (actual time=0.073..0.310 rows=274 loops=1)
+        Recheck Cond: ((business_id = '5'::bigint) AND (starts_at >= '2026-10-20 00:00:00'::timestamp without time zone) AND (starts_at < '2026-10-21 00:00:00'::timestamp without time zone))
+        Heap Blocks: exact=274
+        Buffers: shared hit=276
+        ->  Bitmap Index Scan on idx_appointments_business_starts_at  (cost=0.00..8.01 rows=297 width=0) (actual time=0.044..0.044 rows=274 loops=1)
+              Index Cond: ((business_id = '5'::bigint) AND (starts_at >= '2026-10-20 00:00:00'::timestamp without time zone) AND (starts_at < '2026-10-21 00:00:00'::timestamp without time zone))
+              Buffers: shared hit=2
+Planning Time: 0.048 ms
+Execution Time: 0.359 ms
