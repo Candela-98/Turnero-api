@@ -1622,3 +1622,7 @@ Notas:
 - El plan de migracion por PRs vive en `plan-migracion-backend-mvp.md`.
 - Las migraciones DB se implementan con Flyway segun `plan-migracion-backend-mvp.md`.
 - No se crea documento propio para bajar el algoritmo de disponibilidad con mas detalle; el dev lo define durante implementacion usando estos contratos, `flujos-funcionales-mvp.md`, `schema-db-mvp.md` y tests.
+
+## TURN-112: rate limiting público
+
+La implementación, cuotas ajustables, contrato 429/503 y criterios pendientes de despliegue se describen en [Rate limiting público](rate-limiting-publico.md). TURN-112 no se considera cerrada hasta verificar la identificación de IP y la integración del BFF en el despliegue real.
