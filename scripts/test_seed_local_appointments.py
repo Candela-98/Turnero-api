@@ -105,8 +105,8 @@ class SeedTests(unittest.TestCase):
 
     def test_capacity_failure_does_not_post(self):
         api = FakeApi()
-        api.closed = {(NOW + timedelta(days=i)).date() for i in range(3)}
-        with self.assertRaisesRegex(seed.SeedError, "Capacidad encontrada: 0/106"):
+        api.closed = {(NOW + timedelta(days=i)).date() for i in range(31)}
+        with self.assertRaisesRegex(seed.SeedError, "Solo hay 0/3 días"):
             self.run_seed(api, apply=True)
         self.assertEqual(api.posts, 0)
 
@@ -146,6 +146,36 @@ class SeedTests(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             plan = seed.seed(api, 1, 3, now=datetime(2029, 10, 23, 1, tzinfo=timezone.utc))
         self.assertEqual(min(p["startsAt"][:10] for p in plan), "2029-10-22")
+
+
+    def test_after_close_skips_weekend_and_selects_next_three_available_days(self):
+        api = FakeApi()
+        late = NOW.replace(hour=23)
+        api.closed = {(NOW + timedelta(days=i)).date() for i in (1, 2)}
+        with redirect_stdout(io.StringIO()):
+            rows = seed.seed(api, 1, now=late)
+        expected = {str((NOW + timedelta(days=i)).date()) for i in (3, 4, 5)}
+        self.assertEqual({row["startsAt"][:10] for row in rows}, expected)
+        self.assertEqual(len(rows), 106)
+        self.assertEqual(api.posts, 0)
+
+    def test_calendar_mode_keeps_strict_range_and_fails_without_writes(self):
+        api = FakeApi()
+        api.closed = {(NOW + timedelta(days=i)).date() for i in (1, 2)}
+        with redirect_stdout(io.StringIO()), self.assertRaisesRegex(seed.SeedError, "Capacidad encontrada: 0/106"):
+            seed.seed(api, 1, now=NOW.replace(hour=23), apply=True, calendar_days=True)
+        self.assertEqual(api.posts, 0)
+
+    def test_full_existing_day_is_skipped_and_batch_remains_idempotent(self):
+        api = FakeApi()
+        for member in (1, 2):
+            api.rows.append({"id": 900+member, "staff_member_id": member, "customer_id": 1,
+                             "starts_at": "2029-10-23T00:00:00", "ends_at": "2029-10-24T00:00:00",
+                             "status": "CANCELLED"})
+        first = self.run_seed(api, count=106, apply=True)
+        self.assertEqual(min(row["startsAt"][:10] for row in first), "2029-10-24")
+        self.run_seed(api, count=106, apply=True)
+        self.assertEqual(api.posts, 106)
 
     def test_loopback_only_and_credentials_required(self):
         for url in ("https://example.com", "http://localhost.evil", "http://user:password@localhost", "file:///tmp/x"):

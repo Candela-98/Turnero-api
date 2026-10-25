@@ -44,7 +44,7 @@ AGENDA_COUNT ?= 106
 AGENDA_DAYS ?= 3
 AGENDA_BASE_URL ?= http://localhost:8080
 seed-local-appointments:
-	python3 scripts/seed-local-appointments.py --business-id "$(BUSINESS_ID)" --count "$(AGENDA_COUNT)" --days "$(AGENDA_DAYS)" --base-url "$(AGENDA_BASE_URL)" $(if $(filter 1,$(AGENDA_APPLY)),--apply,)
+	python3 scripts/seed-local-appointments.py --business-id "$(BUSINESS_ID)" --count "$(AGENDA_COUNT)" --days "$(AGENDA_DAYS)" --base-url "$(AGENDA_BASE_URL)" $(if $(filter 1,$(AGENDA_CALENDAR)),--calendar-days,) $(if $(filter 1,$(AGENDA_APPLY)),--apply,)
 
 test-local-appointments:
 	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_seed_local_appointments.py' -v

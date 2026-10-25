@@ -377,3 +377,11 @@ Implementación local en `feature/TURN-98-service-removal`, basada en TURN-96. Q
 - Backend TURN-90: [PR #87](https://github.com/Candela-98/Turnero-api/pull/87), `feature/TURN-90-agenda-read` → `develop`.
 - Frontend TURN-70: [PR #20](https://github.com/Candela-98/Turnero-frontend/pull/20), `feature/TURN-70-real-agenda` → `dev`.
 - Aprobación manual y publicación autorizadas por el usuario. Integrar backend #87 antes de frontend #20. El script local conserva pendiente su ejecución autenticada real; 15 pruebas simuladas aprobadas. PR #85 excluido. Sin consultar CI ni realizar merge automático.
+
+### Días disponibles y carga autenticada local (2026-10-24)
+
+- Ajuste en `fix/local-agenda-available-days`: por defecto el script elige los próximos tres días con huecos futuros realmente utilizables, con búsqueda máxima de 31 días. Omite cierres, jornada ya terminada y días sin capacidad de profesional/cliente; mantiene un lote estable al reejecutar. Modo calendario anterior mediante --calendar-days / AGENDA_CALENDAR=1. Si tres días no alcanzan el objetivo completo, sigue sin forzar más fechas ni realizar altas parciales iniciales.
+- Simulación y aplicación reales autorizadas por el usuario: 106 turnos creados para 27/10 (36), 28/10 (35), 29/10 (35); 53 pendientes/53 confirmados. Auditoría API de catálogo/asignaciones, duración/precio, futuro y cero cruces aprobada. Reejecución sin duplicados (106 existentes/0 nuevos). Cookie temporal eliminada. Históricos intactos.
+- 18 tests del script aprobados; evidencia docs/qa/turn-90/local-seed-verification.md. Verificación visual del usuario y PR del ajuste pendientes. Esta ejecución cierra la verificación autenticada que había quedado pendiente al integrar #87.
+
+- Publicación directa del ajuste en develop autorizada por el usuario el 2026-10-24 («subilo directo a develop»), reemplazando el PR pendiente. Base remota ffccca4 sin avances adicionales; 18 pruebas Python repetidas y aprobadas. Sin consulta de CI ni cambios adicionales en la DB.

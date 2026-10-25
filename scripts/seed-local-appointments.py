@@ -162,27 +162,51 @@ def plan(candidates, customers, existing, count, marker, zone):
     return planned, len(fixtures)
 
 
-def seed(api, business_id, count=106, days_count=3, apply=False, now=None):
+def seed(api, business_id, count=106, days_count=3, apply=False, now=None, calendar_days=False):
     business = api.request("/business")
     if business["id"] != business_id:
         raise SeedError("La sesión pertenece a otro negocio; no se modificó nada.")
     zone = ZoneInfo(business["timezone"])
     now = now or datetime.now(timezone.utc)
     today = now.astimezone(zone).date()
-    days = [today + timedelta(days=i) for i in range(days_count)]
-    # Marker is per business/date/window, so changing the requested count tops up the same set.
-    marker = f"Fixture local agenda v2:{business_id}:{today}:{days_count}"
+    search_days = [today + timedelta(days=i) for i in range(days_count if calendar_days else 31)]
+    # Keep a stable batch even when its own bookings consume a day's last available slots.
+    version = "v2" if calendar_days else "v3-available"
+    marker = f"Fixture local agenda {version}:{business_id}:{today}:{days_count}"
     staff = [row for row in api.pages("/staff-members", status="ACTIVE")
              if row["status"] == "ACTIVE" and not row.get("deleted_at")]
     customers = [row for row in api.pages("/customers", status="ACTIVE") if row["status"] == "ACTIVE"]
     if not staff or not customers:
         raise SeedError("Faltan profesionales o clientes activos. Completar aprovisionamiento antes de sembrar.")
     # Read the preceding day too: an earlier appointment may end inside today's opening window.
-    existing = load_appointments(api, [today - timedelta(days=1), *days])
-    candidates = candidate_slots(api, days, staff, zone, now + timedelta(minutes=15))
+    existing = load_appointments(api, [today - timedelta(days=1), *search_days])
+    candidates = candidate_slots(api, search_days, staff, zone, now + timedelta(minutes=15))
+    if calendar_days:
+        days = search_days
+    else:
+        batch_days = {instant(a["starts_at"], zone).astimezone(zone).date() for a in existing
+                      if a.get("internal_notes") == marker}
+        days = []
+        for day in search_days:
+            usable = day in batch_days or any(
+                not any(a["staff_member_id"] == member and overlaps(start, end, a, zone) for a in existing)
+                and any(not any(a["customer_id"] == c["id"] and overlaps(start, end, a, zone) for a in existing)
+                        for c in customers)
+                for start, end, member, _service in candidates[day])
+            if usable:
+                days.append(day)
+            if len(days) == days_count:
+                break
+        if len(days) < days_count:
+            raise SeedError(f"Solo hay {len(days)}/{days_count} días con disponibilidad dentro de los próximos 31 días. "
+                            "No se creó nada; revisar catálogo/horarios/excepciones o reducir --days.")
+        skipped = [str(day) for day in search_days if day < days[-1] and day not in days]
+        if skipped:
+            print("Días omitidos sin huecos futuros utilizables:", ", ".join(skipped))
+        candidates = {day: candidates[day] for day in days}
     planned, already = plan(candidates, customers, existing, count, marker, zone)
     summary = Counter(row["startsAt"][:10] for row in planned)
-    print(f"Negocio {business_id} · zona {zone.key} · {days[0]} a {days[-1]}")
+    print(f"Negocio {business_id} · zona {zone.key} · fechas elegidas: {', '.join(map(str, days))}")
     print(f"Objetivo {count}; existentes del lote {already}; nuevos {len(planned)}; distribución nueva {dict(sorted(summary.items()))}")
     if not apply:
         print("SIMULACIÓN: sin escrituras. Agregar --apply para crear el plan con POST /appointments.")
@@ -218,7 +242,7 @@ def seed(api, business_id, count=106, days_count=3, apply=False, now=None):
     except SeedError as error:
         raise SeedError(f"{error} Altas confirmadas en esta ejecución: {created}. "
                         "No se borran datos; reejecutar el mismo lote para reconciliar/reanudar.") from None
-    actual = load_appointments(api, [today - timedelta(days=1), *days])
+    actual = load_appointments(api, [today - timedelta(days=1), *search_days])
     found = [a for a in actual if a.get("internal_notes") == marker]
     if len(found) != already + created:
         raise SeedError("La verificación final no coincide; revisar el lote antes de continuar.")
@@ -237,7 +261,8 @@ def main():
     parser.add_argument("--base-url", default="http://localhost:8080", help="API local o http://localhost:3000/api/backend para BFF")
     parser.add_argument("--business-id", type=int, required=True, help="ID esperado del negocio de la sesión")
     parser.add_argument("--count", type=int, default=106, help="Cantidad objetivo del lote, no por día")
-    parser.add_argument("--days", type=int, default=3, help="Días calendario desde hoy del negocio (default 3)")
+    parser.add_argument("--days", type=int, default=3, help="Días con disponibilidad futura desde hoy del negocio (default 3; busca hasta 31 días)")
+    parser.add_argument("--calendar-days", action="store_true", help="Usar días calendario consecutivos sin saltar días sin disponibilidad")
     parser.add_argument("--apply", action="store_true", help="Crear después de comprobar la capacidad completa")
     args = parser.parse_args()
     if args.count < 1 or args.business_id < 1 or not 1 <= args.days <= 30:
@@ -248,7 +273,7 @@ def main():
         cookie = os.environ.get("TURNERO_SESSION_COOKIE")
         if not cookie and sys.stdin.isatty():
             cookie = getpass.getpass("Cookie de sesión local, nombre=valor (oculta): ")
-        seed(Api(args.base_url, cookie), args.business_id, args.count, args.days, args.apply)
+        seed(Api(args.base_url, cookie), args.business_id, args.count, args.days, args.apply, calendar_days=args.calendar_days)
     except (SeedError, KeyError, ValueError, TypeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
