@@ -25,3 +25,9 @@ auth:
         retention-days: ${AUTH_SESSION_CLEANUP_RETENTION_DAYS:30}
         batch-size: ${AUTH_SESSION_CLEANUP_BATCH_SIZE:500}
         cron: "${AUTH_SESSION_CLEANUP_CRON:0 0 3 * * *}"
+
+public-token:
+  cleanup:
+    retention-days: ${PUBLIC_TOKEN_CLEANUP_RETENTION_DAYS:30}
+    batch-size: ${PUBLIC_TOKEN_CLEANUP_BATCH_SIZE:500}
+    cron: "${PUBLIC_TOKEN_CLEANUP_CRON:0 0 3 * * *}"
