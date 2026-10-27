@@ -273,7 +273,8 @@ Nota: los valores concretos de negocio en los ejemplos son ilustrativos del cont
   "name": "Santiago Moreno",
   "email": "santiago.moreno@mail.demo",
   "phone_number": "+54 11 5555-5555",
-  "status": "ACTIVE"
+  "status": "ACTIVE",
+  "public_booking_blocked": false
 }
 ```
 
@@ -878,7 +879,8 @@ Admin autenticado.
 Query params:
 
 ```text
-status=ACTIVE|INACTIVE
+status=ACTIVE|INACTIVE|ALL
+public_booking_blocked=true|false (opcional)
 q=santiago
 page=0
 size=20
@@ -893,9 +895,9 @@ Response `200 OK` (reemplaza el array anterior):
 
 - Búsqueda parcial por nombre/email sin distinguir mayúsculas. Las entradas telefónicas con dígitos, espacios, `+`, guiones, puntos o paréntesis comparan solo dígitos; no infieren códigos de país y no alteran el teléfono guardado. Los comodines SQL se tratan como texto literal.
 - Búsqueda y estado se combinan, siempre limitados al negocio de la sesión. Filtrado, orden y paginación ocurren en la DB, sin descargar el catálogo completo.
-- Defaults: página 0, tamaño 20, orden `name,asc`. Tamaño permitido 1–100, `q` hasta 100 caracteres, estados ACTIVE/INACTIVE; omitir status incluye ambos. Orden alternativo `name,desc`; ambos usan `id,asc` como desempate. Parámetros inválidos devuelven 400.
-- El resumen conserva id, nombre, email, teléfono y estado. Los contactos nulos se omiten; nunca incluye notas internas ni fechas administrativas. Sin coincidencias: `data: []` y metadatos de página.
-- El endpoint conserva autenticación/autorización admin. No requiere migraciones; integrar backend TURN-80 antes del frontend por el cambio de formato. Las consultas internas de clientes mantienen su contrato.
+- Defaults: página 0, tamaño 20, orden `name,asc`. Tamaño permitido 1–100, `q` hasta 100 caracteres, estados ACTIVE/INACTIVE/ALL; omitir status devuelve ACTIVE (sin archivar). INACTIVE significa archivado y ALL incluye ambos. public_booking_blocked es independiente del archivo y omitirlo incluye permitidos y bloqueados. Orden alternativo `name,desc`; ambos usan `id,asc` como desempate. Parámetros inválidos devuelven 400.
+- El resumen conserva id, nombre, email, teléfono, estado y public_booking_blocked. Nunca incluye public_booking_block_reason. Los contactos nulos se omiten; nunca incluye notas internas ni fechas administrativas. Sin coincidencias: `data: []` y metadatos de página.
+- El endpoint conserva autenticación/autorización admin. TURN-102 requiere la migración V1004; integrar backend antes del frontend por los nuevos campos y el filtro de archivo predeterminado. Las consultas internas de clientes mantienen su contrato.
 
 ### POST `/api/v1/customers`
 
@@ -908,12 +910,20 @@ Request:
   "name": "Santiago Moreno",
   "email": "santiago.moreno@mail.demo",
   "phone_number": "+54 11 5555-5555",
-  "internal_notes": "Prefiere corte bajo.",
-  "status": "ACTIVE"
+  "internal_notes": "Prefiere corte bajo."
 }
 ```
 
 Response `201 Created`: customer detail.
+
+Reglas de alta y edición (TURN-100):
+
+- Alta: nombre y teléfono obligatorios; email y notas internas opcionales. Límites: nombre 100, teléfono 30, email 150 y notas 2000 caracteres. Email debe ser válido cuando se informa. Teléfono conserva su formato; no se infieren códigos de país.
+- `phone_number` es el campo canónico de alta; `phone` se conserva como alias compatible. El estado inicial es ACTIVE, asignado por backend; el negocio proviene de la sesión y no se vincula una cuenta de usuario.
+- Se recortan espacios exteriores. Email/notas vacíos se guardan como null y se omiten en respuestas. Las notas conservan saltos de línea internos y no se incluyen en el listado.
+- PATCH parcial: omisión o null conserva el valor existente; `email: ""` e `internal_notes: ""` permiten borrarlos. Nombre o teléfono enviados vacíos/blancos devuelven 400. Un cliente antiguo sin teléfono puede editar otros campos omitiendo `phone_number`.
+- El formulario TURN-100 envía solo nombre, teléfono, email y notas; no cambia estado, usuario, negocio ni fechas. La capacidad backend existente de cambiar estado se conserva para su flujo específico.
+- GET detalle y PATCH usan el negocio autenticado: inexistentes o ajenos responden 404. Validaciones responden 400 con errores por campo. No requiere migraciones y no cambia el booking público.
 
 ### GET `/api/v1/customers/{customer_id}`
 
@@ -954,86 +964,90 @@ Response `200 OK`: customer actualizado.
 
 ### DELETE `/api/v1/customers/{customer_id}`
 
-Admin autenticado. Baja logica.
+Admin autenticado. Archivo lógico, independiente del bloqueo de reservas públicas.
 
 Response `204 No Content`.
 
 Reglas:
 
 - Setea `status = INACTIVE`.
-- No borra historial.
+- Conserva datos, notas y turnos; no cancela reservas ni modifica el bloqueo público.
+- PATCH con solo status ACTIVE restaura la ficha, conservando el bloqueo.
+
+### Archivo y bloqueo público — TURN-102
+
+Migración V1004: public_booking_blocked BOOLEAN NOT NULL DEFAULT FALSE y public_booking_block_reason VARCHAR(500) nullable. Los INACTIVE existentes pasan a interpretarse como archivados sin cambiar registros ni relaciones. Crear cliente siempre inicia ACTIVE y sin bloqueo; flags de alta no son editables.
+
+Detalle administrativo incorpora public_booking_blocked y, cuando está bloqueado, public_booking_block_reason. El listado expone solo el indicador. PATCH admite:
+
+```json
+{"public_booking_blocked":true,"public_booking_block_reason":"Ausencias reiteradas"}
+```
+
+```json
+{"public_booking_blocked":false}
+```
+
+Bloquear exige motivo interno no blanco de 1–500 caracteres y al menos email o teléfono con dígitos. Desbloquear limpia el motivo vigente. Omitir/null conserva valores; un motivo sin bloqueo produce 400. Ninguna acción cambia el archivo de manera implícita. Ediciones posteriores tampoco pueden dejar una ficha bloqueada sin contacto utilizable.
+
+La creación pública de turnos comprueba contactos antes de persistir. Email: trim y comparación case-insensitive. Teléfono: dígitos exactos, sin inferir país. Cualquier ficha coincidente bloqueada del negocio impide reservar, incluso archivada o con contactos compartidos. No es identidad verificada; nuevos contactos pueden eludir el bloqueo.
+
+- 403 CUSTOMER_BOOKING_BLOCKED: contactar al negocio. Nunca expone el motivo privado.
+- 409 CUSTOMER_IDENTITY_AMBIGUOUS: contactar al negocio, sin elegir ni fusionar fichas arbitrariamente.
+- Reutilización: email único primero, luego teléfono único; cero coincidencias crea una ficha. Una reserva exitosa restaura al archivado no bloqueado en la misma transacción, conservando nombre, contacto y notas; un fallo posterior revierte la restauración.
+- Se bloquean y refrescan las filas coincidentes por ID ascendente para coordinar reserva y cambios administrativos. Los índices por negocio/contacto soportan la búsqueda.
+- El bloqueo no afecta turnos existentes, su cancelación ni asignaciones administrativas. La futura agenda real debe advertir al admin; la agenda demo no cambia.
 
 ## Appointments admin
 
 ### GET `/api/v1/appointments`
 
-Admin autenticado.
+Admin autenticado. TURN-90 define exclusivamente las lecturas de colección y detalle.
 
-Query params:
+| Parámetro | Contrato |
+| --- | --- |
+| `date` | `YYYY-MM-DD` estricto, día calendario en `business.timezone`. Excluyente con `from/to`. |
+| `from`, `to` | Ambos ISO 8601 con offset obligatorio. Inicio incluido, fin exclusivo; positivo y hasta 31 días calendario de la zona del negocio desde `from`. |
+| Sin fecha | Hoy según la zona IANA del negocio, nunca según la zona del servidor o navegador. |
+| `status` | Repetible o CSV, combinados por OR. `PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED`, `NO_SHOW`. Sin filtro incluye los cinco. |
+| `staff_member_id`, `customer_id`, `service_offering_id` | IDs enteros positivos, combinados con AND. |
+| `source` | `ADMIN` o `PUBLIC_BOOKING`. |
+| `page`, `size` | Desde 0; tamaño 50 por defecto, 1–100. Página fuera de resultados devuelve `data: []`. |
+| `sort` | `starts_at,asc` por defecto, también `starts_at,desc`. Desempate ID ascendente en ambos. |
 
-```text
-date=2026-04-28
-from=2026-04-28T00:00:00-03:00
-to=2026-04-29T00:00:00-03:00
-status=PENDING,CONFIRMED
-staff_member_id=1
-customer_id=10
-service_offering_id=20
-source=ADMIN|PUBLIC_BOOKING
-page=0
-size=50
-sort=starts_at,asc
-```
-
-Reglas:
-
-- Para agenda diaria, usar `date` o `from/to`.
-- Si se envia `date`, el backend interpreta el dia en `business.timezone`.
-- `PENDING` y `CONFIRMED` bloquean disponibilidad.
-
-Response `200 OK`: page o lista de appointments. Para agenda diaria se recomienda lista sin paginacion si el rango es un dia.
-
-Appointment response:
+Parámetros inválidos usan `400 VALIDATION_ERROR`; los parámetros escalares repetidos también son inválidos. La colección siempre devuelve `{data,page}`, incluso para un día y para resultados vacíos. El consumidor debe completar todas las páginas antes de presentar el día como completo. No se entrega información de otros negocios.
 
 ```json
 {
-  "id": 100,
-  "customer": {
-    "id": 10,
-    "name": "Santiago Moreno",
-    "email": "santiago.moreno@mail.demo",
-    "phone_number": "+54 11 5555-5555",
-    "status": "ACTIVE"
-  },
-  "service_offering": {
-    "id": 20,
-    "name": "Corte + barba",
-    "category": "Combo",
-    "duration_minutes": 90,
+  "data": [{
+    "id": 100,
+    "customer_id": 10,
+    "service_offering_id": 20,
+    "staff_member_id": 1,
+    "starts_at": "2026-10-20T23:30:00-03:00",
+    "ends_at": "2026-10-21T00:30:00-03:00",
+    "duration_minutes": 60,
     "price_cents": 1650000,
-    "status": "ACTIVE"
-  },
-  "staff_member": {
-    "id": 1,
-    "name": "Mateo Ruiz",
-    "role_label": "Barbero",
-    "specialty": "Cortes clasicos y barba",
-    "avatar_url": "https://...",
-    "status": "ACTIVE"
-  },
-  "starts_at": "2026-04-28T15:30:00-03:00",
-  "ends_at": "2026-04-28T17:00:00-03:00",
-  "duration_minutes": 90,
-  "price_cents": 1650000,
-  "status": "CONFIRMED",
-  "source": "ADMIN",
-  "customer_notes": null,
-  "internal_notes": "Cliente pidio mantener largo arriba.",
-  "cancellation_reason": null,
-  "created_at": "2026-04-28T13:00:00Z",
-  "updated_at": "2026-04-28T13:00:00Z"
+    "status": "CONFIRMED",
+    "source": "ADMIN",
+    "customer_notes": null,
+    "internal_notes": "Mantener largo arriba.",
+    "cancellation_reason": null,
+    "created_at": "2026-10-19T13:00:00-03:00",
+    "updated_at": "2026-10-19T13:00:00-03:00",
+    "customer": {"id": 10, "available": true, "name": "Santiago Moreno", "email": "santiago@example.com", "phone_number": "+54 11 5555-5555", "status": "INACTIVE"},
+    "service_offering": {"id": 20, "available": true, "name": "Corte + barba", "category": "Combo", "status": "INACTIVE"},
+    "staff_member": {"id": 1, "available": true, "name": "Mateo Ruiz", "role_label": "Barbero", "avatar_url": null, "status": "INACTIVE", "deleted_at": "2026-10-19T12:00:00-03:00"}
+  }],
+  "page": {"number": 0, "size": 50, "total_elements": 1, "total_pages": 1}
 }
 ```
+
+`AppointmentReadDto` es independiente del DTO de escritura. Duración/precio pertenecen al turno, no al catálogo actual. Las referencias archivadas, inactivas o eliminadas lógicamente conservan sus datos históricos actuales de presentación. Una referencia inconsistente mantiene su ID y devuelve `available: false` con datos de presentación null; nunca descarta el turno ni expone otro negocio. No se devuelve el motivo privado de bloqueo ni las notas internas del cliente. `staff_member.deleted_at` es null para referencias no eliminadas y un timestamp con offset para eliminadas lógicamente. Permite distinguir «Inactivo» de «Eliminado» sin inferirlo por ausencia en el catálogo; una referencia ajena devuelve null también en este campo.
+
+Los timestamps existentes se interpretan como horas locales del negocio, sin modificar persistencia ni reinterpretarlos como UTC. Se serializan con el offset de su zona IANA. El turno pertenece al día/rango por su inicio; el final puede caer al día siguiente. Política Java `LocalDateTime.atZone`: durante una hora repetida elige el primer offset (antes de la transición); una hora inexistente avanza por la duración del salto. `from/to` aplica la misma política por intervalos locales para respetar sus instantes incluso durante transiciones; las columnas indexadas no se envuelven en conversiones SQL. La ordenación utiliza `starts_at` local persistido.
+
+Los joins incluyen `reference.business_id = appointment.business_id`. No filtran estado ni `deleted_at`. Filtrado, orden y paginación se ejecutan en PostgreSQL. Count y página comparten snapshot `REPEATABLE_READ` dentro de una petición; distintas páginas son peticiones independientes, por lo que una edición concurrente puede cambiar la colección entre ellas. No se ofrece snapshot entre peticiones.
 
 ### POST `/api/v1/appointments`
 
@@ -1088,7 +1102,7 @@ Errores:
 
 Admin autenticado.
 
-Response `200 OK`: appointment.
+Response `200 OK`: el mismo `AppointmentReadDto` enriquecido de la colección. Inexistentes o ajenos al negocio: `404 NOT_FOUND`; ID no positivo o no numérico: `400`. TURN-73 mantiene la pantalla de detalle. POST/PATCH y transiciones conservan su DTO anterior.
 
 ### PATCH `/api/v1/appointments/{appointment_id}`
 

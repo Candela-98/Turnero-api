@@ -892,3 +892,7 @@ Los defaults iniciales de `booking_settings` y `business_hours` tambien se defin
 Estas decisiones siguen abiertas para los flujos que las usen. No bloquean la migracion inicial ya definida en este documento:
 
 - Cuando se habilite portal cliente, si se mantiene solo Google o se suma email, telefono/OTP u otro proveedor.
+
+## Archivo y bloqueo de clientes — TURN-102
+
+V1004 conserva customers.status ACTIVE/INACTIVE como sin archivar/archivado y agrega public_booking_blocked (false inicial) y public_booking_block_reason (hasta 500 caracteres, nullable). El constraint exige motivo no blanco al bloquear y null al desbloquear. Índices por negocio/email normalizado, teléfono por dígitos y archivo/bloqueo. No borra ni altera relaciones históricas. El archivo es independiente del bloqueo de nuevas reservas públicas; las reservas administrativas siguen permitidas.

@@ -48,8 +48,7 @@ class FlywayMigrationTest {
         Flyway flyway = configuration().load();
 
         assertDoesNotThrow(flyway::migrate);
-
-        assertSuccessfulVersions("1", "3", "4", "1002", "1003");
+        assertSuccessfulVersions("1", "3", "4", "1002", "1003", "1004");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
     }
@@ -73,8 +72,7 @@ class FlywayMigrationTest {
                 .load();
 
         assertDoesNotThrow(flyway::migrate);
-
-        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003");
+        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
     }
@@ -101,8 +99,7 @@ class FlywayMigrationTest {
                 .outOfOrder(true)
                 .load();
         assertDoesNotThrow(updated::migrate);
-
-        assertSuccessfulVersions("1", "1000", "3", "4", "1001", "1002", "1003");
+        assertSuccessfulVersions("1", "1000", "3", "4", "1001", "1002", "1003", "1004");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
         assertThat(updated.validateWithResult().validationSuccessful).isTrue();
@@ -124,6 +121,30 @@ class FlywayMigrationTest {
         assertPublicTokenCleanupIndexes();
         assertThat(updated.validateWithResult().validationSuccessful).isTrue();
         assertThat(updated.migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
+    void shouldPreserveArchivedCustomersAndDefaultPublicBookingsToAllowedOnUpgrade() throws Exception {
+        configuration().locations("classpath:db/migration", "classpath:db/seed/local").target("1003").load().migrate();
+        long id;
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            connection.setReadOnly(false);
+            try (ResultSet rows = statement.executeQuery("INSERT INTO customers (business_id,name,phone_number,status,internal_notes,created_at,updated_at) VALUES (1,'Legacy','123','INACTIVE','Private note',NOW(),NOW()) RETURNING id")) {
+                assertThat(rows.next()).isTrue(); id = rows.getLong(1);
+            }
+        }
+        configuration().locations("classpath:db/migration", "classpath:db/seed/local").load().migrate();
+        try (Connection connection = connection(); Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT status, public_booking_blocked, public_booking_block_reason FROM customers WHERE id=" + id)) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getString(1)).isEqualTo("INACTIVE");
+            assertThat(rows.getBoolean(2)).isFalse();
+            assertThat(rows.getString(3)).isNull();
+        }
+        try (Connection connection = connection(); Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT count(*) FROM pg_indexes WHERE schemaname=current_schema() AND indexname IN ('idx_customers_business_normalized_email','idx_customers_business_normalized_phone','idx_customers_business_archive_block')")) {
+            rows.next(); assertThat(rows.getInt(1)).isEqualTo(3);
+        }
     }
 
     private FluentConfiguration configuration() {

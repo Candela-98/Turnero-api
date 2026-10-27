@@ -31,6 +31,12 @@ public class CustomerResponseDto {
     @Schema(description = "The customer's status", example = "ACTIVE")
     private CustomerStatus status;
 
+    @Schema(description = "Blocks only new public bookings; independent of archive status")
+    private boolean publicBookingBlocked;
+
+    @Schema(description = "Private blocking reason, present only in administrative detail when blocked")
+    private String publicBookingBlockReason;
+
     @Schema(description = "Internal administrative notes about the customer", example = "Prefers a low fade.")
     private String internalNotes;
 

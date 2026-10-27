@@ -26,6 +26,9 @@ public class CustomerServiceImplTest {
     @Mock
     private CustomerRepository customerRepository;
 
+    @Mock
+    private jakarta.persistence.EntityManager entityManager;
+
     @InjectMocks
     private CustomerServiceImpl customerService;
 
@@ -36,6 +39,7 @@ public class CustomerServiceImplTest {
     void saveCustomer_shouldSaveAndReturnCustomer() {
         Customer customer = new Customer();
         customer.setName("Candela");
+        customer.setPhoneNumber("123");
         customer.setEmail("candela@mail.com");
 
         when(customerRepository.save(customer)).thenReturn(customer);
@@ -64,8 +68,8 @@ public class CustomerServiceImplTest {
                 .phoneNumber("123")
                 .status(CustomerStatus.ACTIVE)
                 .build();
-        when(customerRepository.findByBusinessIdAndEmailIgnoreCase(businessId, "Candela@MAIL.com"))
-                .thenReturn(Optional.of(existingCustomer));
+        when(customerRepository.findContactMatchesForUpdate(businessId, "candela@mail.com", "456"))
+                .thenReturn(List.of(existingCustomer));
 
         Customer result = customerService.findOrCreateCustomerForBusiness(
                 businessId, " New name ", " Candela@MAIL.com ", " 456 ");
@@ -74,7 +78,7 @@ public class CustomerServiceImplTest {
         assertEquals("Original name", result.getName());
         assertEquals("candela@mail.com", result.getEmail());
         assertEquals("123", result.getPhoneNumber());
-        verify(customerRepository).findByBusinessIdAndEmailIgnoreCase(businessId, "Candela@MAIL.com");
+        verify(customerRepository).findContactMatchesForUpdate(businessId, "candela@mail.com", "456");
         verify(customerRepository, never()).save(any(Customer.class));
         verifyNoInteractions(currentBusinessContext);
     }
@@ -83,8 +87,8 @@ public class CustomerServiceImplTest {
     void findOrCreateCustomerForBusiness_whenCustomerDoesNotExist_createsNormalizedActiveCustomer() {
         Long businessId = 42L;
         Customer savedCustomer = Customer.builder().id(500L).build();
-        when(customerRepository.findByBusinessIdAndEmailIgnoreCase(businessId, "Candela@MAIL.com"))
-                .thenReturn(Optional.empty());
+        when(customerRepository.findContactMatchesForUpdate(businessId, "candela@mail.com", "1123456789"))
+                .thenReturn(List.of());
         when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
 
         Customer result = customerService.findOrCreateCustomerForBusiness(
@@ -101,7 +105,7 @@ public class CustomerServiceImplTest {
         assertNotNull(createdCustomer.getCreatedAt());
         assertNotNull(createdCustomer.getUpdatedAt());
         assertSame(savedCustomer, result);
-        verify(customerRepository).findByBusinessIdAndEmailIgnoreCase(businessId, "Candela@MAIL.com");
+        verify(customerRepository).findContactMatchesForUpdate(businessId, "candela@mail.com", "1123456789");
         verifyNoInteractions(currentBusinessContext);
     }
 
@@ -208,7 +212,7 @@ public class CustomerServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
+        when(customerRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.of(current));
         when(customerRepository.save(current)).thenReturn(current);
 
         Customer result = customerService.updateCustomer(updatedCustomer, id);
@@ -252,7 +256,7 @@ public class CustomerServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(current));
+        when(customerRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.of(current));
         when(customerRepository.save(current)).thenReturn(current);
 
         customerService.updateCustomer(updateRequest, id);
@@ -273,7 +277,7 @@ public class CustomerServiceImplTest {
         Long id = 99L;
         Long businessId = 1L;
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+        when(customerRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.empty());
 
         CustomerUpdateRequestDto updatedCustomer = CustomerUpdateRequestDto.builder()
                 .name("Nuevo")
@@ -307,7 +311,7 @@ public class CustomerServiceImplTest {
                 .build();
 
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.of(customer));
+        when(customerRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.of(customer));
         when(customerRepository.save(customer)).thenReturn(customer);
 
         customerService.deleteCustomer(id);
@@ -325,7 +329,7 @@ public class CustomerServiceImplTest {
         Long id = 99L;
         Long businessId = 1L;
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+        when(customerRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> customerService.deleteCustomer(id));
@@ -343,13 +347,13 @@ public class CustomerServiceImplTest {
         Long id = 1L;
         Long businessId = 1L;
         when(currentBusinessContext.getCurrentBusinessId()).thenReturn(businessId);
-        when(customerRepository.findByIdAndBusinessId(id, businessId)).thenReturn(Optional.empty());
+        when(customerRepository.findByIdAndBusinessIdForUpdate(id, businessId)).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> customerService.deleteCustomer(id));
 
         assertEquals("Customer not found with ID: " + id, exception.getMessage());
-        verify(customerRepository).findByIdAndBusinessId(id, businessId);
+        verify(customerRepository).findByIdAndBusinessIdForUpdate(id, businessId);
         verify(customerRepository, never()).save(any());
         verify(customerRepository, never()).delete(any(Customer.class));
         verify(customerRepository, never()).deleteById(anyLong());

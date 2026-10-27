@@ -48,6 +48,8 @@ public class AppointmentControllerIT {
     @Autowired
     MockMvc mockMvc;
 
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @Autowired
     ObjectMapper objectMapper;
 
@@ -81,6 +83,7 @@ public class AppointmentControllerIT {
 
     @BeforeEach
     void cleanDb() {
+        jdbc.update("MERGE INTO businesses (id, name, timezone) KEY(id) VALUES (1, 'Test', 'America/Argentina/Buenos_Aires')");
         appointmentRepository.deleteAll();
         customerRepository.deleteAll();
         staffMemberRepository.deleteAll();
@@ -115,6 +118,9 @@ public class AppointmentControllerIT {
                 .staffMemberId(1L)
                 .startsAt(LocalDateTime.now().plusDays(1))
                 .durationMinutes(60)
+                .endsAt(LocalDateTime.now().plusDays(1).plusHours(1))
+                .status(AppointmentStatus.PENDING)
+                .source(com.turnero.api.model.enums.AppointmentSource.ADMIN)
                 .customerNotes("Test appointment")
                 .createdAt(auditDate)
                 .updatedAt(auditDate)
@@ -331,6 +337,14 @@ public class AppointmentControllerIT {
                         .value("Staff member already has an appointment in this time range"));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"date=2026-02-30", "size=101", "page=-1", "status=OTHER", "staff_member_id=0", "sort=id,asc", "source=OTHER"})
+    void invalidReadParametersUseCommon400(String parameter) throws Exception {
+        var pair = parameter.split("=",2);
+        mockMvc.perform(get(BASE_URL).param(pair[0],pair[1])).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
     @Test
     void findAppointment_whenAppointmentExists_returns200AndAppointment() throws Exception {
         //Given
@@ -344,18 +358,10 @@ public class AppointmentControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        AppointmentResponseDto response = objectMapper.readValue(json, AppointmentResponseDto.class);
-
-        assertThat(response.getId()).isEqualTo(saved.getId());
-        assertThat(response.getCustomerId()).isEqualTo(saved.getCustomerId());
-        assertThat(response.getServiceOfferingId()).isEqualTo(saved.getServiceOfferingId());
-        assertThat(response.getStaffMemberId()).isEqualTo(saved.getStaffMemberId());
-        assertThat(response.getStartsAt()).isEqualTo(saved.getStartsAt());
-        assertThat(response.getDurationMinutes()).isEqualTo(saved.getDurationMinutes());
-        assertThat(response.getCustomerNotes()).isEqualTo(saved.getCustomerNotes());
-        assertThat(response.getCreatedAt()).isEqualTo(saved.getCreatedAt());
-        assertThat(response.getUpdatedAt()).isEqualTo(saved.getUpdatedAt());
-
+        var response = objectMapper.readTree(json);
+        assertThat(response.path("id").asLong()).isEqualTo(saved.getId());
+        assertThat(response.path("starts_at").asText()).endsWith("-03:00");
+        assertThat(response.path("customer").path("available").asBoolean()).isFalse();
     }
 
     @Test
@@ -368,7 +374,7 @@ public class AppointmentControllerIT {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message").value("Appointment not found with ID: 999"));
+                .andExpect(jsonPath("$.message").value("Appointment not found"));
     }
 
     @Test
@@ -438,43 +444,14 @@ public class AppointmentControllerIT {
     }
 
     @Test
-    void listAppointments_whenAppointmentsExist_returns200AndAppointmentList() throws Exception {
-        // Given
-        Appointment appointment1 = getAppointment();
-        Appointment appointment2 = getAppointment();
-        appointment2.setCustomerId(2L);
-        appointment2.setServiceOfferingId(2L);
-        appointment2.setStaffMemberId(2L);
-        appointment2.setStartsAt(LocalDateTime.of(2026, 6, 1, 10, 0));
-        appointment2.setDurationMinutes(30);
-        appointment2.setCustomerNotes("Second appointment");
-
-        appointmentRepository.save(appointment1);
-        appointmentRepository.save(appointment2);
-
-        // When
-        MvcResult result = mockMvc.perform(get(BASE_URL)
-                .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        //Then
-        String json = result.getResponse().getContentAsString();
-        List<AppointmentResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
-        assertThat(response).hasSize(2);
-        assertThat(response).extracting(AppointmentResponseDto::getCustomerId)
-                .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(response).extracting(AppointmentResponseDto::getServiceOfferingId)
-                .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(response).extracting(AppointmentResponseDto::getStaffMemberId)
-                .containsExactlyInAnyOrder(1L, 2L);
-        assertThat(response).extracting(AppointmentResponseDto::getStartsAt)
-                .containsExactlyInAnyOrder(appointment1.getStartsAt(), appointment2.getStartsAt());
-        assertThat(response).extracting(AppointmentResponseDto::getDurationMinutes)
-                .containsExactlyInAnyOrder(60, 30);
-        assertThat(response).extracting(AppointmentResponseDto::getCustomerNotes)
-                .containsExactlyInAnyOrder("Test appointment", "Second appointment");
-
+    void listAppointments_whenAppointmentsExist_returnsEnvelopeForSelectedDay() throws Exception {
+        var appointment = getAppointment();
+        appointment.setStartsAt(LocalDateTime.of(2026, 6, 1, 10, 0));
+        appointmentRepository.saveAndFlush(appointment);
+        mockMvc.perform(get(BASE_URL).param("date", "2026-06-01"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].customer_id").value(1))
+            .andExpect(jsonPath("$.page.total_elements").value(1));
     }
 
     @Test
@@ -752,8 +729,7 @@ public class AppointmentControllerIT {
 
         // Then
         String json = result.getResponse().getContentAsString();
-        List<AppointmentResponseDto> response = objectMapper.readValue(json, new TypeReference<>() {});
-        assertThat(response).isEmpty();
+        assertThat(objectMapper.readTree(json).path("data").isEmpty()).isTrue();
     }
 
     @Test

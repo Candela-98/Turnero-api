@@ -58,3 +58,7 @@ TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
 | `docker info` no conecta | Docker/Colima no esta iniciado | Iniciar el runtime y volver a ejecutar el comando. |
 | Testcontainers busca `/var/run/docker.sock` | Gradle no recibio el socket de Colima | Ejecutar `make test` o el comando directo de la seccion anterior. |
 | Ryuk falla al montar `~/.colima/.../docker.sock` | Falta el override del socket interno | Usar `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`. |
+
+## Agenda de pruebas
+
+Después del aprovisionamiento y de iniciar sesión, usar el [script de turnos locales](seed-agenda-local.md): `make seed-local-appointments BUSINESS_ID=1` simula 106 turnos en los próximos tres días con disponibilidad futura, buscando desde hoy hasta 31 días y omitiendo días cerrados o sin huecos, con catálogo existente y disponibilidad real. `AGENDA_APPLY=1` aplica las altas si hay capacidad completa. No requiere volver a sembrar la empresa ni usar los SQL históricos.

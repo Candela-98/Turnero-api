@@ -9,6 +9,7 @@ import com.turnero.api.model.Customer;
 import com.turnero.api.openapi.*;
 import com.turnero.api.service.CustomerService;
 import com.turnero.api.service.CustomerSort;
+import com.turnero.api.service.CustomerListStatus;
 import com.turnero.api.model.enums.CustomerStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +36,7 @@ public class CustomerController {
 
     @Operation(
             summary = "Crear cliente",
-            description = "Crea un nuevo cliente en el sistema"
+            description = "Crea un cliente ACTIVE del negocio autenticado. Nombre y phone_number obligatorios (máximo 100/30); email válido opcional (150) y notas internas opcionales (2000). Acepta phone como alias compatible. Campos inválidos responden 400."
     )
     @ApiCreateResponses
     @PostMapping
@@ -61,7 +62,7 @@ public class CustomerController {
 
     @Operation(
             summary = "Actualizar cliente",
-            description = "Actualiza los detalles de un cliente específico utilizando su ID"
+            description = "Edita parcialmente el cliente del negocio autenticado. status ACTIVE restaura e INACTIVE archiva; no cambia public_booking_blocked. Bloquear exige motivo interno de 1–500 caracteres y contacto utilizable. Desbloquear limpia el motivo. No afecta turnos existentes ni reservas administrativas. Omisión/null conserva valores; email y notas vacíos los borran. Nombre/teléfono enviados no pueden estar vacíos. Clientes ajenos o inexistentes responden 404."
     )
     @ApiUpdateResponses
     @PatchMapping("/{id}")
@@ -73,17 +74,18 @@ public class CustomerController {
 
     @Operation(
             summary = "Listar clientes",
-            description = "Busca por nombre, email o teléfono del negocio autenticado. El teléfono ignora formato. Página desde 0; tamaño 1–100 (20 por defecto); búsqueda hasta 100 caracteres; orden name,asc o name,desc con id ascendente como desempate. Parámetros inválidos devuelven 400.")
+            description = "Busca por nombre, email o teléfono del negocio autenticado. Por defecto status ACTIVE (sin archivar); INACTIVE archivados y ALL todos. public_booking_blocked filtra las reservas públicas independientemente del archivo. El teléfono ignora formato. Página desde 0; tamaño 1–100 (20 por defecto); búsqueda hasta 100 caracteres; orden name,asc o name,desc con id ascendente como desempate. Parámetros inválidos devuelven 400.")
     @ApiFindAllResponses
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Parámetros de listado inválidos")
     @GetMapping
     public ResponseEntity<CustomerPageResponseDto> listCustomer(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) CustomerStatus status,
+            @RequestParam(defaultValue = "ACTIVE") CustomerListStatus status,
+            @RequestParam(name = "public_booking_blocked", required = false) Boolean blocked,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = CustomerSort.DEFAULT_PARAMETER) String sort) {
-        var customers = customerService.listCustomers(q, status, page, size, CustomerSort.fromParameter(sort));
+        var customers = customerService.listCustomers(q, status.customerStatus(), blocked, page, size, CustomerSort.fromParameter(sort));
         return ResponseEntity.ok(new CustomerPageResponseDto(
                 customerMapper.toSummaryResponseDtoList(customers.getContent()),
                 new CustomerPageResponseDto.PageInfo(customers.getNumber(), customers.getSize(),
@@ -91,8 +93,8 @@ public class CustomerController {
     }
 
     @Operation(
-            summary = "Eliminar cliente",
-            description = "Elimina un cliente específico utilizando su ID"
+            summary = "Archivar cliente",
+            description = "Archiva sin borrar datos ni turnos. No modifica el bloqueo de reservas públicas."
     )
     @ApiDeleteResponses
     @DeleteMapping("/{id}")

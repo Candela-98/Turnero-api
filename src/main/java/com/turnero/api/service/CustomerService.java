@@ -18,6 +18,8 @@ public interface CustomerService {
 
     Page<Customer> listCustomers(String q, CustomerStatus status, int page, int size, Sort sort);
 
+    Page<Customer> listCustomers(String q, CustomerStatus status, Boolean blocked, int page, int size, Sort sort);
+
     Customer updateCustomer(CustomerUpdateRequestDto customer, Long id);
 
     void deleteCustomer(Long id);

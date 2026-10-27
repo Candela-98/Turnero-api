@@ -9,6 +9,17 @@ import java.util.Optional;
 
 public interface CustomerRepository extends JpaRepository<Customer, Long>, JpaSpecificationExecutor<Customer> {
 
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM customers WHERE id = :id AND business_id = :businessId FOR UPDATE", nativeQuery = true)
+    Optional<Customer> findByIdAndBusinessIdForUpdate(Long id, Long businessId);
+
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT * FROM customers WHERE business_id = :businessId AND (
+              (:email <> '' AND lower(trim(email)) = :email) OR
+              (:phone <> '' AND regexp_replace(coalesce(phone_number, ''), '[^0-9]', '', 'g') = :phone))
+            ORDER BY id FOR UPDATE
+            """, nativeQuery = true)
+    List<Customer> findContactMatchesForUpdate(Long businessId, String email, String phone);
+
     List<Customer> findAllByBusinessId(Long businessId);
 
     Optional<Customer> findByIdAndBusinessId(Long id, Long businessId);
