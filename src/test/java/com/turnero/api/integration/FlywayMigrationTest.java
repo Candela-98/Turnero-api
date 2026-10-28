@@ -8,6 +8,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,9 +48,9 @@ class FlywayMigrationTest {
         Flyway flyway = configuration().load();
 
         assertDoesNotThrow(flyway::migrate);
-
-        assertSuccessfulVersions("1", "3", "1002", "1003", "1004");
+        assertSuccessfulVersions("1", "3", "4", "1002", "1003", "1004");
         assertCleanupIndexes();
+        assertPublicTokenCleanupIndexes();
     }
 
     @Test
@@ -71,9 +72,9 @@ class FlywayMigrationTest {
                 .load();
 
         assertDoesNotThrow(flyway::migrate);
-
-        assertSuccessfulVersions("1", "3", "1000", "1001", "1002", "1003", "1004");
+        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004");
         assertCleanupIndexes();
+        assertPublicTokenCleanupIndexes();
     }
 
     @Test
@@ -98,9 +99,26 @@ class FlywayMigrationTest {
                 .outOfOrder(true)
                 .load();
         assertDoesNotThrow(updated::migrate);
-
-        assertSuccessfulVersions("1", "1000", "3", "1001", "1002", "1003", "1004");
+        assertSuccessfulVersions("1", "1000", "3", "4", "1001", "1002", "1003", "1004");
         assertCleanupIndexes();
+        assertPublicTokenCleanupIndexes();
+        assertThat(updated.validateWithResult().validationSuccessful).isTrue();
+        assertThat(updated.migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
+    void shouldUpgradeFromV3ToV4AndValidateRepeatedMigration() throws Exception {
+        Flyway previous = configuration().target("3").load();
+        assertDoesNotThrow(previous::migrate);
+        assertSuccessfulVersions("1", "3");
+        assertThat(cleanupIndexes("appointment_public_tokens")).isEmpty();
+
+        Flyway updated = configuration().target("4").load();
+        assertThat(updated.migrate().migrationsExecuted).isEqualTo(1);
+
+        assertSuccessfulVersions("1", "3", "4");
+        assertCleanupIndexes();
+        assertPublicTokenCleanupIndexes();
         assertThat(updated.validateWithResult().validationSuccessful).isTrue();
         assertThat(updated.migrate().migrationsExecuted).isZero();
     }
@@ -138,9 +156,13 @@ class FlywayMigrationTest {
     }
 
     private Connection connection() throws Exception {
+        return connection(schema);
+    }
+
+    private Connection connection(String schemaName) throws Exception {
         Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
-        connection.setSchema(schema);
+        connection.setSchema(schemaName);
         connection.setReadOnly(true);
         return connection;
     }
@@ -153,8 +175,12 @@ class FlywayMigrationTest {
     }
 
     private void assertSuccessfulVersions(String... expected) throws Exception {
+        assertSuccessfulVersionsInSchema(schema, expected);
+    }
+
+    private void assertSuccessfulVersionsInSchema(String schemaName, String... expected) throws Exception {
         List<String> versions = new ArrayList<>();
-        try (Connection connection = connection();
+        try (Connection connection = connection(schemaName);
              Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("""
                      SELECT version, success
@@ -171,6 +197,10 @@ class FlywayMigrationTest {
     }
 
     private List<CleanupIndex> cleanupIndexes() throws Exception {
+        return cleanupIndexes("user_sessions");
+    }
+
+    private List<CleanupIndex> cleanupIndexes(String tableName) throws Exception {
         List<CleanupIndex> indexes = new ArrayList<>();
         try (Connection connection = connection();
              Statement statement = connection.createStatement();
@@ -186,13 +216,15 @@ class FlywayMigrationTest {
                      JOIN pg_namespace n ON n.oid = t.relnamespace
                      JOIN pg_am am ON am.oid = c.relam
                      WHERE n.nspname = current_schema()
-                       AND t.relname = 'user_sessions'
+                       AND t.relname = '%s'
                        AND c.relname IN (
                            'idx_user_sessions_cleanup_expires_at',
-                           'idx_user_sessions_cleanup_revoked_at'
+                           'idx_user_sessions_cleanup_revoked_at',
+                           'idx_public_tokens_cleanup_expires',
+                           'idx_public_tokens_cleanup_used'
                        )
                      ORDER BY c.relname
-                     """)) {
+                     """.formatted(tableName))) {
             while (rows.next()) {
                 indexes.add(new CleanupIndex(
                         rows.getString("index_name"), rows.getString("column_name"),
@@ -214,6 +246,12 @@ class FlywayMigrationTest {
                 new CleanupIndex("idx_user_sessions_cleanup_revoked_at", "revoked_at", "revoked_at IS NOT NULL"));
     }
 
+    private void assertPublicTokenCleanupIndexes() throws Exception {
+        assertThat(cleanupIndexes("appointment_public_tokens")).containsExactly(
+                new CleanupIndex("idx_public_tokens_cleanup_expires", "expires_at", "used_at IS NULL"),
+                new CleanupIndex("idx_public_tokens_cleanup_used", "used_at", "used_at IS NOT NULL"));
+    }
+
     private record CleanupIndex(String name, String column, String predicate) {
     }
 
@@ -228,6 +266,7 @@ class FlywayMigrationTest {
     void removalMigrationUpgradesExistingSeedAndPreservesAppointmentForeignKey() throws Exception {
         String schema = "catalog_removal";
         seedFlyway(schema, "1001").migrate();
+        assertSuccessfulVersionsInSchema(schema, "1", "3", "4", "1000", "1001");
         try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
             connection.setSchema(schema);
             try (var statement = connection.createStatement()) {
@@ -241,6 +280,7 @@ class FlywayMigrationTest {
                     VALUES (1,1,1,1,NOW(),NOW()+interval '30 minutes',30,800000,'CONFIRMED','ADMIN',NOW(),NOW())
                     """);
                 seedFlyway(schema, "1002").migrate();
+                assertSuccessfulVersionsInSchema(schema, "1", "3", "4", "1000", "1001", "1002");
                 statement.executeUpdate("UPDATE service_offerings SET status='INACTIVE',deleted_at=NOW() WHERE id=1");
                 try (var result = statement.executeQuery("""
                     SELECT s.name,s.deleted_at,a.price_cents FROM appointments a
@@ -258,6 +298,7 @@ class FlywayMigrationTest {
     private void verifySeedRepair(String schema, boolean existingData) throws Exception {
         Flyway beforeRepair = seedFlyway(schema, "1000");
         beforeRepair.migrate();
+        assertSuccessfulVersionsInSchema(schema, "1", "3", "4", "1000");
         try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
             connection.setSchema(schema);
             try (var statement = connection.createStatement()) {
@@ -270,6 +311,7 @@ class FlywayMigrationTest {
                     statement.execute("SELECT setval('users_id_seq', 200, true)");
                 }
                 seedFlyway(schema, "1001").migrate();
+                assertSuccessfulVersionsInSchema(schema, "1", "3", "4", "1000", "1001");
                 var ids = java.util.Map.of("businesses", 2L, "users", existingData ? 201L : 2L,
                         "staff_members", 3L, "service_offerings", existingData ? 101L : 4L);
                 for (var entry : ids.entrySet()) {

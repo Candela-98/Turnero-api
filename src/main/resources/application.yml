@@ -54,3 +54,8 @@ public-booking:
 # Until the deployment trust boundary is defined, use the actual socket peer.
 server:
   forward-headers-strategy: none
+public-token:
+  cleanup:
+    retention-days: ${PUBLIC_TOKEN_CLEANUP_RETENTION_DAYS:30}
+    batch-size: ${PUBLIC_TOKEN_CLEANUP_BATCH_SIZE:500}
+    cron: "${PUBLIC_TOKEN_CLEANUP_CRON:0 0 3 * * *}"

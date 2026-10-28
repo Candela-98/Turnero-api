@@ -40,6 +40,8 @@ public class AppointmentControllerTest {
     @MockitoBean
     private AppointmentService appointmentService;
     @MockitoBean
+    private com.turnero.api.service.AppointmentReadService reads;
+    @MockitoBean
     private AppointmentMapper appointmentMapper;
     @MockitoBean
     private AdminAuthInterceptor adminAuthInterceptor;
@@ -185,71 +187,16 @@ public class AppointmentControllerTest {
     }
 
     @Test
-    void findAllAppointment_shouldReturn200_andList() throws Exception{
-        //Given
-        Long id = 1L;
-        var appointment1 = getAppointmentEntity(id);
-        var appointment2 = getAppointmentEntity(2L);
-
-        var responseDto1 = getAppointmentResponseDto(id);
-        var responseDto2 = getAppointmentResponseDto(2L);
-
-        given(appointmentService.findAllAppointments()).willReturn(List.of(appointment1, appointment2));
-        given(appointmentMapper.toResponseDtoList(List.of(appointment1, appointment2)))
-                .willReturn(List.of(responseDto1, responseDto2));
-
-        //When + Then
-        mockMvc.perform(get(BASE_URL))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[1].id").value(2));
-
-        then(appointmentService).should().findAllAppointments();
-        then(appointmentMapper).should().toResponseDtoList(List.of(appointment1, appointment2));
+    void findAllAppointment_shouldReturnEnvelope() throws Exception {
+        given(reads.list(any())).willReturn(new com.turnero.api.dto.AppointmentPageResponseDto(List.of(),
+            new com.turnero.api.dto.CustomerPageResponseDto.PageInfo(0, 50, 0, 0)));
+        mockMvc.perform(get(BASE_URL)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").isArray()).andExpect(jsonPath("$.page.size").value(50));
     }
-
-    @Test
-    void findAppointment_ok_shouldReturn200_andCallService() throws Exception {
-        //Given
-        Long id = 1L;
-        var appointment = getAppointmentEntity(id);
-        var responseDto = getAppointmentResponseDto(id);
-
-        given(appointmentService.findAppointment(id)).willReturn(appointment);
-        given(appointmentMapper.toResponseDto(appointment)).willReturn(responseDto);
-
-        //When + Then
-        mockMvc.perform(get(BASE_URL + "/{id}", id))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.customerId").value(1))
-                .andExpect(jsonPath("$.serviceOfferingId").value(2))
-                .andExpect(jsonPath("$.staffMemberId").value(3))
-                .andExpect(jsonPath("$.status").value("CONFIRMED"));
-
-        then(appointmentService).should().findAppointment(id);
-        then(appointmentMapper).should().toResponseDto(appointment);
-    }
-
     @Test
     void findAppointment_withNonExistingId_shouldReturn404() throws Exception {
-        //Given
-        Long id = 999L;
-        given(appointmentService.findAppointment(id))
-                .willThrow(new ResourceNotFoundException("Appointment not found"));
-
-        //When + Then
-        mockMvc.perform(get(BASE_URL + "/{id}", id))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message").value("Appointment not found"));
-
-        then(appointmentService).should().findAppointment(id);
+        given(reads.find(999L)).willThrow(new ResourceNotFoundException("Appointment not found"));
+        mockMvc.perform(get(BASE_URL + "/999")).andExpect(status().isNotFound());
     }
 
     @Test

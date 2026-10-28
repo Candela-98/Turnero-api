@@ -1002,73 +1002,52 @@ La creación pública de turnos comprueba contactos antes de persistir. Email: t
 
 ### GET `/api/v1/appointments`
 
-Admin autenticado.
+Admin autenticado. TURN-90 define exclusivamente las lecturas de colección y detalle.
 
-Query params:
+| Parámetro | Contrato |
+| --- | --- |
+| `date` | `YYYY-MM-DD` estricto, día calendario en `business.timezone`. Excluyente con `from/to`. |
+| `from`, `to` | Ambos ISO 8601 con offset obligatorio. Inicio incluido, fin exclusivo; positivo y hasta 31 días calendario de la zona del negocio desde `from`. |
+| Sin fecha | Hoy según la zona IANA del negocio, nunca según la zona del servidor o navegador. |
+| `status` | Repetible o CSV, combinados por OR. `PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED`, `NO_SHOW`. Sin filtro incluye los cinco. |
+| `staff_member_id`, `customer_id`, `service_offering_id` | IDs enteros positivos, combinados con AND. |
+| `source` | `ADMIN` o `PUBLIC_BOOKING`. |
+| `page`, `size` | Desde 0; tamaño 50 por defecto, 1–100. Página fuera de resultados devuelve `data: []`. |
+| `sort` | `starts_at,asc` por defecto, también `starts_at,desc`. Desempate ID ascendente en ambos. |
 
-```text
-date=2026-04-28
-from=2026-04-28T00:00:00-03:00
-to=2026-04-29T00:00:00-03:00
-status=PENDING,CONFIRMED
-staff_member_id=1
-customer_id=10
-service_offering_id=20
-source=ADMIN|PUBLIC_BOOKING
-page=0
-size=50
-sort=starts_at,asc
-```
-
-Reglas:
-
-- Para agenda diaria, usar `date` o `from/to`.
-- Si se envia `date`, el backend interpreta el dia en `business.timezone`.
-- `PENDING` y `CONFIRMED` bloquean disponibilidad.
-
-Response `200 OK`: page o lista de appointments. Para agenda diaria se recomienda lista sin paginacion si el rango es un dia.
-
-Appointment response:
+Parámetros inválidos usan `400 VALIDATION_ERROR`; los parámetros escalares repetidos también son inválidos. La colección siempre devuelve `{data,page}`, incluso para un día y para resultados vacíos. El consumidor debe completar todas las páginas antes de presentar el día como completo. No se entrega información de otros negocios.
 
 ```json
 {
-  "id": 100,
-  "customer": {
-    "id": 10,
-    "name": "Santiago Moreno",
-    "email": "santiago.moreno@mail.demo",
-    "phone_number": "+54 11 5555-5555",
-    "status": "ACTIVE"
-  },
-  "service_offering": {
-    "id": 20,
-    "name": "Corte + barba",
-    "category": "Combo",
-    "duration_minutes": 90,
+  "data": [{
+    "id": 100,
+    "customer_id": 10,
+    "service_offering_id": 20,
+    "staff_member_id": 1,
+    "starts_at": "2026-10-20T23:30:00-03:00",
+    "ends_at": "2026-10-21T00:30:00-03:00",
+    "duration_minutes": 60,
     "price_cents": 1650000,
-    "status": "ACTIVE"
-  },
-  "staff_member": {
-    "id": 1,
-    "name": "Mateo Ruiz",
-    "role_label": "Barbero",
-    "specialty": "Cortes clasicos y barba",
-    "avatar_url": "https://...",
-    "status": "ACTIVE"
-  },
-  "starts_at": "2026-04-28T15:30:00-03:00",
-  "ends_at": "2026-04-28T17:00:00-03:00",
-  "duration_minutes": 90,
-  "price_cents": 1650000,
-  "status": "CONFIRMED",
-  "source": "ADMIN",
-  "customer_notes": null,
-  "internal_notes": "Cliente pidio mantener largo arriba.",
-  "cancellation_reason": null,
-  "created_at": "2026-04-28T13:00:00Z",
-  "updated_at": "2026-04-28T13:00:00Z"
+    "status": "CONFIRMED",
+    "source": "ADMIN",
+    "customer_notes": null,
+    "internal_notes": "Mantener largo arriba.",
+    "cancellation_reason": null,
+    "created_at": "2026-10-19T13:00:00-03:00",
+    "updated_at": "2026-10-19T13:00:00-03:00",
+    "customer": {"id": 10, "available": true, "name": "Santiago Moreno", "email": "santiago@example.com", "phone_number": "+54 11 5555-5555", "status": "INACTIVE"},
+    "service_offering": {"id": 20, "available": true, "name": "Corte + barba", "category": "Combo", "status": "INACTIVE"},
+    "staff_member": {"id": 1, "available": true, "name": "Mateo Ruiz", "role_label": "Barbero", "avatar_url": null, "status": "INACTIVE", "deleted_at": "2026-10-19T12:00:00-03:00"}
+  }],
+  "page": {"number": 0, "size": 50, "total_elements": 1, "total_pages": 1}
 }
 ```
+
+`AppointmentReadDto` es independiente del DTO de escritura. Duración/precio pertenecen al turno, no al catálogo actual. Las referencias archivadas, inactivas o eliminadas lógicamente conservan sus datos históricos actuales de presentación. Una referencia inconsistente mantiene su ID y devuelve `available: false` con datos de presentación null; nunca descarta el turno ni expone otro negocio. No se devuelve el motivo privado de bloqueo ni las notas internas del cliente. `staff_member.deleted_at` es null para referencias no eliminadas y un timestamp con offset para eliminadas lógicamente. Permite distinguir «Inactivo» de «Eliminado» sin inferirlo por ausencia en el catálogo; una referencia ajena devuelve null también en este campo.
+
+Los timestamps existentes se interpretan como horas locales del negocio, sin modificar persistencia ni reinterpretarlos como UTC. Se serializan con el offset de su zona IANA. El turno pertenece al día/rango por su inicio; el final puede caer al día siguiente. Política Java `LocalDateTime.atZone`: durante una hora repetida elige el primer offset (antes de la transición); una hora inexistente avanza por la duración del salto. `from/to` aplica la misma política por intervalos locales para respetar sus instantes incluso durante transiciones; las columnas indexadas no se envuelven en conversiones SQL. La ordenación utiliza `starts_at` local persistido.
+
+Los joins incluyen `reference.business_id = appointment.business_id`. No filtran estado ni `deleted_at`. Filtrado, orden y paginación se ejecutan en PostgreSQL. Count y página comparten snapshot `REPEATABLE_READ` dentro de una petición; distintas páginas son peticiones independientes, por lo que una edición concurrente puede cambiar la colección entre ellas. No se ofrece snapshot entre peticiones.
 
 ### POST `/api/v1/appointments`
 
@@ -1123,7 +1102,7 @@ Errores:
 
 Admin autenticado.
 
-Response `200 OK`: appointment.
+Response `200 OK`: el mismo `AppointmentReadDto` enriquecido de la colección. Inexistentes o ajenos al negocio: `404 NOT_FOUND`; ID no positivo o no numérico: `400`. TURN-73 mantiene la pantalla de detalle. POST/PATCH y transiciones conservan su DTO anterior.
 
 ### PATCH `/api/v1/appointments/{appointment_id}`
 
