@@ -1,0 +1,110 @@
+{
+  "variant" : "baseline",
+  "query" : "Q05",
+  "scenario" : "staff1-d7-2026-10-28",
+  "sample" : 1,
+  "warmup" : false,
+  "sql" : "select a1_0.id,a1_0.business_id,a1_0.cancellation_reason,a1_0.created_at,a1_0.customer_id,a1_0.customer_notes,a1_0.duration_minutes,a1_0.ends_at,a1_0.internal_notes,a1_0.price_cents,a1_0.service_offering_id,a1_0.source,a1_0.staff_member_id,a1_0.starts_at,a1_0.status,a1_0.updated_at from appointments a1_0 where a1_0.business_id=? and a1_0.staff_member_id=? and a1_0.status in (?,?) and a1_0.starts_at<? and a1_0.ends_at>?",
+  "bindingsAndOptions" : [ {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "1", "1" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "2", "1" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.String" ],
+    "arguments" : [ "3", "PENDING" ],
+    "method" : "setString"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.String" ],
+    "arguments" : [ "4", "CONFIRMED" ],
+    "method" : "setString"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.sql.Timestamp" ],
+    "arguments" : [ "5", "2026-11-04 00:00:00.0" ],
+    "method" : "setTimestamp"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.sql.Timestamp" ],
+    "arguments" : [ "6", "2026-10-28 00:00:00.0" ],
+    "method" : "setTimestamp"
+  } ],
+  "matchingRows" : 67,
+  "plan" : [ {
+    "Plan" : {
+      "Node Type" : "Bitmap Heap Scan",
+      "Parallel Aware" : false,
+      "Async Capable" : false,
+      "Relation Name" : "appointments",
+      "Alias" : "a1_0",
+      "Startup Cost" : 280.69,
+      "Total Cost" : 1463.43,
+      "Plan Rows" : 271,
+      "Plan Width" : 194,
+      "Actual Startup Time" : 0.891,
+      "Actual Total Time" : 3.108,
+      "Actual Rows" : 67,
+      "Actual Loops" : 1,
+      "Recheck Cond" : "((staff_member_id = '1'::bigint) AND (starts_at < '2026-11-04 00:00:00'::timestamp without time zone))",
+      "Rows Removed by Index Recheck" : 0,
+      "Filter" : "(((status)::text = ANY ('{PENDING,CONFIRMED}'::text[])) AND (ends_at > '2026-10-28 00:00:00'::timestamp without time zone) AND (business_id = '1'::bigint))",
+      "Rows Removed by Filter" : 2339,
+      "Exact Heap Blocks" : 831,
+      "Lossy Heap Blocks" : 0,
+      "Shared Hit Blocks" : 843,
+      "Shared Read Blocks" : 0,
+      "Shared Dirtied Blocks" : 0,
+      "Shared Written Blocks" : 0,
+      "Local Hit Blocks" : 0,
+      "Local Read Blocks" : 0,
+      "Local Dirtied Blocks" : 0,
+      "Local Written Blocks" : 0,
+      "Temp Read Blocks" : 0,
+      "Temp Written Blocks" : 0,
+      "Plans" : [ {
+        "Node Type" : "Bitmap Index Scan",
+        "Parent Relationship" : "Outer",
+        "Parallel Aware" : false,
+        "Async Capable" : false,
+        "Index Name" : "idx_appointments_staff_starts_at",
+        "Startup Cost" : 0.0,
+        "Total Cost" : 280.62,
+        "Plan Rows" : 8833,
+        "Plan Width" : 0,
+        "Actual Startup Time" : 0.551,
+        "Actual Total Time" : 0.552,
+        "Actual Rows" : 2406,
+        "Actual Loops" : 1,
+        "Index Cond" : "((staff_member_id = '1'::bigint) AND (starts_at < '2026-11-04 00:00:00'::timestamp without time zone))",
+        "Shared Hit Blocks" : 12,
+        "Shared Read Blocks" : 0,
+        "Shared Dirtied Blocks" : 0,
+        "Shared Written Blocks" : 0,
+        "Local Hit Blocks" : 0,
+        "Local Read Blocks" : 0,
+        "Local Dirtied Blocks" : 0,
+        "Local Written Blocks" : 0,
+        "Temp Read Blocks" : 0,
+        "Temp Written Blocks" : 0
+      } ]
+    },
+    "Settings" : { },
+    "Planning" : {
+      "Shared Hit Blocks" : 0,
+      "Shared Read Blocks" : 0,
+      "Shared Dirtied Blocks" : 0,
+      "Shared Written Blocks" : 0,
+      "Local Hit Blocks" : 0,
+      "Local Read Blocks" : 0,
+      "Local Dirtied Blocks" : 0,
+      "Local Written Blocks" : 0,
+      "Temp Read Blocks" : 0,
+      "Temp Written Blocks" : 0
+    },
+    "Planning Time" : 0.18,
+    "Triggers" : [ ],
+    "Execution Time" : 3.251
+  } ],
+  "expectedOutputRows" : 67
+}

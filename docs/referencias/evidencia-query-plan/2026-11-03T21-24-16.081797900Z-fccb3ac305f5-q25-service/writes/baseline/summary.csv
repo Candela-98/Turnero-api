@@ -1,0 +1,13 @@
+variant,query,scenario,sample,warmup,matching_rows,planning_ms,execution_ms,root_node,shared_hit,shared_read,temp_read,temp_written,heap_fetches
+baseline,Q25-write,insert-100,0,true,100,0.479,14.653,ModifyTable,518,0,0,0,
+baseline,Q25-write,insert-100,1,false,100,0.166,9.802,ModifyTable,514,0,0,0,
+baseline,Q25-write,insert-100,2,false,100,0.138,11.612,ModifyTable,514,0,0,0,
+baseline,Q25-write,insert-100,3,false,100,0.286,16.734,ModifyTable,514,0,0,0,
+baseline,Q25-write,insert-100,4,false,100,0.145,11.509,ModifyTable,514,0,0,0,
+baseline,Q25-write,insert-100,5,false,100,0.165,13.683,ModifyTable,514,0,0,0,
+baseline,Q25-write,delete-100,0,true,100,0.379,1.416,ModifyTable,104,0,0,0,
+baseline,Q25-write,delete-100,1,false,100,0.335,0.138,ModifyTable,104,0,0,0,
+baseline,Q25-write,delete-100,2,false,100,0.317,0.156,ModifyTable,104,0,0,0,
+baseline,Q25-write,delete-100,3,false,100,0.339,0.142,ModifyTable,104,0,0,0,
+baseline,Q25-write,delete-100,4,false,100,0.407,0.135,ModifyTable,104,0,0,0,
+baseline,Q25-write,delete-100,5,false,100,0.339,0.131,ModifyTable,104,0,0,0,

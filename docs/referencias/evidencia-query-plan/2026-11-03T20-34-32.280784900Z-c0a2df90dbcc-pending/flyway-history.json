@@ -1,0 +1,43 @@
+[ {
+  "installed_rank" : 1,
+  "version" : "1",
+  "description" : "initial schema",
+  "script" : "V1__initial_schema.sql",
+  "checksum" : -361619692,
+  "success" : true
+}, {
+  "installed_rank" : 2,
+  "version" : "3",
+  "description" : "add user session cleanup indexes",
+  "script" : "V3__add_user_session_cleanup_indexes.sql",
+  "checksum" : -1061249885,
+  "success" : true
+}, {
+  "installed_rank" : 3,
+  "version" : "4",
+  "description" : "add public token cleanup indexes",
+  "script" : "V4__add_public_token_cleanup_indexes.sql",
+  "checksum" : 166254752,
+  "success" : true
+}, {
+  "installed_rank" : 4,
+  "version" : "1002",
+  "description" : "service offering logical removal",
+  "script" : "V1002__service_offering_logical_removal.sql",
+  "checksum" : -868374155,
+  "success" : true
+}, {
+  "installed_rank" : 5,
+  "version" : "1003",
+  "description" : "staff member logical removal",
+  "script" : "V1003__staff_member_logical_removal.sql",
+  "checksum" : -902441655,
+  "success" : true
+}, {
+  "installed_rank" : 6,
+  "version" : "1004",
+  "description" : "customer archive and public booking block",
+  "script" : "V1004__customer_archive_and_public_booking_block.sql",
+  "checksum" : 1357049737,
+  "success" : true
+} ]
