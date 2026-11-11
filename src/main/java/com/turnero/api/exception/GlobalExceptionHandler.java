@@ -120,7 +120,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
-        log.error("Unexpected error occurred", ex);
+        log.error("Unexpected error occurred ({})", ex.getClass().getSimpleName());
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
@@ -275,5 +275,35 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler(PublicRateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(PublicRateLimitExceededException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.TOO_MANY_REQUESTS.value())
+                .error(HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase())
+                .code("RATE_LIMIT_EXCEEDED")
+                .message(ex.getMessage())
+                .details(null)
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .header("Cache-Control", "no-store")
+                .body(error);
+    }
+    @ExceptionHandler(PublicRateLimitStorageFullException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitStorageFull(PublicRateLimitStorageFullException ex,
+                                                                  HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Cache-Control", "no-store")
+                .body(ErrorResponse.builder().timestamp(LocalDateTime.now())
+                        .status(503).error("Service Unavailable")
+                        .code("RATE_LIMIT_STORAGE_FULL").message(ex.getMessage())
+                        .path(request.getRequestURI()).build());
     }
 }

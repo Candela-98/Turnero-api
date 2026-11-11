@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(PublicCancellationController.class)
+@WebMvcTest(controllers = PublicCancellationController.class, properties = "public-booking.rate-limit.enabled=false")
 class PublicCancellationControllerTest {
 
     private static final String TOKEN = "plain-cancel-token";

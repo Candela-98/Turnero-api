@@ -26,6 +26,34 @@ auth:
         batch-size: ${AUTH_SESSION_CLEANUP_BATCH_SIZE:500}
         cron: "${AUTH_SESSION_CLEANUP_CRON:0 0 3 * * *}"
 
+public-booking:
+  rate-limit:
+    enabled: ${PUBLIC_BOOKING_RATE_LIMIT_ENABLED:true}
+    read:
+      capacity: ${PUBLIC_BOOKING_RATE_LIMIT_READ_CAPACITY:60}
+      refill-tokens: ${PUBLIC_BOOKING_RATE_LIMIT_READ_REFILL_TOKENS:60}
+      refill-period: ${PUBLIC_BOOKING_RATE_LIMIT_READ_REFILL_PERIOD:1m}
+    write:
+      capacity: ${PUBLIC_BOOKING_RATE_LIMIT_WRITE_CAPACITY:10}
+      refill-tokens: ${PUBLIC_BOOKING_RATE_LIMIT_WRITE_REFILL_TOKENS:10}
+      refill-period: ${PUBLIC_BOOKING_RATE_LIMIT_WRITE_REFILL_PERIOD:1m}
+
+    # Provisional per-IP + business limits; tune against normal booking traffic.
+    business:
+      read:
+        capacity: ${PUBLIC_BOOKING_RATE_LIMIT_BUSINESS_READ_CAPACITY:30}
+        refill-tokens: ${PUBLIC_BOOKING_RATE_LIMIT_BUSINESS_READ_REFILL_TOKENS:30}
+        refill-period: ${PUBLIC_BOOKING_RATE_LIMIT_BUSINESS_READ_REFILL_PERIOD:1m}
+      write:
+        capacity: ${PUBLIC_BOOKING_RATE_LIMIT_BUSINESS_WRITE_CAPACITY:5}
+        refill-tokens: ${PUBLIC_BOOKING_RATE_LIMIT_BUSINESS_WRITE_REFILL_TOKENS:5}
+        refill-period: ${PUBLIC_BOOKING_RATE_LIMIT_BUSINESS_WRITE_REFILL_PERIOD:1m}
+    max-buckets: ${PUBLIC_BOOKING_RATE_LIMIT_MAX_BUCKETS:10000}
+    idle-retention: ${PUBLIC_BOOKING_RATE_LIMIT_IDLE_RETENTION:10m}
+
+# Until the deployment trust boundary is defined, use the actual socket peer.
+server:
+  forward-headers-strategy: none
 public-token:
   cleanup:
     retention-days: ${PUBLIC_TOKEN_CLEANUP_RETENTION_DAYS:30}

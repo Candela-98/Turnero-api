@@ -31,6 +31,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'com.bucket4j:bucket4j_jdk17-core:8.21.0'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
     implementation 'com.google.api-client:google-api-client:2.8.1'
     implementation 'com.google.http-client:google-http-client-gson:2.2.0'
 

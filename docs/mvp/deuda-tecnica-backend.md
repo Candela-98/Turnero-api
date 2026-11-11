@@ -123,3 +123,7 @@ Registrar cada hallazgo en este documento y crear el ticket Jira correspondiente
 | Runbook operativo | TURN-115 |
 
 Este inventario enlaza responsables y no reemplaza alcance, dependencias, criterios ni estado de Jira.
+
+## TURN-112: rate limiting público
+
+La implementación, cuotas ajustables, contrato 429/503 y criterios pendientes de despliegue se describen en [Rate limiting público](rate-limiting-publico.md). TURN-112 no se considera cerrada hasta verificar la identificación de IP y la integración del BFF en el despliegue real.
