@@ -1,0 +1,308 @@
+{
+  "variant" : "critical-pending",
+  "query" : "Q12",
+  "scenario" : "n20000-eligible50",
+  "sample" : 1,
+  "warmup" : false,
+  "sql" : "delete from user_sessions us1_0 where us1_0.id in (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) and ((us1_0.revoked_at is not null and us1_0.revoked_at<?) or (us1_0.revoked_at is null and us1_0.expires_at<?))",
+  "bindingsAndOptions" : [ {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "1", "1" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "2", "3" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "3", "5" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "4", "7" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "5", "9" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "6", "11" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "7", "13" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "8", "15" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "9", "17" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "10", "19" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "11", "21" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "12", "23" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "13", "25" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "14", "27" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "15", "29" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "16", "31" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "17", "33" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "18", "35" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "19", "37" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "20", "39" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "21", "41" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "22", "43" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "23", "45" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "24", "47" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "25", "49" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "26", "51" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "27", "53" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "28", "55" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "29", "57" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "30", "59" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "31", "61" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "32", "63" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "33", "65" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "34", "67" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "35", "69" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "36", "71" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "37", "73" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "38", "75" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "39", "77" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "40", "79" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "41", "81" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "42", "83" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "43", "85" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "44", "87" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "45", "89" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "46", "91" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "47", "93" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "48", "95" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "49", "97" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.lang.Long" ],
+    "arguments" : [ "50", "99" ],
+    "method" : "setLong"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.sql.Timestamp" ],
+    "arguments" : [ "51", "2026-09-28 12:00:00.0" ],
+    "method" : "setTimestamp"
+  }, {
+    "javaTypes" : [ "java.lang.Integer", "java.sql.Timestamp" ],
+    "arguments" : [ "52", "2026-09-28 12:00:00.0" ],
+    "method" : "setTimestamp"
+  } ],
+  "matchingRows" : 50,
+  "plan" : [ {
+    "Plan" : {
+      "Node Type" : "ModifyTable",
+      "Operation" : "Delete",
+      "Parallel Aware" : false,
+      "Async Capable" : false,
+      "Relation Name" : "user_sessions",
+      "Alias" : "us1_0",
+      "Startup Cost" : 0.29,
+      "Total Cost" : 159.5,
+      "Plan Rows" : 0,
+      "Plan Width" : 0,
+      "Actual Startup Time" : 0.118,
+      "Actual Total Time" : 0.119,
+      "Actual Rows" : 0,
+      "Actual Loops" : 1,
+      "Shared Hit Blocks" : 154,
+      "Shared Read Blocks" : 0,
+      "Shared Dirtied Blocks" : 0,
+      "Shared Written Blocks" : 0,
+      "Local Hit Blocks" : 0,
+      "Local Read Blocks" : 0,
+      "Local Dirtied Blocks" : 0,
+      "Local Written Blocks" : 0,
+      "Temp Read Blocks" : 0,
+      "Temp Written Blocks" : 0,
+      "WAL Records" : 50,
+      "WAL FPI" : 0,
+      "WAL Bytes" : 2700,
+      "Plans" : [ {
+        "Node Type" : "Index Scan",
+        "Parent Relationship" : "Outer",
+        "Parallel Aware" : false,
+        "Async Capable" : false,
+        "Scan Direction" : "Forward",
+        "Index Name" : "user_sessions_pkey",
+        "Relation Name" : "user_sessions",
+        "Alias" : "us1_0",
+        "Startup Cost" : 0.29,
+        "Total Cost" : 159.5,
+        "Plan Rows" : 13,
+        "Plan Width" : 6,
+        "Actual Startup Time" : 0.033,
+        "Actual Total Time" : 0.086,
+        "Actual Rows" : 50,
+        "Actual Loops" : 1,
+        "Index Cond" : "(id = ANY ('{1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99}'::bigint[]))",
+        "Rows Removed by Index Recheck" : 0,
+        "Filter" : "(((revoked_at IS NOT NULL) AND (revoked_at < '2026-09-28 12:00:00'::timestamp without time zone)) OR ((revoked_at IS NULL) AND (expires_at < '2026-09-28 12:00:00'::timestamp without time zone)))",
+        "Rows Removed by Filter" : 0,
+        "Shared Hit Blocks" : 102,
+        "Shared Read Blocks" : 0,
+        "Shared Dirtied Blocks" : 0,
+        "Shared Written Blocks" : 0,
+        "Local Hit Blocks" : 0,
+        "Local Read Blocks" : 0,
+        "Local Dirtied Blocks" : 0,
+        "Local Written Blocks" : 0,
+        "Temp Read Blocks" : 0,
+        "Temp Written Blocks" : 0,
+        "WAL Records" : 0,
+        "WAL FPI" : 0,
+        "WAL Bytes" : 0
+      } ]
+    },
+    "Settings" : { },
+    "Planning" : {
+      "Shared Hit Blocks" : 0,
+      "Shared Read Blocks" : 0,
+      "Shared Dirtied Blocks" : 0,
+      "Shared Written Blocks" : 0,
+      "Local Hit Blocks" : 0,
+      "Local Read Blocks" : 0,
+      "Local Dirtied Blocks" : 0,
+      "Local Written Blocks" : 0,
+      "Temp Read Blocks" : 0,
+      "Temp Written Blocks" : 0
+    },
+    "Planning Time" : 0.119,
+    "Triggers" : [ ],
+    "Execution Time" : 0.16
+  } ],
+  "transactionMs" : 86,
+  "verifiedDeletedRows" : 50,
+  "expectedDeletedRows" : 50,
+  "preparation" : {
+    "loadMs" : 3108,
+    "vacuumMs" : 70
+  },
+  "rollbackVerified" : true
+}

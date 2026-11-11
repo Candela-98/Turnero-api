@@ -1,0 +1,37 @@
+{
+  "durationMs" : 182338,
+  "status" : "complete",
+  "variants" : [ {
+    "recordedExecutions" : 324,
+    "durationMs" : 59837,
+    "status" : "complete",
+    "vacuumMs" : 265,
+    "loadAndValidationMs" : 42898,
+    "variant" : "v2-vacuumed",
+    "measurementMs" : 15669
+  }, {
+    "recordedExecutions" : 18,
+    "durationMs" : 38457,
+    "status" : "complete",
+    "vacuumMs" : 431,
+    "loadAndValidationMs" : 36108,
+    "variant" : "history-plus-2000",
+    "measurementMs" : 1120
+  }, {
+    "recordedExecutions" : 18,
+    "durationMs" : 49094,
+    "status" : "complete",
+    "vacuumMs" : 407,
+    "loadAndValidationMs" : 46957,
+    "variant" : "history-plus-8000",
+    "measurementMs" : 1037
+  }, {
+    "recordedExecutions" : 18,
+    "durationMs" : 33823,
+    "status" : "complete",
+    "vacuumMs" : 328,
+    "loadAndValidationMs" : 32329,
+    "variant" : "associations-expanded",
+    "measurementMs" : 609
+  } ]
+}

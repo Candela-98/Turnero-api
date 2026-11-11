@@ -1,0 +1,29 @@
+{
+  "commit" : "f414b8ffcec2de3d23ab94c183e19af54a73b858",
+  "synthetic" : true,
+  "seed" : 114,
+  "datasetRevision" : "v2-independent-state-cycles",
+  "protocolRevision" : "q25-service-candidate",
+  "variant" : "q25-experiment",
+  "autovacuum" : "off",
+  "stateDistribution" : "Seeded shuffled five-state cycles per professional; independent RNG; boundary appointment remains CONFIRMED",
+  "referenceLocal" : "2026-10-28T12:00",
+  "businessZone" : "America/Argentina/Buenos_Aires",
+  "image" : "postgres:16-alpine",
+  "imageId" : "sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229",
+  "postgres" : "PostgreSQL 16.14 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "java" : "21.0.8",
+  "hibernate" : "6.6.15.Final",
+  "jdbcDriver" : "42.7.5",
+  "prepareThreshold" : 0,
+  "preparationNote" : "Unnamed JDBC plans; production server-prepared/generic plans not evaluated",
+  "captureExecutionBeforeWarmup" : true,
+  "warmups" : 1,
+  "samples" : 5,
+  "availableProcessors" : 8,
+  "containerHostConfig" : {
+    "memoryLimitBytes" : "0",
+    "nanoCpus" : "0"
+  },
+  "limits" : [ "Synthetic moderate volume; no production distribution assumed", "Warm cache; no cold-cache guarantee; EXPLAIN instrumentation overhead", "Bulk-loaded fresh heap; not an aged production database", "No candidate indexes; dashboard pending TURN-107" ]
+}
