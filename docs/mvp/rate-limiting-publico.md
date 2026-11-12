@@ -80,28 +80,9 @@ Variables adicionales:
 details, path, timestamp. Retry-After usa segundos redondeados hacia arriba y
 Cache-Control: no-store. RequestIdFilter sigue agregando X-Request-Id.
 
-El filtro solo acepta un único UUID canónico de 36 caracteres como identificador
-entrante, normalizado a minúsculas. Ante ausencia, valores arbitrarios, múltiples
-headers o valores extensos, genera un UUID del servidor. Ese mismo valor se usa
-en respuesta y MDC; el MDC se limpia aun ante excepciones. No se usa para autenticar
-ni para identificar clientes del limitador.
-
-ErrorResponse.getPath aplica ErrorPathSanitizer a todos los handlers. Las
-cancelaciones se representan como /api/v1/public/cancellations/{token}, incluso
-con escapes, matrix params, segmentos adicionales y variantes con . o ..
-(también codificados). Se inspeccionan las formas previas y posteriores a
-normalizar; la ruta de cancelación devuelta es canónica, sin prefijos de contexto.
-Las rutas ambiguas que no se pueden reconocer con seguridad se sustituyen por
-/{redacted}; nunca se reenvían como dato diagnóstico. La decodificación anidada
-se acota a cinco pasadas. SanitizedErrorAttributes
-protege también el path del fallback servlet /error, conservando su contrato.
-Los códigos HTTP, códigos y mensajes de errores existentes se conservan.
-
-El logger genérico del advice registra solo el tipo de excepción; omite mensaje
-y stack trace, que podrían contener URI o credenciales. El limitador no registra
-IP, slugs, claves, hashes, tokens ni cookies. No etiquetar métricas por esos datos.
-Esto no acredita la sanitización de access logs del BFF, balanceador o servidor
-externo; sigue requiriendo revisión de TURN-116.
+La [política de logging del backend](../referencias/arquitectura-backend.md#logging-y-observabilidad)
+describe el request ID, la sanitización de rutas de cancelación y la evidencia
+de TURN-116.
 
 ## Identificación de IP y pendientes de despliegue
 
@@ -116,8 +97,8 @@ compartir la cuota de la IP del BFF. No habilitar procesamiento indiscriminado
 de forwarded headers; el límite de confianza deberá borrar/sobrescribir headers
 entrantes. Verificar la configuración efectiva, incluidos overrides de entorno.
 
-También queda pendiente probar que el BFF propaga 429, Retry-After y no-store,
-y que sus logs y métricas no contienen URLs con tokens.
+También queda pendiente probar que el BFF propaga `429`, `Retry-After` y `no-store`.
+La revisión de sus logs y métricas figura en [logs externos pendientes](../referencias/arquitectura-backend.md#logs-externos-pendientes).
 
 ## Límites inevitables y criterios de aceptación
 
@@ -128,7 +109,6 @@ y que sus logs y métricas no contienen URLs con tokens.
   IP o rotación IPv6 pueden eludir cuotas. No es protección completa contra DDoS.
 - Probar carga y tráfico normal antes de fijar cuotas y máximo de claves.
 - Verificar la frontera real de IP y propagación HTTP del BFF.
-- Auditar los logs externos con tokens de prueba, sin registrar tokens reales.
 - Mantener pendiente la mitigación BFF/CSRF de TURN-62: rate limiting no la sustituye.
 
 ## Verificación local (2026-10-21)

@@ -59,3 +59,13 @@ public-token:
     retention-days: ${PUBLIC_TOKEN_CLEANUP_RETENTION_DAYS:30}
     batch-size: ${PUBLIC_TOKEN_CLEANUP_BATCH_SIZE:500}
     cron: "${PUBLIC_TOKEN_CLEANUP_CRON:0 0 3 * * *}"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: "dev | desa | prod"
+  datasource:
+    hikari:
+      data-source-properties:
+        logServerErrorDetail: "false"

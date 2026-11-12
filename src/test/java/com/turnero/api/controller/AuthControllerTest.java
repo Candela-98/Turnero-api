@@ -1,5 +1,7 @@
 package com.turnero.api.controller;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.turnero.api.auth.AdminAuthInterceptor;
 import com.turnero.api.config.SessionProperties;
@@ -15,7 +17,11 @@ import com.turnero.api.service.AuthService;
 import com.turnero.api.service.AuthLoginResult;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -34,6 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AuthController.class)
+@ExtendWith(OutputCaptureExtension.class)
 class AuthControllerTest {
 
     @Autowired
@@ -55,7 +62,31 @@ class AuthControllerTest {
     private static final String LOGOUT_URL = "/api/v1/auth/logout";
 
     @Test
-    void loginWithGoogle_whenRequestIsValid_returnsOkWithSessionCookie() throws Exception {
+    void detailedMvcInputLoggingDoesNotExposeGoogleIdToken(CapturedOutput output) throws Exception {
+        String idToken = "fixture-mvc-input-token";
+        given(authService.loginWithGoogle(idToken, "127.0.0.1", null))
+                .willThrow(new UnauthorizedException("Invalid Google ID token"));
+        Logger logger = (Logger) LoggerFactory.getLogger(
+                org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor.class);
+        Level previousLevel = logger.getLevel();
+        try {
+            logger.setLevel(Level.TRACE);
+            mockMvc.perform(post(GOOGLE_LOGIN_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new GoogleLoginRequestDto(idToken))))
+                    .andExpect(status().isUnauthorized());
+        } finally {
+            logger.setLevel(previousLevel);
+        }
+
+        assertThat(output.getAll().lines()).anySatisfy(line -> assertThat(line)
+                .contains("TRACE", "Read \"application/json", "GoogleLoginRequestDto"));
+        assertThat(output.getAll().contains(idToken))
+                .as("MVC request-body logger exposed the synthetic Google ID token").isFalse();
+    }
+
+    @Test
+    void loginWithGoogle_whenRequestIsValid_returnsOkWithSessionCookie(CapturedOutput output) throws Exception {
         String idToken = "valid-id-token";
         String sessionToken = "generated-session-token";
         String ipAddress = "203.0.113.10";
@@ -94,6 +125,7 @@ class AuthControllerTest {
         assertThat(result.getResponse().getContentAsString()).doesNotContain(sessionToken);
 
         then(authService).should().loginWithGoogle(idToken, ipAddress, userAgent);
+        assertThat(output.getAll()).doesNotContain(idToken, sessionToken, setCookie);
     }
 
     @Test
@@ -132,6 +164,39 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(authService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void loginWithGoogle_whenVerifierRejectsToken_keepsCredentialsOutOfLogs(CapturedOutput output) throws Exception {
+        String idToken = "fixture-rejected-google-id-token";
+        String authorization = "Bearer fixture-login-authorization";
+        given(authService.loginWithGoogle(idToken, "127.0.0.1", null))
+                .willThrow(new UnauthorizedException("Invalid Google ID token"));
+
+        mockMvc.perform(post(GOOGLE_LOGIN_URL)
+                        .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new GoogleLoginRequestDto(idToken))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .doesNotContain(idToken, authorization));
+
+        assertThat(output.getAll()).doesNotContain(idToken, authorization);
+    }
+
+    @Test
+    void loginWithGoogle_whenJsonIsMalformed_keepsBodyOutOfLogs(CapturedOutput output) throws Exception {
+        String marker = "fixture-unreadable-id-token";
+
+        mockMvc.perform(post(GOOGLE_LOGIN_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"id_token\":\"" + marker + "\","))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid request body"));
+
+        then(authService).shouldHaveNoInteractions();
+        assertThat(output.getAll()).doesNotContain(marker);
     }
 
     @Test
@@ -194,7 +259,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void me_whenCookiesDoNotContainSessionCookie_returns401WithoutCallingAuthService() throws Exception {
+    void me_whenCookiesDoNotContainSessionCookie_returns401WithoutCallingAuthService(CapturedOutput output) throws Exception {
         given(sessionProperties.getCookieName()).willReturn("turnero_session");
 
         mockMvc.perform(get(ME_URL)
@@ -210,6 +275,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.timestamp").exists());
 
         then(authService).shouldHaveNoInteractions();
+        assertThat(output.getAll()).doesNotContain("wrong-token");
     }
 
     @Test
@@ -266,7 +332,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void logout_whenSessionCookieIsValid_returns204AndExpiresSessionCookie() throws Exception {
+    void logout_whenSessionCookieIsValid_returns204AndExpiresSessionCookie(CapturedOutput output) throws Exception {
         String sessionToken = "raw-session-token";
         given(sessionProperties.getCookieName()).willReturn("turnero_session");
         given(sessionProperties.isSecure()).willReturn(true);
@@ -290,6 +356,7 @@ class AuthControllerTest {
         assertThat(setCookie).contains("Path=/");
 
         then(authService).should().logout(sessionToken);
+        assertThat(output.getAll()).doesNotContain(sessionToken, "wrong-token");
     }
 
     @Test

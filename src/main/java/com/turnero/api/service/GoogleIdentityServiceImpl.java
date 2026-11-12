@@ -51,7 +51,7 @@ public class GoogleIdentityServiceImpl implements GoogleIdentityService{
                     Boolean.TRUE.equals(payload.getEmailVerified())
             );
 
-        } catch (GeneralSecurityException | IOException e) {
+        } catch (GeneralSecurityException | IOException | IllegalArgumentException e) {
             throw new UnauthorizedException("Invalid Google ID token");
         }
     }

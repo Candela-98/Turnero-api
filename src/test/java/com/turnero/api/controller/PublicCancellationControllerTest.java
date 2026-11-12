@@ -15,7 +15,10 @@ import com.turnero.api.model.enums.AppointmentStatus;
 import com.turnero.api.service.PublicCancellationService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -36,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = PublicCancellationController.class, properties = "public-booking.rate-limit.enabled=false")
+@ExtendWith(OutputCaptureExtension.class)
 class PublicCancellationControllerTest {
 
     private static final String TOKEN = "plain-cancel-token";
@@ -80,16 +84,18 @@ class PublicCancellationControllerTest {
     }
 
     @Test
-    void getPublicCancellation_whenTokenIsInvalid_returnsTokenInvalid() throws Exception {
+    void getPublicCancellation_whenTokenIsInvalid_returnsTokenInvalid(CapturedOutput output) throws Exception {
         given(publicCancellationService.getPublicCancellation(TOKEN))
                 .willThrow(new InvalidPublicTokenException("Invalid public cancellation token"));
 
         mockMvc.perform(get(CANCELLATION_URL, TOKEN))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.code").value("TOKEN_INVALID"));
+                .andExpect(jsonPath("$.code").value("TOKEN_INVALID"))
+                .andExpect(jsonPath("$.path").value(CANCELLATION_URL));
 
         then(adminAuthInterceptor).shouldHaveNoInteractions();
+        assertThat(output.getAll()).doesNotContain(TOKEN);
     }
 
     @Test
@@ -132,7 +138,7 @@ class PublicCancellationControllerTest {
     }
 
     @Test
-    void cancelPublicAppointment_whenRequestIsValid_returnsResultContractAndDelegatesToService() throws Exception {
+    void cancelPublicAppointment_whenRequestIsValid_returnsResultContractAndDelegatesToService(CapturedOutput output) throws Exception {
         given(publicCancellationService.cancelPublicAppointment(eq(TOKEN), any(PublicCancellationRequestDto.class)))
                 .willReturn(PublicCancellationResultResponseDto.builder()
                         .status(AppointmentStatus.CANCELLED)
@@ -158,6 +164,7 @@ class PublicCancellationControllerTest {
         then(publicCancellationService).should().cancelPublicAppointment(eq(TOKEN), requestCaptor.capture());
         assertThat(requestCaptor.getValue().getCancellationReason()).isEqualTo("No puedo asistir");
         then(adminAuthInterceptor).shouldHaveNoInteractions();
+        assertThat(output.getAll()).doesNotContain(TOKEN, "No puedo asistir");
     }
 
     @Test
@@ -181,7 +188,7 @@ class PublicCancellationControllerTest {
     }
 
     @Test
-    void cancelPublicAppointment_whenTokenIsInvalid_returnsTokenInvalid() throws Exception {
+    void cancelPublicAppointment_whenTokenIsInvalid_returnsTokenInvalid(CapturedOutput output) throws Exception {
         given(publicCancellationService.cancelPublicAppointment(eq(TOKEN), any(PublicCancellationRequestDto.class)))
                 .willThrow(new InvalidPublicTokenException("Invalid public cancellation token"));
 
@@ -194,9 +201,11 @@ class PublicCancellationControllerTest {
                                 """))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.code").value("TOKEN_INVALID"));
+                .andExpect(jsonPath("$.code").value("TOKEN_INVALID"))
+                .andExpect(jsonPath("$.path").value(CANCELLATION_URL));
 
         then(adminAuthInterceptor).shouldHaveNoInteractions();
+        assertThat(output.getAll()).doesNotContain(TOKEN);
     }
 
     @Test

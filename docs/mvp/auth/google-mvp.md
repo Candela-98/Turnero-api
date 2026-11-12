@@ -97,7 +97,7 @@ Session cleanup completed: deletedCount={}, durationMs={}
 
 `deletedCount` es la cantidad realmente eliminada y `durationMs` es la duración en milisegundos. Cero eliminados también es un resultado exitoso. Si el servicio falla, la excepción se propaga al mecanismo de scheduling de Spring y no se emite el mensaje de éxito; no hay retries propios del cleanup.
 
-El log del cleanup contiene sólo esos datos operativos. No registrar `session_token_hash`, cookies, tokens, email, nombre, IP, user-agent ni IDs de usuario/sesión; tampoco listas de candidatos ni entidades.
+El log del cleanup se limita a esos dos valores operativos. Para los datos excluidos, consultar la [política de logging del backend](../../referencias/arquitectura-backend.md#logging-y-observabilidad).
 
 ### Instancias y coordinación
 
@@ -126,7 +126,7 @@ frontend: NEXT_PUBLIC_GOOGLE_CLIENT_ID=<mismo-client-id-web>
 
 En Google Cloud, el cliente web debe incluir el origen real del frontend; para desarrollo, por ejemplo `http://localhost:3000`. El MVP usa ID token y no necesita `GOOGLE_CLIENT_SECRET`.
 
-No registrar ID tokens, cookies ni tokens de sesión en logs, errores, analytics o fixtures.
+La [política de logging del backend](../../referencias/arquitectura-backend.md#logging-y-observabilidad) documenta los datos excluidos y las pruebas de protección del login y la sesión.
 
 ## Aprovisionamiento local
 

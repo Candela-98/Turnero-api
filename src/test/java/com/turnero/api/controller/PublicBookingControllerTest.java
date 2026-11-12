@@ -1,5 +1,7 @@
 package com.turnero.api.controller;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.turnero.api.auth.AdminAuthInterceptor;
@@ -20,7 +22,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -32,6 +38,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -45,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = PublicBookingController.class, properties = "public-booking.rate-limit.enabled=false")
+@ExtendWith(OutputCaptureExtension.class)
 class PublicBookingControllerTest {
 
     private static final String BUSINESS_SLUG = "barber-studio";
@@ -228,7 +236,33 @@ class PublicBookingControllerTest {
     }
 
     @Test
-    void createAppointment_withoutAdminSession_returnsCreatedPublicAppointmentWithSnakeCaseContract() throws Exception {
+    void detailedMvcOutputLoggingDoesNotExposeIssuedCancellationToken(CapturedOutput output) throws Exception {
+        LocalDateTime startsAt = LocalDate.now().plusDays(3).atTime(10, 0);
+        var response = publicAppointmentResponse(startsAt, startsAt.plusMinutes(45), AppointmentStatus.PENDING);
+        given(publicBookingService.createPublicAppointment(eq(BUSINESS_SLUG), any())).willReturn(response);
+
+        Logger logger = (Logger) LoggerFactory.getLogger(
+                org.springframework.web.servlet.mvc.method.annotation.HttpEntityMethodProcessor.class);
+        Level previousLevel = logger.getLevel();
+        try {
+            logger.setLevel(Level.TRACE);
+            mockMvc.perform(post(APPOINTMENTS_URL, BUSINESS_SLUG)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(publicAppointmentRequest(startsAt, "100")))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.cancel_token").value(response.getCancelToken()));
+        } finally {
+            logger.setLevel(previousLevel);
+        }
+
+        assertThat(output.getAll().lines()).anySatisfy(line -> assertThat(line)
+                .contains("TRACE", "Writing [PublicAppointmentResponseDto("));
+        assertThat(output.getAll().contains(response.getCancelToken()))
+                .as("MVC response-body logger exposed the synthetic cancellation token").isFalse();
+    }
+
+    @Test
+    void createAppointment_withoutAdminSession_returnsCreatedPublicAppointmentWithSnakeCaseContract(CapturedOutput output) throws Exception {
         LocalDateTime startsAt = LocalDate.now().plusDays(3).atTime(10, 0,0);
         LocalDateTime endsAt = startsAt.plusMinutes(45);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
@@ -257,6 +291,8 @@ class PublicBookingControllerTest {
 
         then(publicBookingService).should().createPublicAppointment(eq(BUSINESS_SLUG), any());
         then(adminAuthInterceptor).shouldHaveNoInteractions();
+        assertThat(output.getAll()).doesNotContain("plain-cancel-token", "qa-booking@example.invalid",
+                "2025550143", "fixture-customer-note");
     }
 
     @Test
@@ -280,7 +316,8 @@ class PublicBookingControllerTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidCustomerContact")
     void createAppointment_whenCustomerContactIsInvalid_returnsBadRequestWithoutCallingService(
-            String description, String field, String value, String validationField, String message) throws Exception {
+            String description, String field, String value, String validationField, String message,
+            CapturedOutput output) throws Exception {
         LocalDateTime startsAt = LocalDate.now().plusDays(3).atTime(10, 0);
         ObjectNode request = (ObjectNode) objectMapper.readTree(publicAppointmentRequest(startsAt, "100"));
         ObjectNode customer = (ObjectNode) request.get("customer");
@@ -301,6 +338,8 @@ class PublicBookingControllerTest {
 
         then(publicBookingService).shouldHaveNoInteractions();
         then(adminAuthInterceptor).shouldHaveNoInteractions();
+        assertThat(output.getAll()).doesNotContain("qa-booking@example.invalid", "2025550143",
+                "fixture-customer-note", "not-an-email");
     }
 
     private static Stream<Arguments> invalidCustomerContact() {
@@ -382,11 +421,11 @@ class PublicBookingControllerTest {
                   "staff_member_id": "%s",
                   "starts_at": "%s",
                   "customer": {
-                    "name": "Candela",
-                    "email": "candela@email.com",
-                    "phone_number": "1123456789"
+                    "name": "QA Booking",
+                    "email": "qa-booking@example.invalid",
+                    "phone_number": "2025550143"
                   },
-                  "customer_notes": "Comentario opcional"
+                  "customer_notes": "fixture-customer-note"
                 }
                 """.formatted(staffMemberId, startsAt);
     }
