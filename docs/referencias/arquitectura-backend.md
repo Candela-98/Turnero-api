@@ -258,15 +258,37 @@ Codigos frecuentes:
 
 ## Logging y observabilidad
 
-Reglas:
+Usar SLF4J/Logback para eventos de aplicación. Reservar los logs para datos operativos y aplicar la misma política a todos los niveles, incluidos `DEBUG` y `TRACE`. Los health checks básicos se exponen mediante Actuator según el perfil.
 
-- Usar request id.
-- Usar SLF4J/Logback.
-- No usar `System.out.println`.
-- No loguear cookies, session tokens, Google ID tokens, public cancellation tokens ni secrets.
-- Health checks basicos se exponen con Actuator segun perfil.
+### Datos excluidos de los logs
 
-Los logs deben ayudar a diagnosticar sin filtrar datos sensibles.
+- ID tokens de Google, valores de `Cookie`, `Set-Cookie` y `Authorization`, tokens de sesión y tokens públicos, incluidos los de cancelación. Excluir también `session_token_hash`, hashes de tokens públicos y claves del limitador.
+- Credenciales de conexión, contraseñas, claves y otros secretos de configuración. Mantener estos valores fuera de los mensajes, las causas y las trazas de excepciones.
+- Datos personales y texto libre, como nombres, emails, teléfonos, notas de reserva y motivos de cancelación. Excluir IP y `User-Agent` de los eventos de auth, cleanup y rate limiting. Incorporar identificadores de negocio o de recursos únicamente cuando exista una necesidad operativa explícita.
+- Cuerpos completos de requests o respuestas, cabeceras crudas, URLs con tokens o parámetros sensibles, entidades completas y valores enlazados a sentencias SQL. Mantener los mismos datos fuera de etiquetas de métricas, analytics y trazas. Usar valores ficticios en fixtures y pruebas.
+
+### Datos útiles para el diagnóstico
+
+- Correlacionar respuesta y log con `X-Request-Id`. `RequestIdFilter` acepta un único UUID con el formato esperado, lo normaliza o genera uno nuevo, lo copia al MDC para la duración de la solicitud y lo limpia al finalizar. El identificador sirve para correlación, sin intervenir en autenticación ni en las cuotas del limitador.
+- Usar el tipo de evento, el código HTTP o de aplicación, el tipo de excepción, la duración y los conteos cuando aporten contexto. En el error inesperado manejado por el advice, el evento contiene el tipo de excepción y el request ID. El texto, la causa y el stack trace quedan fuera del log.
+- Para errores de persistencia, conservar el `SQLState`. Por ejemplo, `23505` permite diagnosticar una violación de unicidad sin inspeccionar el valor de la clave. Si hace falta identificar una operación HTTP, usar el patrón de ruta o una ruta sanitizada.
+
+### Protecciones y evidencia de TURN-116
+
+| Protección | Alcance verificado |
+| --- | --- |
+| Representación textual segura de `GoogleLoginRequestDto` y `PublicAppointmentResponseDto` | El primero redacta el ID token en `toString()`. El segundo excluye `cancelToken` de su representación textual. Los tests HTTP activaron `TRACE` en los conversores MVC de entrada y salida, comprobaron que los eventos se emitieron y verificaron que los tokens ficticios quedaron fuera del log. El contrato JSON conserva `id_token` y `cancel_token`. [AuthControllerTest](../../src/test/java/com/turnero/api/controller/AuthControllerTest.java) · [PublicBookingControllerTest](../../src/test/java/com/turnero/api/controller/PublicBookingControllerTest.java) |
+| Rechazo de un ID token malformado | El verificador real recibe un token ficticio de un solo segmento y falla durante el parseo, antes de consultar claves externas. La prueba HTTP comprueba `401 UNAUTHORIZED`, ausencia de cookie de sesión en la respuesta y ausencia del valor ficticio en el cuerpo y el log. [RequestIdFilterTest](../../src/test/java/com/turnero/api/config/RequestIdFilterTest.java) |
+| Detalle de errores JDBC | El bloque versionado de Hikari en `application.yml` fija `logServerErrorDetail=false` para `dev`, `desa` y `prod`. La prueba con PostgreSQL 16 y Testcontainers cargó el perfil `prod` y solo aportó los datos de conexión del contenedor. Al provocar una violación de unicidad, la captura conservó `SQLState: 23505` y excluyó el hash ficticio de sesión. [Configuración Spring](../../src/main/resources/application.yml) · [JdbcSensitiveLoggingPostgresIT](../../src/test/java/com/turnero/api/integration/JdbcSensitiveLoggingPostgresIT.java) |
+| Correlación del error inesperado y sanitización de rutas | La prueba de `500` comprueba el request ID de la respuesta en la misma línea del evento de error y verifica que los valores ficticios de la solicitud, la excepción y su causa queden fuera del log. El advice MVC y el fallback servlet `/error` sanitizan el campo `path` de la respuesta. Una ruta de cancelación reconocida se representa como `/api/v1/public/cancellations/{token}` y una ruta ambigua como `/{redacted}`. La prueba de fallback cubre un despacho `ERROR` de Tomcat con `404`. [RequestIdFilterTest](../../src/test/java/com/turnero/api/config/RequestIdFilterTest.java) · [PublicErrorFallbackHttpTest](../../src/test/java/com/turnero/api/exception/PublicErrorFallbackHttpTest.java) |
+
+La validación local del backend del 12 de noviembre de 2026 tuvo 65 pruebas focalizadas aprobadas. La suite completa de Gradle con Docker tuvo 804 aprobadas, 0 fallidas y 5 omitidas por la condición de ejecución del laboratorio de planes de consulta.
+
+El sanitizador comprueba la ruta antes y después de normalizarla. Cubre prefijos de contexto, escapes, parámetros de matriz, segmentos adicionales y variantes con `.` y `..`. Acota la decodificación anidada a cinco pasadas. El campo `path` sanitizado del JSON protege la respuesta HTTP y no modifica la URL que reciben otros componentes.
+
+### Logs externos pendientes
+
+Queda pendiente verificar la configuración efectiva y las capturas de logs del BFF, el balanceador, el servidor HTTP y el servidor PostgreSQL. Usar tráfico ficticio para revisar que los access logs, métricas y trazas excluyan URLs de cancelación con el token, cabeceras y cuerpos sensibles. Revisar también el detalle y los parámetros en los logs de errores del servidor PostgreSQL. La evidencia anterior corresponde a la respuesta HTTP y a la captura del proceso Java, incluida la salida JDBC de Hibernate.
 
 ## Testing arquitectonico
 

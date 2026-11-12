@@ -42,7 +42,7 @@ Trabajo programado:
 
 - `TURN-110`: limpiar sesiones vencidas o revocadas periodicamente.
 - `TURN-62`: cerrar la decision BFF, CORS y CSRF sin habilitar acceso cross-origin por defecto.
-- `TURN-116`: verificar que cookies, tokens y credenciales no lleguen a logs.
+- `TURN-116`: consultar la [política de logging y evidencia del backend](../referencias/arquitectura-backend.md#logging-y-observabilidad). Sigue pendiente la [verificación de logs externos](../referencias/arquitectura-backend.md#logs-externos-pendientes).
 
 Deuda aun no programada, fuera de esas subtareas:
 

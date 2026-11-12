@@ -6,7 +6,10 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -24,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Exercise a real Tomcat ERROR dispatch, not a direct call to ErrorAttributes. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
+@ExtendWith(OutputCaptureExtension.class)
 class PublicErrorFallbackHttpTest {
     @LocalServerPort int port;
     @Autowired ObjectMapper mapper;
@@ -36,7 +40,7 @@ class PublicErrorFallbackHttpTest {
             "/api/v1/public/%2e/cancellations/secret",
             "/api/v1/public/x/%2e%2e/cancellations/secret"
     })
-    void realErrorDispatchNeverEchoesCancellationToken(String path) throws Exception {
+    void realErrorDispatchNeverEchoesCancellationToken(String path, CapturedOutput output) throws Exception {
         try (HttpClient client = HttpClient.newHttpClient()) {
             var request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
                     .header("Accept", "application/json").GET().build();
@@ -46,6 +50,7 @@ class PublicErrorFallbackHttpTest {
             assertThat(body.path("status").asInt()).isEqualTo(404);
             assertThat(body.path("path").asText()).isEqualTo("/api/v1/public/cancellations/{token}");
             assertThat(response.body()).doesNotContain("secret");
+            assertThat(output.getAll()).doesNotContain(path);
         }
     }
 

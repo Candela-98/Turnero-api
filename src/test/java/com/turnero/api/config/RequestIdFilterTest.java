@@ -1,5 +1,8 @@
 package com.turnero.api.config;
 
+import com.turnero.api.model.UserSession;
+import com.turnero.api.repository.UserSessionRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,15 +16,26 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.util.HexFormat;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -30,6 +44,41 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(OutputCaptureExtension.class)
 class RequestIdFilterTest {
     @Autowired MockMvc mockMvc;
+    @MockitoBean UserSessionRepository userSessionRepository;
+
+    @Test
+    void malformedGoogleIdTokenIsRejectedWithoutEchoingIt(CapturedOutput output) throws Exception {
+        // A single segment fails parsing before the real Google verifier can fetch keys.
+        String malformedToken = "fixture-google-token-without-jwt-separators";
+
+        var response = mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"id_token\":\"" + malformedToken + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.message").value("Invalid Google ID token"))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE))
+                .andReturn().getResponse();
+
+        assertThat(response.getContentAsString()).doesNotContain(malformedToken);
+        assertThat(output.getAll()).doesNotContain(malformedToken);
+    }
+
+    @Test
+    void expiredSessionKeepsCookieAndHashOutOfLogs(CapturedOutput output) throws Exception {
+        String rawToken = "fixture-expired-session";
+        String hash = HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8)));
+        given(userSessionRepository.findBySessionTokenHash(hash))
+                .willReturn(Optional.of(UserSession.builder().expiresAt(LocalDateTime.now().minusDays(1)).build()));
+
+        mockMvc.perform(get("/api/v1/auth/me").cookie(new Cookie("turnero_session", rawToken)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Session has expired"));
+
+        then(userSessionRepository).should().findBySessionTokenHash(hash);
+        assertThat(output.getAll()).doesNotContain(rawToken, hash);
+    }
 
     @Test
     void shouldGenerateRequestIdWhenHeaderIsMissing() throws Exception {
@@ -83,12 +132,23 @@ class RequestIdFilterTest {
     @Test
     void errorLogsKeepSafeCorrelationAndMdcIsCleared(CapturedOutput output) throws Exception {
         var result = mockMvc.perform(get("/__test/request-id/error")
-                        .header("X-Request-Id", "private-request-header"))
+                        .header("X-Request-Id", "private-request-header")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer fixture-error-authorization")
+                        .cookie(new Cookie("turnero_session", "fixture-error-cookie")))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("INTERNAL_ERROR")).andReturn();
         String id = result.getResponse().getHeader("X-Request-Id");
-        assertThat(output.getAll()).contains("[requestId=" + id + "]", "Unexpected error occurred")
-                .doesNotContain("private-request-header", "private-exception-content");
+        assertThat(UUID.fromString(id).toString()).isEqualTo(id);
+        assertThat(output.getAll().lines()
+                .filter(line -> line.contains("Unexpected error occurred"))
+                .toList())
+                .singleElement()
+                .asString()
+                .contains("[requestId=" + id + "]", "IllegalStateException");
+        assertThat(output.getAll()).doesNotContain("private-request-header", "private-exception-content",
+                "fixture-error-authorization", "fixture-error-cookie", "fixture-nested-credential");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("private-exception-content", "fixture-nested-credential");
         assertThat(MDC.get("requestId")).isNull();
         var next = mockMvc.perform(get("/__test/request-id/log")).andReturn();
         assertThat(next.getResponse().getHeader("X-Request-Id")).isNotEqualTo(id);
@@ -109,7 +169,8 @@ class RequestIdFilterTest {
 
         @GetMapping("/__test/request-id/error")
         String error() {
-            throw new IllegalStateException("private-exception-content");
+            throw new IllegalStateException("private-exception-content",
+                    new IllegalArgumentException("fixture-nested-credential"));
         }
     }
 }
