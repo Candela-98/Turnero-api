@@ -109,69 +109,13 @@ Reglas de contrato:
 
 ## Infraestructura y ambientes
 
-### PostgreSQL local
+### PostgreSQL, Makefile y variables locales
 
-Agregar Docker Compose para PostgreSQL local.
+La [guía de entorno local](../referencias/entorno-local.md) documenta Docker Compose, las variables efectivas y los comandos de PowerShell, Make y Colima.
 
-Variables esperadas:
+El alcance de infraestructura incluye PostgreSQL, un volumen persistente, un healthcheck y migraciones versionadas con Flyway. Mantener los dumps y los datos reales fuera del repo. El Makefile es una capa de conveniencia sobre Compose y Gradle.
 
-```text
-POSTGRES_DB=turnero
-POSTGRES_USER=turnero
-POSTGRES_PASSWORD=turnero_local
-POSTGRES_PORT=5432
-```
-
-Requisitos:
-
-- Imagen PostgreSQL alineada con futuro AWS RDS.
-- Volumen local para persistencia.
-- Healthcheck del contenedor.
-- Sin dumps ni datos reales versionados.
-
-### Makefile local
-
-Agregar un `Makefile` de conveniencia adaptado a Turnero API, Java, Gradle, Spring Boot, Docker Compose, PostgreSQL y Flyway.
-
-Objetivo:
-
-- Evitar que cada dev recuerde comandos largos.
-- Unificar la forma local de levantar DB, correr la app y correr tests.
-- Facilitar los primeros PRs a una desarrolladora junior inicial.
-
-Targets minimos sugeridos:
-
-- `make db-up`: levantar PostgreSQL local con Docker Compose.
-- `make db-down`: bajar PostgreSQL local.
-- `make db-logs`: ver logs de PostgreSQL local.
-- `make run`: levantar la API con perfil `dev`.
-- `make test`: correr `./gradlew test`.
-- `make clean`: correr `./gradlew clean`.
-
-Si se agrega target de migraciones, debe respetar la configuracion elegida de Flyway. No debe duplicar SQL ni reemplazar las migraciones versionadas.
-
-### `.env` y `.env.example`
-
-Agregar:
-
-- `.env.example` versionado con nombres de variables y valores dummy seguros.
-- `.env` local no versionado.
-- Regla en `.gitignore` si no existe.
-
-Variables minimas:
-
-```text
-SPRING_PROFILES_ACTIVE=dev
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=turnero
-DB_USERNAME=turnero
-DB_PASSWORD=turnero_local
-GOOGLE_CLIENT_ID=
-AUTH_SESSION_SECURE=false
-```
-
-El MVP usa ID token y no requiere `GOOGLE_CLIENT_SECRET`. Los defaults de cookie y los overrides realmente referenciados por cada perfil viven en [Cookie por ambiente](api-contracts-mvp.md#cookie-por-ambiente). La decision HTTP/BFF/CORS/CSRF vive en [Seguridad y scoping](api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62): admin usa BFF same-origin y booking publico debe conservarlo; Spring no requiere una variable CORS.
+Los defaults y overrides de sesión viven en [Cookie por ambiente](api-contracts-mvp.md#cookie-por-ambiente). La decisión de integración HTTP vive en [Frontera HTTP](api-contracts-mvp.md#frontera-http-bff-cors-y-csrf-turn-62).
 
 ### Perfiles Spring
 

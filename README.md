@@ -13,7 +13,7 @@ Permite administrar turnos, clientes, servicios y profesionales, aplicando buena
 - Spring Data JPA
 - Gradle
 - JUnit / Mockito (tests)
-- H2 / MySQL (configurable)
+- PostgreSQL y Flyway. H2 y PostgreSQL/Testcontainers para pruebas.
 - Git & GitHub
 
 ---
@@ -29,6 +29,10 @@ El proyecto sigue una **arquitectura en capas**, separando responsabilidades:
 - **Test** → pruebas unitarias
 
 ---
+
+## Arranque y pruebas locales
+
+La [guía de entorno local](docs/referencias/entorno-local.md) reúne el arranque en PowerShell, las pruebas y el smoke de reserva y cancelación del backend MVP.
 
 ## Documentacion MVP
 

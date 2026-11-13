@@ -152,9 +152,7 @@ Las ramas remotas de tests o documentacion no cambian el estado funcional del MV
 
 ## Verificacion tecnica observada
 
-- `./gradlew test` compila el proyecto y ejecuta la suite.
-- Los tests de aplicacion pasan; `FlywayMigrationTest` requiere un daemon Docker disponible para iniciar PostgreSQL con Testcontainers.
-- En el entorno de esta revision no habia Docker disponible, por lo que ese test no pudo completarse. Antes de marcar la base tecnica como verificada localmente o en CI, debe ejecutarse la suite con Docker activo.
+La revisión original quedó pendiente de validar Flyway por falta de Docker. Los comandos vigentes de arranque y pruebas están en la [guía de entorno local](../referencias/entorno-local.md).
 
 ## Pendientes importantes en paralelo
 
@@ -175,23 +173,6 @@ Frontend ya puede preparar UI y mocks contra:
 - appointments admin create/list base.
 
 Para conectar agenda diaria real, esperar a TURN-90; para crear o editar con invariantes completas, esperar a TURN-105, TURN-109 y TURN-92.
-
-## Comandos de referencia
-
-Para verificar base local:
-
-```bash
-make db-up
-make run
-make test
-make db-down
-```
-
-Suite general:
-
-```bash
-./gradlew test
-```
 
 ## TURN-76 integrada — listado real de servicios
 

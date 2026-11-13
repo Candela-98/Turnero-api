@@ -4,7 +4,7 @@ Complemento **opcional** del aprovisionamiento del negocio/owner. Usa Python 3.9
 
 ## Uso
 
-1. Preparar el entorno con `make db-up`, el aprovisionamiento habitual y `make run`; iniciar sesión en el frontend. Deben existir clientes activos, profesionales activos con servicios activos asignados, horarios del negocio/profesional y reglas de reserva.
+1. Preparar el [entorno local](entorno-local.md#arranque-en-powershell), [aprovisionar un OWNER de prueba](../mvp/auth/google-mvp.md#aprovisionamiento-local) e iniciar sesión en el frontend. Deben existir clientes activos, profesionales activos con servicios activos asignados, horarios del negocio/profesional y reglas de reserva.
 2. Obtener el ID del negocio de la respuesta local `GET /business` o `/auth/me`. El script lo compara con el negocio autenticado antes de continuar; no tiene IDs de personas ni nombres de empresa fijos.
 3. En DevTools → Network, abrir una petición autenticada local y copiar únicamente el valor de la cabecera **Cookie** (`turnero_session=…`). No compartirlo ni guardarlo en el repo.
 4. Desde `Turnero-api`, simular:
