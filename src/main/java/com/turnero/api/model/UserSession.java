@@ -1,5 +1,6 @@
 package com.turnero.api.model;
 
+import com.turnero.api.model.enums.SessionScope;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -23,7 +24,13 @@ public class UserSession {
 
     private Long userId;
 
+    private Long customerId;
+
     private String sessionTokenHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 8)
+    private SessionScope scope;
 
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;

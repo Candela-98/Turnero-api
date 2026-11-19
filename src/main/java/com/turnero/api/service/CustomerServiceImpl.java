@@ -35,10 +35,15 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final EntityManager entityManager;
 
+    private final CustomerWriteLock customerWriteLock;
+
     @Override
+    @Transactional
     public Customer saveCustomer(Customer customer) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
 
+        customerWriteLock.acquire(businessId);
+        rejectLinkedEmailForCreation(businessId, customer.getEmail());
         customer.setBusinessId(businessId);
         customer.setName(customer.getName().trim());
         customer.setPhoneNumber(customer.getPhoneNumber().trim());
@@ -57,6 +62,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     @Transactional
     public Customer findOrCreateCustomerForBusiness(Long businessId, String name, String email, String phoneNumber) {
+        customerWriteLock.acquire(businessId);
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         String normalizedPhone = phoneDigits(phoneNumber);
         List<Customer> matches = customerRepository.findContactMatchesForUpdate(businessId, normalizedEmail, normalizedPhone);
@@ -88,6 +94,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     private Customer lockCustomer(Long id) {
         Long businessId = currentBusinessContext.getCurrentBusinessId();
+        customerWriteLock.acquire(businessId);
         Customer customer = customerRepository.findByIdAndBusinessIdForUpdate(id, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + id));
         entityManager.refresh(customer);
@@ -148,6 +155,13 @@ public class CustomerServiceImpl implements CustomerService {
         Customer updatedCustomer = customerRepository.save(currentCustomer);
         log.info("Customer with id={} successfully updated", id);
         return updatedCustomer;
+    }
+
+    private void rejectLinkedEmailForCreation(Long businessId, String email) {
+        if (email == null || email.isBlank()) return;
+        boolean linkedMatch = customerRepository.findEmailMatches(businessId, email.trim().toLowerCase(Locale.ROOT))
+                .stream().anyMatch(c -> c.getUserId() != null);
+        if (linkedMatch) throw new com.turnero.api.exception.CustomerIdentityConflictException();
     }
 
     private static String optionalText(String value) {

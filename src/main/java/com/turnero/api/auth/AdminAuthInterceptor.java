@@ -5,6 +5,7 @@ import com.turnero.api.exception.ForbiddenException;
 import com.turnero.api.exception.UnauthorizedException;
 import com.turnero.api.model.User;
 import com.turnero.api.model.UserSession;
+import com.turnero.api.model.enums.SessionScope;
 import com.turnero.api.model.enums.UserRole;
 import com.turnero.api.repository.UserRepository;
 import com.turnero.api.service.SessionService;
@@ -29,7 +30,7 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String rawToken = extractSessionToken(request);
-        UserSession session = sessionService.validateSession(rawToken);
+        UserSession session = sessionService.validateSession(rawToken, SessionScope.ADMIN);
 
         User user = userRepository.findById(session.getUserId())
                 .orElseThrow(() -> new UnauthorizedException("User not found"));

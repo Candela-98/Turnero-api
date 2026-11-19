@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 
+import static com.turnero.api.model.enums.SessionScope.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -53,9 +54,9 @@ class AuthServiceImplTest {
         User user = user(1L, 10L);
         Business business = business(10L);
         given(googleIdentityService.verify(idToken)).willReturn(identity);
-        given(userRepository.findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject")).willReturn(Optional.of(user));
+        given(userRepository.findInternalByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject")).willReturn(Optional.of(user));
         given(businessRepository.findById(10L)).willReturn(Optional.of(business));
-        given(sessionService.createSession(1L, ipAddress, userAgent)).willReturn("generated-session-token");
+        given(sessionService.createSession(1L, ADMIN, ipAddress, userAgent)).willReturn("generated-session-token");
 
         AuthLoginResult result = authService.loginWithGoogle(idToken, ipAddress, userAgent);
 
@@ -63,8 +64,8 @@ class AuthServiceImplTest {
         assertThat(result.session().user().role()).isEqualTo(UserRole.OWNER);
         assertThat(result.session().business().onboardingStatus()).isEqualTo(BusinessOnboardingStatus.READY);
         verify(googleIdentityService).verify(idToken);
-        verify(userRepository).findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject");
-        verify(sessionService).createSession(1L, ipAddress, userAgent);
+        verify(userRepository).findInternalByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject");
+        verify(sessionService).createSession(1L, ADMIN, ipAddress, userAgent);
     }
 
     @Test
@@ -72,13 +73,13 @@ class AuthServiceImplTest {
         String idToken = "valid-id-token";
         GoogleIdentityDto identity = new GoogleIdentityDto("missing-subject", "user@example.com", true);
         given(googleIdentityService.verify(idToken)).willReturn(identity);
-        given(userRepository.findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "missing-subject")).willReturn(Optional.empty());
+        given(userRepository.findInternalByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "missing-subject")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.loginWithGoogle(idToken, "127.0.0.1", "Mozilla/5.0"))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessage("User is not authorized");
 
-        verify(userRepository).findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "missing-subject");
+        verify(userRepository).findInternalByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "missing-subject");
         verifyNoInteractions(sessionService);
     }
 
@@ -88,14 +89,14 @@ class AuthServiceImplTest {
         GoogleIdentityDto identity = new GoogleIdentityDto("google-subject", "user@example.com", true);
         User user = user(1L, null);
         given(googleIdentityService.verify(idToken)).willReturn(identity);
-        given(userRepository.findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject"))
+        given(userRepository.findInternalByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject"))
                 .willReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.loginWithGoogle(idToken, "127.0.0.1", "Mozilla/5.0"))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("User is not associated with a business");
 
-        verify(userRepository).findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject");
+        verify(userRepository).findInternalByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject");
         verifyNoInteractions(sessionService);
     }
 
@@ -133,7 +134,7 @@ class AuthServiceImplTest {
                 .slug("barber-studio")
                 .onboardingStatus(BusinessOnboardingStatus.READY)
                 .build();
-        given(sessionService.validateSession(rawSessionToken)).willReturn(session);
+        given(sessionService.validateSession(rawSessionToken, ADMIN)).willReturn(session);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(businessRepository.findById(10L)).willReturn(Optional.of(business));
 
@@ -148,7 +149,7 @@ class AuthServiceImplTest {
         assertThat(result.business().name()).isEqualTo("Barber Studio");
         assertThat(result.business().slug()).isEqualTo("barber-studio");
         assertThat(result.business().onboardingStatus()).isEqualTo(BusinessOnboardingStatus.READY);
-        verify(sessionService).validateSession(rawSessionToken);
+        verify(sessionService).validateSession(rawSessionToken, ADMIN);
         verify(userRepository).findById(1L);
         verify(businessRepository).findById(10L);
     }
@@ -157,12 +158,12 @@ class AuthServiceImplTest {
     void getCurrentUser_whenSessionValidationFails_propagatesUnauthorized() {
         String rawSessionToken = "invalid-session-token";
         UnauthorizedException unauthorizedException = new UnauthorizedException("Invalid session");
-        given(sessionService.validateSession(rawSessionToken)).willThrow(unauthorizedException);
+        given(sessionService.validateSession(rawSessionToken, ADMIN)).willThrow(unauthorizedException);
 
         assertThatThrownBy(() -> authService.getCurrentUser(rawSessionToken))
                 .isSameAs(unauthorizedException);
 
-        verify(sessionService).validateSession(rawSessionToken);
+        verify(sessionService).validateSession(rawSessionToken, ADMIN);
         verifyNoInteractions(userRepository);
         verifyNoInteractions(businessRepository);
     }
@@ -173,14 +174,14 @@ class AuthServiceImplTest {
         UserSession session = UserSession.builder()
                 .userId(1L)
                 .build();
-        given(sessionService.validateSession(rawSessionToken)).willReturn(session);
+        given(sessionService.validateSession(rawSessionToken, ADMIN)).willReturn(session);
         given(userRepository.findById(1L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.getCurrentUser(rawSessionToken))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessage("User not found");
 
-        verify(sessionService).validateSession(rawSessionToken);
+        verify(sessionService).validateSession(rawSessionToken, ADMIN);
         verify(userRepository).findById(1L);
         verifyNoInteractions(businessRepository);
     }
@@ -192,14 +193,14 @@ class AuthServiceImplTest {
                 .userId(1L)
                 .build();
         User user = user(1L, null);
-        given(sessionService.validateSession(rawSessionToken)).willReturn(session);
+        given(sessionService.validateSession(rawSessionToken, ADMIN)).willReturn(session);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.getCurrentUser(rawSessionToken))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("User is not associated with a business");
 
-        verify(sessionService).validateSession(rawSessionToken);
+        verify(sessionService).validateSession(rawSessionToken, ADMIN);
         verify(userRepository).findById(1L);
         verifyNoInteractions(businessRepository);
     }
@@ -210,7 +211,7 @@ class AuthServiceImplTest {
         UserSession session = UserSession.builder().userId(1L).build();
         User user = user(1L, 10L);
         user.setRole(UserRole.ADMIN);
-        given(sessionService.validateSession(rawSessionToken)).willReturn(session);
+        given(sessionService.validateSession(rawSessionToken, ADMIN)).willReturn(session);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.getCurrentUser(rawSessionToken))
@@ -227,7 +228,7 @@ class AuthServiceImplTest {
                 .userId(1L)
                 .build();
         User user = user(1L, 10L);
-        given(sessionService.validateSession(rawSessionToken)).willReturn(session);
+        given(sessionService.validateSession(rawSessionToken, ADMIN)).willReturn(session);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(businessRepository.findById(10L)).willReturn(Optional.empty());
 
@@ -235,7 +236,7 @@ class AuthServiceImplTest {
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Business not found");
 
-        verify(sessionService).validateSession(rawSessionToken);
+        verify(sessionService).validateSession(rawSessionToken, ADMIN);
         verify(userRepository).findById(1L);
         verify(businessRepository).findById(10L);
     }
@@ -246,7 +247,7 @@ class AuthServiceImplTest {
 
         authService.logout(sessionToken);
 
-        verify(sessionService).revokeSession(sessionToken);
+        verify(sessionService).revokeSession(sessionToken, ADMIN);
         verifyNoInteractions(googleIdentityService, userRepository, businessRepository);
     }
 
@@ -257,7 +258,7 @@ class AuthServiceImplTest {
         User user = user(1L, 10L);
         user.setRole(UserRole.ADMIN);
         given(googleIdentityService.verify(idToken)).willReturn(identity);
-        given(userRepository.findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject"))
+        given(userRepository.findInternalByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, "google-subject"))
                 .willReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.loginWithGoogle(idToken, "127.0.0.1", "Mozilla/5.0"))

@@ -11,6 +11,8 @@ import jakarta.servlet.http.Cookie;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import static com.turnero.api.model.enums.SessionScope.ADMIN;
+
 class AdminAuthTestHelper {
 
     private final UserRepository userRepository;
@@ -45,7 +47,7 @@ class AdminAuthTestHelper {
                 .updatedAt(now)
                 .build());
 
-        String rawToken = sessionService.createSession(user.getId(), "127.0.0.1", "MockMvc");
+        String rawToken = sessionService.createSession(user.getId(), ADMIN, "127.0.0.1", "MockMvc");
 
         return new Cookie(sessionProperties.getCookieName(), rawToken);
     }

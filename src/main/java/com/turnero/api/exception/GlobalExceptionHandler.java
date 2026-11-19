@@ -91,6 +91,12 @@ public class GlobalExceptionHandler {
         return customerBookingError(403, "Forbidden", "CUSTOMER_BOOKING_BLOCKED", request);
     }
 
+    @ExceptionHandler(CustomerIdentityConflictException.class)
+    public ResponseEntity<ErrorResponse> handleCustomerIdentityConflict(CustomerIdentityConflictException ex,
+                                                                        HttpServletRequest request) {
+        return customerBookingError(409, "Conflict", "CUSTOMER_IDENTITY_CONFLICT", request);
+    }
+
     @ExceptionHandler(CustomerIdentityAmbiguousException.class)
     public ResponseEntity<ErrorResponse> handleCustomerIdentityAmbiguous(CustomerIdentityAmbiguousException ex, HttpServletRequest request) {
         return customerBookingError(409, "Conflict", "CUSTOMER_IDENTITY_AMBIGUOUS", request);

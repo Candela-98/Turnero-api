@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static com.turnero.api.model.enums.SessionScope.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(classes = {SessionCleanupServiceImpl.class, SessionCleanupPostgresIT.CleanupTestConfiguration.class},
@@ -171,6 +172,7 @@ class SessionCleanupPostgresIT {
 
     private Long saveSession(LocalDateTime expiresAt, LocalDateTime revokedAt) {
         return sessionRepository.save(UserSession.builder()
+                .scope(ADMIN)
                 .userId(userId)
                 .sessionTokenHash(UUID.randomUUID().toString())
                 .createdAt(CUTOFF.minusDays(60))

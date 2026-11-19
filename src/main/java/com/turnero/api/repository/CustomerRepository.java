@@ -20,6 +20,15 @@ public interface CustomerRepository extends JpaRepository<Customer, Long>, JpaSp
             """, nativeQuery = true)
     List<Customer> findContactMatchesForUpdate(Long businessId, String email, String phone);
 
+    Optional<Customer> findByBusinessIdAndUserId(Long businessId, Long userId);
+
+    @org.springframework.data.jpa.repository.Query("""
+            select c from Customer c
+            where c.businessId = :businessId and lower(trim(c.email)) = :email
+            order by c.id
+            """)
+    List<Customer> findEmailMatches(Long businessId, String email);
+
     List<Customer> findAllByBusinessId(Long businessId);
 
     Optional<Customer> findByIdAndBusinessId(Long id, Long businessId);

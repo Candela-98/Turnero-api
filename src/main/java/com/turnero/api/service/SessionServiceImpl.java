@@ -3,6 +3,7 @@ package com.turnero.api.service;
 import com.turnero.api.config.SessionProperties;
 import com.turnero.api.exception.UnauthorizedException;
 import com.turnero.api.model.UserSession;
+import com.turnero.api.model.enums.SessionScope;
 import com.turnero.api.repository.UserSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -49,14 +51,28 @@ public class SessionServiceImpl implements SessionService{
     }
 
     @Override
-    public String createSession(Long userId, String ipAddress, String userAgent) {
+    public String createSession(Long userId, SessionScope scope, String ipAddress, String userAgent) {
+        if (scope != SessionScope.ADMIN) {
+            throw new IllegalArgumentException("Customer sessions require a customer profile");
+        }
+        return createSession(userId, null, scope, ipAddress, userAgent);
+    }
+
+    @Override
+    public String createCustomerSession(Long userId, Long customerId, String ipAddress, String userAgent) {
+        return createSession(userId, Objects.requireNonNull(customerId), SessionScope.CUSTOMER, ipAddress, userAgent);
+    }
+
+    private String createSession(Long userId, Long customerId, SessionScope scope, String ipAddress, String userAgent) {
         String rawToken = generateToken();
         String hashedToken = hashToken(rawToken);
 
         LocalDateTime now = LocalDateTime.now();
 
         UserSession userSession = UserSession.builder()
-                .userId(userId)
+                .userId(Objects.requireNonNull(userId))
+                .customerId(customerId)
+                .scope(Objects.requireNonNull(scope))
                 .sessionTokenHash(hashedToken)
                 .createdAt(now)
                 .expiresAt(now.plusDays(sessionProperties.getTtlDays()))
@@ -71,7 +87,7 @@ public class SessionServiceImpl implements SessionService{
     }
 
     @Override
-    public UserSession validateSession(String rawToken) {
+    public UserSession validateSession(String rawToken, SessionScope expectedScope) {
         if (rawToken == null || rawToken.isBlank()) {
             throw new UnauthorizedException("Session token is required");
         }
@@ -82,14 +98,18 @@ public class SessionServiceImpl implements SessionService{
                 .findBySessionTokenHash(tokenHash)
                 .orElseThrow(() -> new UnauthorizedException("Invalid session"));
 
+        if (session.getScope() != Objects.requireNonNull(expectedScope)) {
+            throw new UnauthorizedException("Invalid session");
+        }
+
         validateActiveSession(session);
 
         return session;
     }
 
     @Override
-    public void revokeSession(String rawToken) {
-        UserSession session = validateSession(rawToken);
+    public void revokeSession(String rawToken, SessionScope expectedScope) {
+        UserSession session = validateSession(rawToken, expectedScope);
 
         session.setRevokedAt(LocalDateTime.now());
 
@@ -101,7 +121,7 @@ public class SessionServiceImpl implements SessionService{
             throw new UnauthorizedException("Session has been revoked");
         }
 
-        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (!session.getExpiresAt().isAfter(LocalDateTime.now())) {
             throw new UnauthorizedException("Session has expired");
         }
     }

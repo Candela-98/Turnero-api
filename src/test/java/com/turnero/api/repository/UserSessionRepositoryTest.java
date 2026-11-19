@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import static com.turnero.api.model.enums.SessionScope.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
@@ -152,6 +153,7 @@ class UserSessionRepositoryTest {
 
     private UserSession saveSession(LocalDateTime expiresAt, LocalDateTime revokedAt) {
         return repository.save(UserSession.builder()
+                .scope(ADMIN)
                 .userId(1L)
                 .sessionTokenHash(UUID.randomUUID().toString())
                 .createdAt(CUTOFF.minusDays(60))

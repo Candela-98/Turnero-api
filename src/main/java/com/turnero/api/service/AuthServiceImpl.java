@@ -10,6 +10,7 @@ import com.turnero.api.model.Business;
 import com.turnero.api.model.User;
 import com.turnero.api.model.UserSession;
 import com.turnero.api.model.enums.AuthProvider;
+import com.turnero.api.model.enums.SessionScope;
 import com.turnero.api.model.enums.UserRole;
 import com.turnero.api.repository.BusinessRepository;
 import com.turnero.api.repository.UserRepository;
@@ -29,17 +30,17 @@ public class AuthServiceImpl implements AuthService{
     public AuthLoginResult loginWithGoogle(String idToken, String ipAddress, String userAgent) {
         GoogleIdentityDto identity = googleIdentityService.verify(idToken);
 
-        User user = userRepository.findByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, identity.subject())
+        User user = userRepository.findInternalByAuthProviderAndAuthSubject(AuthProvider.GOOGLE, identity.subject())
                 .orElseThrow(() -> new UnauthorizedException("User is not authorized"));
 
         AuthSessionResponseDto session = resolveAuthorizedSession(user);
-        String sessionToken = sessionService.createSession(user.getId(), ipAddress, userAgent);
+        String sessionToken = sessionService.createSession(user.getId(), SessionScope.ADMIN, ipAddress, userAgent);
         return new AuthLoginResult(sessionToken, session);
     }
 
     @Override
     public AuthSessionResponseDto getCurrentUser(String rawSessionToken) {
-        UserSession session = sessionService.validateSession(rawSessionToken);
+        UserSession session = sessionService.validateSession(rawSessionToken, SessionScope.ADMIN);
 
         User user = userRepository.findById(session.getUserId())
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
@@ -49,7 +50,7 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public void logout(String sessionToken) {
-        sessionService.revokeSession(sessionToken);
+        sessionService.revokeSession(sessionToken, SessionScope.ADMIN);
     }
 
     private AuthSessionResponseDto resolveAuthorizedSession(User user) {
