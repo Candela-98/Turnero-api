@@ -756,8 +756,8 @@ class MvpQueryPlanPostgresIT {
             LocalDateTime created = cutoff.minusDays(7);
             if (table == CleanupTable.SESSIONS) {
                 batch("""
-                        INSERT INTO user_sessions(id,user_id,session_token_hash,created_at,expires_at,last_seen_at,revoked_at)
-                        VALUES (?,?,?,?,?,?,?)
+                        INSERT INTO user_sessions(id,user_id,session_token_hash,created_at,expires_at,last_seen_at,revoked_at,scope)
+                        VALUES (?,?,?,?,?,?,?,'ADMIN')
                         """, rows.stream().map(row -> new Object[]{row.id(), row.parent(), "synthetic-session-" + row.id(),
                         created, row.expires(), created, row.marker()}).toList());
             } else {
@@ -817,7 +817,7 @@ class MvpQueryPlanPostgresIT {
         try {
             flyway.validate();
             assertThat(Arrays.stream(flyway.info().applied()).map(info -> info.getVersion().getVersion()).toList())
-                    .containsExactly("1", "3", "4", "1002", "1003", "1004");
+                    .containsExactly("1", "3", "4", "1002", "1003", "1004", "1005");
             assertThat(flyway.migrate().migrationsExecuted).isZero();
             assertThat(jdbc.queryForObject("SELECT count(*) FROM businesses", Long.class)).isZero();
             assertThat(jdbc.queryForObject("SHOW autovacuum", String.class)).isEqualTo("off");

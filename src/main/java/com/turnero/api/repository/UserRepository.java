@@ -18,4 +18,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByIdAndBusinessId(Long id, Long businessId);
 
     Optional<User> findByAuthProviderAndAuthSubject(AuthProvider authProvider, String authSubject);
+
+    @Query("""
+            select u from User u
+            where u.authProvider = :authProvider and u.authSubject = :authSubject
+              and u.role <> com.turnero.api.model.enums.UserRole.CUSTOMER
+            """)
+    Optional<User> findInternalByAuthProviderAndAuthSubject(
+            @Param("authProvider") AuthProvider authProvider, @Param("authSubject") String authSubject);
 }

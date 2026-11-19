@@ -29,6 +29,9 @@ public class CustomerServiceImplTest {
     @Mock
     private jakarta.persistence.EntityManager entityManager;
 
+    @Mock
+    private CustomerWriteLock customerWriteLock;
+
     @InjectMocks
     private CustomerServiceImpl customerService;
 

@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.Optional;
 
+import static com.turnero.api.model.enums.SessionScope.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -47,7 +48,7 @@ class SessionServiceImplTest {
         LocalDateTime beforeCreate = LocalDateTime.now();
         given(sessionProperties.getTtlDays()).willReturn(7L);
 
-        String rawToken = sessionService.createSession(userId, ipAddress, userAgent);
+        String rawToken = sessionService.createSession(userId, ADMIN, ipAddress, userAgent);
 
         LocalDateTime afterCreate = LocalDateTime.now();
         ArgumentCaptor<UserSession> captor = ArgumentCaptor.forClass(UserSession.class);
@@ -58,6 +59,7 @@ class SessionServiceImplTest {
         assertThat(savedSession.getSessionTokenHash()).isNotEqualTo(rawToken);
         assertThat(savedSession.getSessionTokenHash()).isEqualTo(sha256(rawToken));
         assertThat(savedSession.getUserId()).isEqualTo(userId);
+        assertThat(savedSession.getScope()).isEqualTo(ADMIN);
         assertThat(savedSession.getIpAddress()).isEqualTo(ipAddress);
         assertThat(savedSession.getUserAgent()).isEqualTo(userAgent);
         assertThat(savedSession.getCreatedAt()).isBetween(beforeCreate, afterCreate);
@@ -69,12 +71,13 @@ class SessionServiceImplTest {
     void validateSession_whenSessionIsValid_returnsSession() {
         String rawToken = "valid-token";
         UserSession session = UserSession.builder()
+                .scope(ADMIN)
                 .sessionTokenHash(sha256(rawToken))
                 .expiresAt(LocalDateTime.now().plusDays(1))
                 .build();
         given(userSessionRepository.findBySessionTokenHash(sha256(rawToken))).willReturn(Optional.of(session));
 
-        UserSession result = sessionService.validateSession(rawToken);
+        UserSession result = sessionService.validateSession(rawToken, ADMIN);
 
         assertThat(result).isSameAs(session);
         verify(userSessionRepository).findBySessionTokenHash(sha256(rawToken));
@@ -84,7 +87,7 @@ class SessionServiceImplTest {
     @NullAndEmptySource
     @ValueSource(strings = {" "})
     void validateSession_whenTokenIsNullOrBlank_throwsUnauthorized(String rawToken) {
-        assertThatThrownBy(() -> sessionService.validateSession(rawToken))
+        assertThatThrownBy(() -> sessionService.validateSession(rawToken, ADMIN))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessage("Session token is required");
 
@@ -96,7 +99,7 @@ class SessionServiceImplTest {
         String rawToken = "missing-token";
         given(userSessionRepository.findBySessionTokenHash(sha256(rawToken))).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> sessionService.validateSession(rawToken))
+        assertThatThrownBy(() -> sessionService.validateSession(rawToken, ADMIN))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessage("Invalid session");
 
@@ -107,12 +110,13 @@ class SessionServiceImplTest {
     void validateSession_whenSessionIsExpired_throwsUnauthorized() {
         String rawToken = "expired-token";
         UserSession session = UserSession.builder()
+                .scope(ADMIN)
                 .sessionTokenHash(sha256(rawToken))
                 .expiresAt(LocalDateTime.now().minusSeconds(1))
                 .build();
         given(userSessionRepository.findBySessionTokenHash(sha256(rawToken))).willReturn(Optional.of(session));
 
-        assertThatThrownBy(() -> sessionService.validateSession(rawToken))
+        assertThatThrownBy(() -> sessionService.validateSession(rawToken, ADMIN))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessage("Session has expired");
 
@@ -123,13 +127,14 @@ class SessionServiceImplTest {
     void validateSession_whenSessionIsRevoked_throwsUnauthorized() {
         String rawToken = "revoked-token";
         UserSession session = UserSession.builder()
+                .scope(ADMIN)
                 .sessionTokenHash(sha256(rawToken))
                 .expiresAt(LocalDateTime.now().plusDays(1))
                 .revokedAt(LocalDateTime.now())
                 .build();
         given(userSessionRepository.findBySessionTokenHash(sha256(rawToken))).willReturn(Optional.of(session));
 
-        assertThatThrownBy(() -> sessionService.validateSession(rawToken))
+        assertThatThrownBy(() -> sessionService.validateSession(rawToken, ADMIN))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessage("Session has been revoked");
 
@@ -142,14 +147,14 @@ class SessionServiceImplTest {
         String rawToken = "valid-token";
 
         UserSession session = new UserSession();
-        session.setRevokedAt(null);
+        session.setScope(ADMIN);
         session.setExpiresAt(LocalDateTime.now().plusDays(1));
 
         when(userSessionRepository.findBySessionTokenHash(anyString()))
                 .thenReturn(Optional.of(session));
 
         // When
-        sessionService.revokeSession(rawToken);
+        sessionService.revokeSession(rawToken, ADMIN);
 
         // Then
         assertThat(session.getRevokedAt()).isNotNull();
@@ -165,7 +170,7 @@ class SessionServiceImplTest {
                 .thenReturn(Optional.empty());
 
         // When + Then
-        assertThatThrownBy(() -> sessionService.revokeSession(rawToken))
+        assertThatThrownBy(() -> sessionService.revokeSession(rawToken, ADMIN))
                 .isInstanceOf(UnauthorizedException.class);
 
         verify(userSessionRepository, never()).save(any(UserSession.class));

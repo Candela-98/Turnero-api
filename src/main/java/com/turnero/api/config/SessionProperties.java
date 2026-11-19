@@ -8,9 +8,26 @@ import org.springframework.stereotype.Component;
 public class SessionProperties {
 
     private String cookieName;
+    private String customerCookieName;
     private long ttlDays;
     private boolean secure;
     private String sameSite;
+
+    @jakarta.annotation.PostConstruct
+    void validateCookieNames() {
+        if (getCustomerCookieName().equals(cookieName)) {
+            throw new IllegalStateException("Admin and customer cookies must have different names");
+        }
+    }
+
+    public String getCustomerCookieName() {
+        return customerCookieName == null
+                ? (secure ? "__Host-turnero_customer_session" : "turnero_customer_session") : customerCookieName;
+    }
+
+    public void setCustomerCookieName(String customerCookieName) {
+        this.customerCookieName = customerCookieName;
+    }
 
     public String getCookieName() {
         return cookieName;

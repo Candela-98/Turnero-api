@@ -46,6 +46,9 @@ class CustomerControllerIT {
     MockMvc mockMvc;
 
     @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @Autowired
     ObjectMapper objectMapper;
 
     @Autowired
@@ -72,6 +75,12 @@ class CustomerControllerIT {
 
     @BeforeEach
     void cleanDb() {
+        // The customer write lock requires the authenticated business to exist.
+        jdbc.update("""
+                INSERT INTO businesses (id, name, slug, timezone, status, onboarding_status, created_at, updated_at)
+                SELECT 1, 'Controller test business', 'controller-test-business', 'UTC', 'ACTIVE', 'READY', NOW(), NOW()
+                WHERE NOT EXISTS (SELECT 1 FROM businesses WHERE id = 1)
+                """);
         appointmentRepository.deleteAll();
         customerRepository.deleteAll();
         mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)

@@ -48,7 +48,7 @@ class FlywayMigrationTest {
         Flyway flyway = configuration().load();
 
         assertDoesNotThrow(flyway::migrate);
-        assertSuccessfulVersions("1", "3", "4", "1002", "1003", "1004");
+        assertSuccessfulVersions("1", "3", "4", "1002", "1003", "1004", "1005");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
     }
@@ -72,7 +72,7 @@ class FlywayMigrationTest {
                 .load();
 
         assertDoesNotThrow(flyway::migrate);
-        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004");
+        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004", "1005");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
     }
@@ -99,7 +99,7 @@ class FlywayMigrationTest {
                 .outOfOrder(true)
                 .load();
         assertDoesNotThrow(updated::migrate);
-        assertSuccessfulVersions("1", "1000", "3", "4", "1001", "1002", "1003", "1004");
+        assertSuccessfulVersions("1", "1000", "3", "4", "1001", "1002", "1003", "1004", "1005");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
         assertThat(updated.validateWithResult().validationSuccessful).isTrue();
@@ -144,6 +144,30 @@ class FlywayMigrationTest {
         try (Connection connection = connection(); Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("SELECT count(*) FROM pg_indexes WHERE schemaname=current_schema() AND indexname IN ('idx_customers_business_normalized_email','idx_customers_business_normalized_phone','idx_customers_business_archive_block')")) {
             rows.next(); assertThat(rows.getInt(1)).isEqualTo(3);
+        }
+    }
+
+    @Test
+    void shouldPreserveLegacyLinksToGlobalIdentitiesAcrossBusinesses() throws Exception {
+        configuration().locations("classpath:db/migration", "classpath:db/seed/local").target("1004").load().migrate();
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO businesses (id, name, slug, timezone, status, onboarding_status, created_at, updated_at)
+                    VALUES (2, 'Other business', 'other-business', 'UTC', 'ACTIVE', 'READY', NOW(), NOW())
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO customers (business_id, user_id, name, status, created_at, updated_at)
+                    VALUES (2, 1, 'Cross-business link', 'ACTIVE', NOW(), NOW())
+                    """);
+        }
+
+        Flyway updated = configuration().locations("classpath:db/migration", "classpath:db/seed/local").load();
+        assertThat(updated.migrate().migrationsExecuted).isEqualTo(1);
+        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004", "1005");
+        try (Connection connection = connection(); Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT user_id FROM customers WHERE business_id = 2")) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getLong(1)).isEqualTo(1);
         }
     }
 

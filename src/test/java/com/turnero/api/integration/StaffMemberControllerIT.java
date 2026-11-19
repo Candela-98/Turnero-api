@@ -44,6 +44,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
+import static com.turnero.api.model.enums.SessionScope.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -245,7 +246,7 @@ public class StaffMemberControllerIT {
     @Test
     void myStaffLink_usesSessionAndBusinessAndIncludesInactiveStaff() throws Exception {
         var cookie = adminAuth().ownerSessionCookie(1L);
-        Long ownerId = sessionService.validateSession(cookie.getValue()).getUserId();
+        Long ownerId = sessionService.validateSession(cookie.getValue(), ADMIN).getUserId();
         mockMvc.perform(get(BASE_URL + "/me").cookie(cookie)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.staff_member").isEmpty());
         StaffMember member = getStaffMember();

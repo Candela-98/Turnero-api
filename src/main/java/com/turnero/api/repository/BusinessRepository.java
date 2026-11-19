@@ -8,4 +8,8 @@ import java.util.Optional;
 public interface BusinessRepository extends JpaRepository<Business, Long> {
 
     Optional<Business> findBySlug(String slug);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select b from Business b where b.id = :id")
+    Optional<Business> findByIdForCustomerWrite(Long id);
 }
