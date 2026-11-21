@@ -48,7 +48,7 @@ class FlywayMigrationTest {
         Flyway flyway = configuration().load();
 
         assertDoesNotThrow(flyway::migrate);
-        assertSuccessfulVersions("1", "3", "4", "1002", "1003", "1004", "1005");
+        assertSuccessfulVersions("1", "3", "4", "1002", "1003", "1004", "1005", "1006");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
     }
@@ -72,7 +72,7 @@ class FlywayMigrationTest {
                 .load();
 
         assertDoesNotThrow(flyway::migrate);
-        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004", "1005");
+        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004", "1005", "1006");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
     }
@@ -99,7 +99,7 @@ class FlywayMigrationTest {
                 .outOfOrder(true)
                 .load();
         assertDoesNotThrow(updated::migrate);
-        assertSuccessfulVersions("1", "1000", "3", "4", "1001", "1002", "1003", "1004", "1005");
+        assertSuccessfulVersions("1", "1000", "3", "4", "1001", "1002", "1003", "1004", "1005", "1006");
         assertCleanupIndexes();
         assertPublicTokenCleanupIndexes();
         assertThat(updated.validateWithResult().validationSuccessful).isTrue();
@@ -162,12 +162,72 @@ class FlywayMigrationTest {
         }
 
         Flyway updated = configuration().locations("classpath:db/migration", "classpath:db/seed/local").load();
-        assertThat(updated.migrate().migrationsExecuted).isEqualTo(1);
-        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004", "1005");
+        assertThat(updated.migrate().migrationsExecuted).isEqualTo(2);
+        assertSuccessfulVersions("1", "3", "4", "1000", "1001", "1002", "1003", "1004", "1005", "1006");
         try (Connection connection = connection(); Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("SELECT user_id FROM customers WHERE business_id = 2")) {
             assertThat(rows.next()).isTrue();
             assertThat(rows.getLong(1)).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void ownershipMigrationPreservesAllLegacyDataAndNeverInfersAnOwner() throws Exception {
+        configuration().locations("classpath:db/migration", "classpath:db/seed/local").target("1005").load().migrate();
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            connection.setReadOnly(false);
+            statement.executeUpdate("""
+                    INSERT INTO customers (id,business_id,user_id,name,email,phone_number,status,created_at,updated_at)
+                    VALUES (100,1,1,'Already linked','shared@example.test','123','ACTIVE',NOW(),NOW()),
+                           (101,1,NULL,'Guest','shared@example.test','123','ACTIVE',NOW(),NOW())
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO appointments (id,business_id,customer_id,service_offering_id,staff_member_id,
+                        starts_at,ends_at,duration_minutes,price_cents,status,source,internal_notes,created_at,updated_at)
+                    VALUES (100,1,100,1,1,NOW(),NOW()+interval '30 minutes',30,1000,'CONFIRMED','ADMIN','Private',NOW(),NOW()),
+                           (101,1,101,1,1,NOW(),NOW()+interval '30 minutes',30,1000,'CONFIRMED','PUBLIC_BOOKING','Private',NOW(),NOW())
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO user_sessions (user_id,session_token_hash,scope,created_at,expires_at,last_seen_at)
+                    VALUES (1,'legacy-hash','ADMIN',NOW(),NOW()+interval '1 day',NOW())
+                    """);
+        }
+        List<String> before = appointmentSnapshot(false);
+        Flyway updated = configuration().locations("classpath:db/migration", "classpath:db/seed/local").load();
+        assertThat(updated.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(appointmentSnapshot(true)).isEqualTo(before);
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            connection.setReadOnly(false);
+            try (ResultSet rows = statement.executeQuery("SELECT count(*) FROM appointments WHERE owner_user_id IS NULL")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(2);
+            }
+            statement.executeUpdate("""
+                    INSERT INTO users (id,name,email,auth_provider,auth_subject,role,created_at,updated_at)
+                    VALUES (2,'New identity','shared@example.test','GOOGLE','new-google-sub','CUSTOMER',NOW(),NOW())
+                    """);
+            statement.executeUpdate("UPDATE customers SET user_id=2 WHERE id=101");
+            try (ResultSet rows = statement.executeQuery("SELECT count(*) FROM appointments WHERE owner_user_id IS NOT NULL")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isZero();
+            }
+            try (ResultSet rows = statement.executeQuery("SELECT scope,customer_id FROM user_sessions WHERE session_token_hash='legacy-hash'")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getString(1)).isEqualTo("ADMIN");
+                assertThat(rows.getObject(2)).isNull();
+            }
+        }
+        assertThat(updated.validateWithResult().validationSuccessful).isTrue();
+        assertThat(updated.migrate().migrationsExecuted).isZero();
+    }
+
+    private List<String> appointmentSnapshot(boolean hasOwnershipColumn) throws Exception {
+        String projection = hasOwnershipColumn ? "(to_jsonb(a) - 'owner_user_id')::text" : "to_jsonb(a)::text";
+        try (Connection connection = connection(); Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery("SELECT " + projection + " FROM appointments a ORDER BY id")) {
+            List<String> snapshots = new ArrayList<>();
+            while (rows.next()) snapshots.add(rows.getString(1));
+            return snapshots;
         }
     }
 

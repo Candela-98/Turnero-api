@@ -33,6 +33,7 @@ public class CustomerAuthService {
     private final CustomerWriteLock customerWriteLock;
     private final SessionService sessions;
     private final JdbcTemplate jdbc;
+    private final CustomerSessionResolver customerSessions;
 
     public record Login(String token, CustomerAuthResponseDto response) {}
 
@@ -78,24 +79,14 @@ public class CustomerAuthService {
 
     @Transactional(readOnly = true)
     public CustomerAuthResponseDto me(String slug, String token) {
-        Business business = business(slug);
-        requireActive(business);
-        return response(business, sessionCustomer(business, token));
+        var context = customerSessions.requireActive(slug, token);
+        return response(context.business(), context.customer());
     }
 
     @Transactional
     public void logout(String slug, String token) {
-        Business business = business(slug);
-        sessionCustomer(business, token);
+        customerSessions.resolve(slug, token);
         sessions.revokeSession(token, CUSTOMER);
-    }
-
-    private Customer sessionCustomer(Business business, String token) {
-        var session = sessions.validateSession(token, CUSTOMER);
-        Customer customer = customers.findByIdAndBusinessId(session.getCustomerId(), business.getId())
-                .orElseThrow(() -> new ForbiddenException("Session belongs to another business"));
-        if (!session.getUserId().equals(customer.getUserId())) throw new UnauthorizedException("Invalid session");
-        return customer;
     }
 
     private Business business(String slug) {
