@@ -1626,3 +1626,10 @@ Notas:
 ## TURN-112: rate limiting público
 
 La implementación, cuotas ajustables, contrato 429/503 y criterios pendientes de despliegue se describen en [Rate limiting público](rate-limiting-publico.md). TURN-112 no se considera cerrada hasta verificar la identificación de IP y la integración del BFF en el despliegue real.
+
+## Consulta de turnos propios con sesión cliente — TURN-121
+
+GET `/api/v1/customer/businesses/{slug}/appointments` usa titularidad explícita por identidad
+y negocio, cookie CUSTOMER y una proyección propia sin notas ni contactos. El contrato de
+paginación, la migración y la asignación futura de TURN-122 se documentan en
+[turnos propios y titularidad](../referencias/turnos-propios-titularidad.md).

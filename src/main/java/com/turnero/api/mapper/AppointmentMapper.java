@@ -16,6 +16,7 @@ public interface AppointmentMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "businessId", ignore = true)
+    @Mapping(target = "ownerUserId", ignore = true)
     @Mapping(target = "cancellationReason", ignore = true)
     Appointment toEntity(AppointmentRequestDto dto);
 

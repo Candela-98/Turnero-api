@@ -29,6 +29,8 @@ public class Appointment {
 
     private Long customerId;
 
+    private Long ownerUserId;
+
     private Long serviceOfferingId;
 
     private Long staffMemberId;

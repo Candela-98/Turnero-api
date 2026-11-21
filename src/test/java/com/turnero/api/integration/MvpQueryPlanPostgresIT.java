@@ -817,7 +817,7 @@ class MvpQueryPlanPostgresIT {
         try {
             flyway.validate();
             assertThat(Arrays.stream(flyway.info().applied()).map(info -> info.getVersion().getVersion()).toList())
-                    .containsExactly("1", "3", "4", "1002", "1003", "1004", "1005");
+                    .containsExactly("1", "3", "4", "1002", "1003", "1004", "1005", "1006");
             assertThat(flyway.migrate().migrationsExecuted).isZero();
             assertThat(jdbc.queryForObject("SELECT count(*) FROM businesses", Long.class)).isZero();
             assertThat(jdbc.queryForObject("SHOW autovacuum", String.class)).isEqualTo("off");

@@ -154,6 +154,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                         .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
 
         if (request.getCustomerId() != null) {
+            if (existingAppointment.getOwnerUserId() != null
+                    && !request.getCustomerId().equals(existingAppointment.getCustomerId())) {
+                throw new InvalidStateTransitionException("Cannot reassign an appointment with explicit customer ownership");
+            }
             if (!customerRepository.existsByIdAndBusinessId(request.getCustomerId(), businessId)) {
                 throw new ResourceNotFoundException("Customer not found.");
             }

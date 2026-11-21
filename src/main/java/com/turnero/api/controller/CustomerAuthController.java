@@ -5,7 +5,7 @@ import com.turnero.api.dto.CustomerAuthResponseDto;
 import com.turnero.api.dto.GoogleLoginRequestDto;
 import com.turnero.api.exception.UnauthorizedException;
 import com.turnero.api.service.CustomerAuthService;
-import jakarta.servlet.http.Cookie;
+import com.turnero.api.auth.CustomerSessionCookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
-import java.util.Arrays;
 
 @RestController
 @RequestMapping("/api/v1/customer/businesses/{slug}/auth")
@@ -23,6 +22,7 @@ import java.util.Arrays;
 public class CustomerAuthController {
     private final CustomerAuthService auth;
     private final SessionProperties properties;
+    private final CustomerSessionCookie sessionCookie;
 
     @PostMapping("/google")
     public ResponseEntity<CustomerAuthResponseDto> login(@PathVariable String slug,
@@ -36,26 +36,18 @@ public class CustomerAuthController {
     @GetMapping("/me")
     public ResponseEntity<CustomerAuthResponseDto> me(@PathVariable String slug, HttpServletRequest request) {
         return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store")
-                .body(auth.me(slug, token(request)));
+                .body(auth.me(slug, sessionCookie.requiredToken(request)));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@PathVariable String slug, HttpServletRequest request) {
         try {
-            auth.logout(slug, token(request));
+            auth.logout(slug, sessionCookie.requiredToken(request));
         } catch (UnauthorizedException ignored) {
             // Missing, expired and revoked client sessions have idempotent logout.
         }
         return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookie("", Duration.ZERO).toString())
                 .header(HttpHeaders.CACHE_CONTROL, "no-store").build();
-    }
-
-    private String token(HttpServletRequest request) {
-        if (request.getCookies() == null) throw new UnauthorizedException("Session token is required");
-        return Arrays.stream(request.getCookies())
-                .filter(c -> properties.getCustomerCookieName().equals(c.getName()))
-                .map(Cookie::getValue).filter(value -> !value.isBlank()).findFirst()
-                .orElseThrow(() -> new UnauthorizedException("Session token is required"));
     }
 
     private ResponseCookie cookie(String value, Duration maxAge) {
