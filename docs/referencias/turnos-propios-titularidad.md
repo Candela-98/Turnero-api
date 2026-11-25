@@ -109,24 +109,90 @@ válida en una edición. Los turnos con titular NULL conservan la reasignación 
 La FK protege también las escrituras SQL incompatibles. Los cambios de horario, servicio,
 profesional, notas o estado no adjudican ni transfieren titularidad.
 
-## Contrato de escritura para TURN-122 / B3
+## Reserva autenticada — TURN-122 / B3
 
-TURN-122 implementará POST /api/v1/customer/businesses/{slug}/appointments.
-Su servicio debe resolver primero CustomerSessionResolver.requireActive y obtener exclusivamente
-de ese contexto business.id, customer.id y session.userId.
+POST `/api/v1/customer/businesses/{slug}/appointments` requiere la cookie CUSTOMER configurada
+por TURN-120. Obtiene negocio, ficha y titular exclusivamente de `CustomerSessionResolver`.
+Una identidad OWNER puede reservar con sesión CUSTOMER; la cookie ADMIN no autentica este POST.
 
-En la misma transacción que valida bloqueo, disponibilidad y referencias, construirá el turno
-con business_id y customer_id del contexto y owner_user_id=session.userId.
-El cuerpo no debe elegir esos identificadores. Las validaciones de reserva se reutilizarán sobre
-la ficha resuelta, evitando el camino invitado que resuelve contactos del body.
+### Decisión provisional pendiente de validación con el líder
 
-La creación del turno y de su titular deben confirmar o revertirse juntas. owner_user_id no
-se modifica durante el login, recuperación de sesión ni edición de contactos.
-source mantiene sus valores existentes y no participa en la autorización de lectura.
+La vinculación o creación de ficha permanece en el login de TURN-120: vínculo estable primero;
+sin vínculo, una coincidencia única de email Google verificado sobre ficha libre, o creación
+si no hay coincidencias. No se vincula por teléfono ni se adjudica historial anterior.
 
-La prueba de que el 201 autenticado aparece en este GET corresponde a TURN-122.
-En TURN-121, las pruebas preparan turnos con titularidad explícita desde los fixtures.
-Los turnos heredados e invitados permanecen fuera de Mis turnos incluso al compartir ficha.
+TURN-122 reutiliza esa distribución y no vuelve a resolver contactos. Una sesión CUSTOMER válida
+ya identifica una ficha vinculada. El POST revalida negocio, vínculo, estado y bloqueo sobre esa
+ficha después de adquirir los locks; si el vínculo no corresponde, rechaza sin buscar ni crear
+otra ficha. Esta decisión fue autorizada provisionalmente para implementar y probar; **no está
+aprobada por el líder y requiere su validación antes de integrar el PR**.
+
+### Request y respuesta
+
+~~~json
+{
+  "service_offering_id": 4,
+  "staff_member_id": "8",
+  "starts_at": "2026-12-02T15:00:00",
+  "customer_notes": "Nota opcional"
+}
+~~~
+
+`staff_member_id` acepta un ID como cadena o `"any"`, como la reserva invitada. `starts_at`
+conserva la fecha/hora local del negocio del contrato de creación existente, sin offset.
+Mis turnos devuelve el horario con el offset de la zona IANA del negocio.
+
+Sólo esos cuatro campos están permitidos. Campos adicionales, incluidos `owner_user_id`,
+`user_id`, `customer_id`, `business_id`, `customer` y variantes camelCase, reciben
+`400 VALIDATION_ERROR`. El cuerpo no puede seleccionar titular ni ficha ni fijar estado,
+precio, duración, fin o source. La restricción es propia del nuevo DTO; no altera el contrato
+invitado ni la configuración global de JSON.
+
+Responde `201 Created`, `Cache-Control: no-store`, con el mismo DTO de creación pública:
+`appointment_id`, `service_offering_id`, `staff_member_id`, `starts_at`, `ends_at`,
+`duration_minutes`, `price_cents`, `status` y `cancel_token`.
+El token conserva la cancelación pública existente. Mis turnos sigue omitiéndolo.
+
+| Condición | Respuesta |
+| --- | --- |
+| Sesión ausente, inválida, vencida, revocada o de ámbito incorrecto | 401 UNAUTHORIZED |
+| Sesión de otro negocio o ficha trasladada fuera de ese negocio | 403 FORBIDDEN |
+| Vínculo de ficha con identidad incompatible | 401 UNAUTHORIZED |
+| Negocio inactivo o reserva pública deshabilitada | 403 FORBIDDEN |
+| Ficha bloqueada | 403 CUSTOMER_BOOKING_BLOCKED, sin motivo privado |
+| Slug o recurso inexistente/fuera del negocio | 404 NOT_FOUND |
+| Cuerpo, ventana o anticipación inválidos | 400 VALIDATION_ERROR |
+| Slot no disponible | 409 CONFLICT, como la reserva pública |
+
+### Reutilización, atomicidad y concurrencia
+
+`PublicBookingServiceImpl` implementa también `CustomerAppointmentBookingService`. Ambos puntos
+de entrada transaccionales delegan al mismo núcleo: referencias, disponibilidad, ventana,
+anticipación, profesional específico/any, snapshots, confirmación manual, turno y token.
+Sólo cambia la resolución de ficha: contactos del invitado o ficha ya autenticada.
+El núcleo recibe el negocio ya resuelto: del contexto CUSTOMER para el autenticado, y de la
+búsqueda por slug para el invitado. No vuelve a elegir el negocio para crear la reserva.
+
+El orden es profesional → negocio → ficha, compatible con la reserva invitada existente.
+Se revalida disponibilidad después del lock del profesional. La ficha se refresca después de
+los locks de negocio y ficha para observar cambios de vínculo, archivo o bloqueo. La sesión
+se refresca y valida nuevamente tras la espera, incluyendo expiración y revocación.
+
+Una ficha INACTIVE no bloqueada se restaura como en el flujo invitado. Una ficha bloqueada
+no se restaura. La restauración y la creación del turno/token pertenecen a la transacción del
+POST; cualquier fallo posterior las revierte. Los datos de identidad, vínculo y sesión ya
+confirmados en el login se conservan. El POST no escribe nuevos vínculos ni crea fichas.
+
+El turno se guarda con `business_id` y `customer_id` del contexto y
+`owner_user_id=session.userId` antes del INSERT. No se guarda primero como invitado para
+adjudicarlo después. Las FK de V1005/V1006 ya cubren la coherencia; no se agrega migración.
+`source` conserva `PUBLIC_BOOKING` y no participa en la autorización de lectura.
+
+El endpoint invitado siempre entrega titular NULL, incluso con cookie cliente o ficha vinculada.
+Los turnos heredados e invitados permanecen fuera de Mis turnos. No hay backfill.
+
+El BFF deberá admitir el POST y reenviar la cookie cliente, con la frontera de procedencia/CSRF
+existente; su integración no forma parte de este cambio backend.
 
 ## Comprobaciones
 
@@ -152,3 +218,54 @@ Se ejecutó Java 21, Gradle 8.14.2 y PostgreSQL 16 con Testcontainers.
 JAVA_TOOL_OPTIONS=-XX:+UseSerialGC se aplicó al proceso local, como en TURN-120.
 Los resultados de la ejecución están en build/reports/tests/test/index.html.
 El recorrido de creación autenticada y consulta posterior corresponde a TURN-122.
+
+## Validación de TURN-122 del 25/11/2026
+
+Implementación preparada sobre `55720c1f1445420d9ac6ae3e60571ce92caea93b` de TURN-121,
+en `feature/customer-authenticated-booking-v1`. Sin migraciones nuevas. La regla provisional
+indicada arriba continúa pendiente de validación con el líder antes de integrar el PR.
+
+- Suite completa: 928 casos, 923 aprobados, cero fallas/errores y cinco omisiones de la auditoría
+  optativa `MvpQueryPlanPostgresIT`.
+- `CustomerAppointmentBookingPostgresIT`: 46 casos aprobados. Incluye 201 seguido de Mis turnos,
+  dos cuentas y dos negocios, campos prohibidos, cuerpos inválidos, sesiones, referencias,
+  contactos ambiguos sin nueva resolución, bloqueos, restauración, invitados e invalidación
+  de datos cargados antes de esperar el lock.
+- `AppointmentConcurrencyPostgresIT`: 27 casos aprobados, incluidos once nuevos de reserva
+  autenticada contra cliente/invitado/admin, solapamientos parciales y rollback del ganador inicial.
+- Dos casos unitarios nuevos verifican que el refresh observa un vínculo incompatible o bloqueo
+  y no intenta resolver contactos ni restaurar la ficha.
+- El rollback se prueba después de restaurar la ficha e insertar turno con titular y token,
+  provocando una violación real de unicidad en PostgreSQL. Ficha, identidad y sesión del login
+  confirmado permanecen; la restauración y la reserva fallidas se revierten.
+- Cobertura JaCoCo global: 96,78% de líneas y 87,52% de ramas.
+- `git diff --check` sin errores.
+
+Entorno: Java 21, Gradle 8.14.2, PostgreSQL 16 con Testcontainers y
+`JAVA_TOOL_OPTIONS=-XX:+UseSerialGC`, como en las dependencias. Se ejecutó Gradle con
+`--offline --no-daemon test`; `jacocoTestReport` se ejecuta como finalizador del task test.
+El reporte local está en `build/reports/tests/test/index.html` y la cobertura en
+`build/reports/jacoco/test/html/index.html`.
+
+## Revisión de TURN-122 contra 55720c1
+
+Se retiró una segunda resolución por slug dentro del núcleo de creación: el POST autenticado
+ahora pasa directamente el negocio del contexto validado. Una prueba unitaria verifica que
+negocio, ficha y titular provienen de ese contexto y que no se consulta la resolución invitada.
+El flujo público mantiene su búsqueda por slug y sus validaciones anteriores.
+
+La revisión confirmó el orden profesional → negocio → ficha, los refresh posteriores a los
+locks, la transacción externa que cubre restauración/turno/titular/token y la titularidad NULL
+del invitado. El test de rollback compara además las filas completas de usuario y sesión
+confirmadas en el login. El test de logs cubre éxito, campos rechazados y error inesperado,
+verificando que no se imprimen cookie, token de cancelación, email, notas ni mensaje sensible
+de la excepción. No se agregaron loggers ni configuración de logging.
+
+La validación de la distribución login/POST con el líder continúa pendiente antes de integrar;
+esta revisión técnica no constituye su aprobación.
+
+Validación posterior a la revisión: 197 pruebas afectadas aprobadas, cero fallas,
+errores u omisiones, con Java 21, SerialGC y PostgreSQL 16/Testcontainers. Incluye creación
+autenticada, núcleo público, controller público, concurrencia, fichas/bloqueos, auth y Mis turnos.
+La suite completa de 923 aprobadas y cinco omisiones anterior queda registrada arriba; esta
+corrida focalizada valida la corrección y los dos casos nuevos de la revisión.

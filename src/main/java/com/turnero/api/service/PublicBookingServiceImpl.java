@@ -16,12 +16,13 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.function.Function;
 
 import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
-public class PublicBookingServiceImpl implements PublicBookingService{
+public class PublicBookingServiceImpl implements PublicBookingService, CustomerAppointmentBookingService {
 
     private final BusinessRepository businessRepository;
     private final BookingSettingsRepository bookingSettingsRepository;
@@ -30,6 +31,7 @@ public class PublicBookingServiceImpl implements PublicBookingService{
     private final StaffMemberRepository staffMemberRepository;
     private final AvailabilityService availabilityService;
     private final CustomerService customerService;
+    private final CustomerSessionResolver customerSessions;
     private final AppointmentPublicTokenRepository appointmentPublicTokenRepository;
     private final AppointmentRepository appointmentRepository;
     private final PublicTokenHasher publicTokenHasher;
@@ -130,6 +132,10 @@ public class PublicBookingServiceImpl implements PublicBookingService{
         Business business = businessRepository.findBySlug(businessSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
 
+        return resolvePublicBookingContext(business);
+    }
+
+    private PublicBookingContext resolvePublicBookingContext(Business business) {
         if (business.getStatus() != BusinessStatus.ACTIVE) {
             throw new ForbiddenException("Public booking is not available");
         }
@@ -447,39 +453,54 @@ public class PublicBookingServiceImpl implements PublicBookingService{
     @Transactional
     @Override
     public PublicAppointmentResponseDto createPublicAppointment(String businessSlug, PublicAppointmentRequestDto request) {
-        PublicBookingContext context = resolvePublicBookingContext(businessSlug);
+        return createAppointment(resolvePublicBookingContext(businessSlug), new CustomerAppointmentRequestDto(request.getServiceOfferingId(),
+                request.getStaffMemberId(), request.getStartsAt(), request.getCustomerNotes()),
+                business -> customerService.findOrCreateCustomerForBusiness(business.getId(),
+                        request.getCustomer().getName(), request.getCustomer().getEmail(),
+                        request.getCustomer().getPhoneNumber()), null);
+    }
 
+    @Override
+    @Transactional
+    public PublicAppointmentResponseDto createCustomerAppointment(String slug, String token,
+                                                                  CustomerAppointmentRequestDto request) {
+        var context = customerSessions.requireActive(slug, token);
+        return createAppointment(resolvePublicBookingContext(context.business()), request, business -> {
+            Customer customer = customerService.prepareAuthenticatedBooking(business.getId(),
+                    context.customer().getId(), context.session().getUserId());
+            // A lock wait must not let a previously loaded session hide a revocation or expiry.
+            entityManager.refresh(context.session());
+            customerSessions.requireActive(slug, token);
+            return customer;
+        }, context.session().getUserId());
+    }
+
+    private PublicAppointmentResponseDto createAppointment(PublicBookingContext context, CustomerAppointmentRequestDto request,
+            Function<Business, Customer> resolveCustomer, Long ownerUserId) {
         Business business = context.business();
         BookingSettings bookingSettings = context.bookingSettings();
-
-        validatePublicBookingDateTime(business, bookingSettings, request.getStartsAt());
-
-        ServiceOffering serviceOffering = getActiveServiceOffering(business.getId(), request.getServiceOfferingId());
-
+        validatePublicBookingDateTime(business, bookingSettings, request.startsAt());
+        ServiceOffering serviceOffering = getActiveServiceOffering(business.getId(), request.serviceOfferingId());
         StaffMember resolvedStaffMember = resolveStaffMember(business.getId(), serviceOffering.getId(),
-                        request.getStaffMemberId(), request.getStartsAt());
-
+                request.staffMemberId(), request.startsAt());
+        // All booking writers take staff before the business/customer write locks.
         StaffMember lockedStaffMember = lockAndRevalidateStaffMember(business.getId(), serviceOffering.getId(),
-                        resolvedStaffMember.getId(), request.getStartsAt());
-
-        Customer customer = customerService.findOrCreateCustomerForBusiness(business.getId(), request.getCustomer().getName(),
-                request.getCustomer().getEmail(), request.getCustomer().getPhoneNumber());
-
-        Appointment appointment = buildPublicAppointment(business, customer, serviceOffering, lockedStaffMember, request, bookingSettings);
-
+                resolvedStaffMember.getId(), request.startsAt());
+        Customer customer = resolveCustomer.apply(business);
+        Appointment appointment = buildPublicAppointment(business, customer, serviceOffering, lockedStaffMember,
+                request, bookingSettings);
+        appointment.setOwnerUserId(ownerUserId);
         Appointment savedAppointment = appointmentRepository.save(appointment);
-
         String cancelToken = createCancellationToken(savedAppointment);
-
         return buildPublicAppointmentResponse(savedAppointment, cancelToken);
     }
 
     //region Private Helper Methods
     private Appointment buildPublicAppointment(Business business, Customer customer, ServiceOffering serviceOffering,
-            StaffMember staffMember, PublicAppointmentRequestDto request, BookingSettings bookingSettings) {
+            StaffMember staffMember, CustomerAppointmentRequestDto request, BookingSettings bookingSettings) {
         LocalDateTime now = LocalDateTime.now();
 
-        LocalDateTime endsAt = request.getStartsAt().plusMinutes(serviceOffering.getDurationMinutes());
+        LocalDateTime endsAt = request.startsAt().plusMinutes(serviceOffering.getDurationMinutes());
 
         AppointmentStatus status = bookingSettings.isManualConfirmationEnabled()
                         ? AppointmentStatus.PENDING
@@ -490,13 +511,13 @@ public class PublicBookingServiceImpl implements PublicBookingService{
                 .customerId(customer.getId())
                 .serviceOfferingId(serviceOffering.getId())
                 .staffMemberId(staffMember.getId())
-                .startsAt(request.getStartsAt())
+                .startsAt(request.startsAt())
                 .endsAt(endsAt)
                 .durationMinutes(serviceOffering.getDurationMinutes())
                 .priceCents(serviceOffering.getPriceCents())
                 .status(status)
                 .source(AppointmentSource.PUBLIC_BOOKING)
-                .customerNotes(request.getCustomerNotes())
+                .customerNotes(request.customerNotes())
                 .internalNotes(null)
                 .cancellationReason(null)
                 .createdAt(now)

@@ -3,6 +3,9 @@ package com.turnero.api.service;
 import com.turnero.api.context.CurrentBusinessContext;
 import com.turnero.api.dto.CustomerUpdateRequestDto;
 import com.turnero.api.exception.ResourceNotFoundException;
+import com.turnero.api.exception.ForbiddenException;
+import com.turnero.api.exception.UnauthorizedException;
+import com.turnero.api.model.enums.BusinessStatus;
 import com.turnero.api.exception.CustomerBookingBlockedException;
 import com.turnero.api.exception.CustomerIdentityAmbiguousException;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,12 +78,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (candidates.size() > 1) throw new CustomerIdentityAmbiguousException();
         if (!candidates.isEmpty()) {
             Customer customer = candidates.getFirst();
-            if (customer.getStatus() == CustomerStatus.INACTIVE) {
-                customer.setStatus(CustomerStatus.ACTIVE);
-                customer.setUpdatedAt(LocalDateTime.now());
-                customerRepository.save(customer);
-            }
-            return customer;
+            return restoreForBooking(customer);
         }
         Customer customer = Customer.builder().businessId(businessId).name(name.trim()).email(email.trim())
                 .phoneNumber(phoneNumber.trim()).status(CustomerStatus.ACTIVE)
@@ -90,6 +88,32 @@ public class CustomerServiceImpl implements CustomerService {
 
     private static String phoneDigits(String phone) {
         return phone == null ? "" : phone.replaceAll("[^0-9]", "");
+    }
+
+    @Override
+    @Transactional
+    public Customer prepareAuthenticatedBooking(Long businessId, Long customerId, Long userId) {
+        var business = customerWriteLock.acquire(businessId);
+        if (business.getStatus() != BusinessStatus.ACTIVE) {
+            throw new ForbiddenException("Business is not active");
+        }
+        Customer customer = customerRepository.findByIdAndBusinessIdForUpdate(customerId, businessId)
+                .orElseThrow(() -> new ForbiddenException("Session belongs to another business"));
+        entityManager.refresh(customer);
+        if (!userId.equals(customer.getUserId())) {
+            throw new UnauthorizedException("Invalid session");
+        }
+        if (customer.isPublicBookingBlocked()) throw new CustomerBookingBlockedException();
+        return restoreForBooking(customer);
+    }
+
+    private Customer restoreForBooking(Customer customer) {
+        if (customer.getStatus() == CustomerStatus.INACTIVE) {
+            customer.setStatus(CustomerStatus.ACTIVE);
+            customer.setUpdatedAt(LocalDateTime.now());
+            customerRepository.save(customer);
+        }
+        return customer;
     }
 
     private Customer lockCustomer(Long id) {

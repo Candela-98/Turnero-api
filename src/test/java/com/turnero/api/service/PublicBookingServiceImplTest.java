@@ -78,6 +78,7 @@ class PublicBookingServiceImplTest {
     @Mock private StaffMemberRepository staffMemberRepository;
     @Mock private AvailabilityService availabilityService;
     @Mock private CustomerService customerService;
+    @Mock private CustomerSessionResolver customerSessions;
     @Mock private AppointmentPublicTokenRepository appointmentPublicTokenRepository;
     @Mock private AppointmentRepository appointmentRepository;
     @Mock private PublicTokenHasher publicTokenHasher;
@@ -464,6 +465,41 @@ class PublicBookingServiceImplTest {
                     eq(BUSINESS_ID), eq(dayAfterLastAllowedDate), eq(dayAfterLastAllowedDate),
                     eq(serviceOfferingId), eq(staffMemberId), isNull());
         }
+    }
+
+    @Test
+    void authenticatedBookingUsesOnlyTheBusinessProfileAndOwnerFromTheSessionContext() {
+        long serviceId = 10L, staffId = 100L, customerId = 500L, userId = 600L;
+        LocalDateTime start = LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")).plusDays(1).atTime(10, 0);
+        Business business = activeBusiness();
+        Customer customer = customer(customerId);
+        var session = com.turnero.api.model.UserSession.builder().userId(userId).customerId(customerId).build();
+        var context = new CustomerSessionResolver.Context(business, customer, session);
+        given(customerSessions.requireActive(BUSINESS_SLUG, "session-token")).willReturn(context);
+        given(bookingSettingsRepository.findByBusinessId(BUSINESS_ID)).willReturn(Optional.of(enabledSettings()));
+        given(servOfferingRepository.findByIdAndBusinessId(serviceId, BUSINESS_ID))
+                .willReturn(Optional.of(service(serviceId, "Haircut", ServiceOfferingStatus.ACTIVE)));
+        given(staffMemberRepository.findByIdAndBusinessId(staffId, BUSINESS_ID))
+                .willReturn(Optional.of(staff(staffId, "Professional", StaffMemberStatus.ACTIVE)));
+        given(staffServiceOfferingRepository.findAllByServiceOfferingId(serviceId))
+                .willReturn(List.of(relation(staffId, serviceId)));
+        given(availabilityService.getAvailableSlotsForBusiness(BUSINESS_ID, start.toLocalDate(), start.toLocalDate(), serviceId, staffId, null))
+                .willReturn(List.of(slot(start, start.plusMinutes(30))));
+        given(staffMemberRepository.findByIdAndBusinessIdForUpdate(staffId, BUSINESS_ID))
+                .willReturn(Optional.of(staff(staffId, "Professional", StaffMemberStatus.ACTIVE)));
+        given(customerService.prepareAuthenticatedBooking(BUSINESS_ID, customerId, userId)).willReturn(customer);
+        given(appointmentRepository.save(any(Appointment.class))).willAnswer(call -> call.getArgument(0));
+
+        publicBookingService.createCustomerAppointment(BUSINESS_SLUG, "session-token",
+                new com.turnero.api.dto.CustomerAppointmentRequestDto(serviceId, Long.toString(staffId), start, null));
+
+        ArgumentCaptor<Appointment> saved = ArgumentCaptor.forClass(Appointment.class);
+        verify(appointmentRepository).save(saved.capture());
+        assertThat(saved.getValue().getBusinessId()).isEqualTo(BUSINESS_ID);
+        assertThat(saved.getValue().getCustomerId()).isEqualTo(customerId);
+        assertThat(saved.getValue().getOwnerUserId()).isEqualTo(userId);
+        org.mockito.Mockito.verifyNoInteractions(businessRepository);
+        verify(customerService, never()).findOrCreateCustomerForBusiness(any(), anyString(), anyString(), anyString());
     }
 
     @Test
