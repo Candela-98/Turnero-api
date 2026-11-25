@@ -83,6 +83,9 @@ class AppointmentConcurrencyPostgresIT {
         registry.add("spring.flyway.locations", () -> "classpath:db/migration");
     }
 
+    @Autowired com.turnero.api.service.CustomerAppointmentBookingService authenticated;
+    @Autowired com.turnero.api.service.CustomerAuthService customerAuth;
+    @MockitoBean com.turnero.api.service.GoogleIdentityService google;
     @Autowired AppointmentService admin;
     @Autowired PublicBookingService booking;
     @Autowired AppointmentRepository appointments;
@@ -421,6 +424,71 @@ class AppointmentConcurrencyPostgresIT {
             assertThat(customers.findById(attemptedCustomerId.get())).isEmpty();
             assertThat(customerCount(publicFirstEmail)).isZero();
         }
+    }
+
+    private String loginCustomer(Long customerId) {
+        Customer customer = customers.findById(customerId).orElseThrow();
+        String idToken = "google-" + customerId;
+        when(google.verify(idToken)).thenReturn(new com.turnero.api.dto.GoogleIdentityDto(
+                idToken, customer.getEmail(), true));
+        return customerAuth.login(businessSlug, idToken, null, null).token();
+    }
+
+    private Booking reserveAuthenticated(String token, LocalDateTime start, String requestedStaff) {
+        var result = authenticated.createCustomerAppointment(businessSlug, token,
+                new com.turnero.api.dto.CustomerAppointmentRequestDto(serviceOfferingId, requestedStaff, start, null));
+        return new Booking(result.getAppointmentId(), result.getCancelToken());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"customer,0", "customer,15", "guest,0", "guest,15", "admin,0", "admin,15"})
+    void authenticatedBookingWinsAgainstEveryWriter(String competitor, int offset) throws Exception {
+        preparePublicBooking(false);
+        String firstToken = loginCustomer(firstCustomerId);
+        String secondToken = loginCustomer(secondCustomerId);
+        Supplier<Booking> second = switch (competitor) {
+            case "guest" -> () -> reservePublic(publicRequest(publicSecondEmail, "999999999", startsAt.plusMinutes(offset)));
+            case "admin" -> () -> reserveAdmin(adminRequest(secondCustomerId, staffMemberId, startsAt.plusMinutes(offset)));
+            default -> () -> reserveAuthenticated(secondToken, startsAt.plusMinutes(offset), staffMemberId.toString());
+        };
+        Race race = contend(() -> reserveAuthenticated(firstToken, startsAt, "any"), second, false, true);
+        assertSingleAppointment(race.first(), firstCustomerId, AppointmentSource.PUBLIC_BOOKING, startsAt, AppointmentStatus.CONFIRMED);
+        assertThat(appointments.findById(race.first().id()).orElseThrow().getOwnerUserId())
+                .isEqualTo(customers.findById(firstCustomerId).orElseThrow().getUserId());
+        assertThat(tokenCount()).isEqualTo(1);
+        assertThat(customers.findAllByBusinessId(businessId)).hasSize(2);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"guest,0", "guest,15", "admin,0", "admin,15"})
+    void otherWritersWinAgainstAuthenticatedBooking(String winner, int offset) throws Exception {
+        preparePublicBooking(false);
+        String token = loginCustomer(secondCustomerId);
+        Supplier<Booking> first = winner.equals("guest")
+                ? () -> reservePublic(publicRequest(publicFirstEmail, "999999999", startsAt))
+                : () -> reserveAdmin(firstRequest);
+        Race race = contend(first, () -> reserveAuthenticated(token, startsAt.plusMinutes(offset), "any"), false, true);
+        assertThat(persistedAppointments()).hasSize(1);
+        assertThat(appointments.findById(race.first().id()).orElseThrow().getOwnerUserId()).isNull();
+        assertThat(tokenCount()).isEqualTo(winner.equals("guest") ? 1 : 0);
+    }
+
+    @Test
+    void authenticatedRollbackReleasesSlotAndKeepsCommittedLogin() throws Exception {
+        preparePublicBooking(false);
+        String firstToken = loginCustomer(firstCustomerId), secondToken = loginCustomer(secondCustomerId);
+        jdbc.update("UPDATE customers SET status='INACTIVE' WHERE id=?", firstCustomerId);
+        var before = jdbc.queryForMap("SELECT * FROM customers WHERE id=?", firstCustomerId);
+        Race race = contend(() -> reserveAuthenticated(firstToken, startsAt, "any"),
+                () -> reserveAuthenticated(secondToken, startsAt, "any"), true, false);
+        assertThat(appointments.findById(race.first().id())).isEmpty();
+        assertThat(persistedAppointments()).singleElement().satisfies(saved -> {
+            assertThat(saved.getId()).isEqualTo(race.second().id());
+            assertThat(saved.getOwnerUserId()).isEqualTo(customers.findById(secondCustomerId).orElseThrow().getUserId());
+        });
+        assertThat(jdbc.queryForMap("SELECT * FROM customers WHERE id=?", firstCustomerId)).isEqualTo(before);
+        assertThat(tokenCount()).isEqualTo(1);
+        assertThat(customerAuth.me(businessSlug, firstToken).customer().id()).isEqualTo(firstCustomerId);
     }
 
     private Race contend(Supplier<Booking> firstOperation, Supplier<Booking> secondOperation,

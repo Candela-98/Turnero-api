@@ -39,6 +39,38 @@ public class CustomerServiceImplTest {
     private CurrentBusinessContext currentBusinessContext;
 
     @Test
+    void authenticatedBookingRejectsChangedIdentityAfterRefreshWithoutFallback() {
+        var business = com.turnero.api.model.Business.builder().id(1L)
+                .status(com.turnero.api.model.enums.BusinessStatus.ACTIVE).build();
+        Customer customer = Customer.builder().id(2L).businessId(1L).userId(3L)
+                .status(CustomerStatus.INACTIVE).build();
+        when(customerWriteLock.acquire(1L)).thenReturn(business);
+        when(customerRepository.findByIdAndBusinessIdForUpdate(2L, 1L)).thenReturn(Optional.of(customer));
+        doAnswer(call -> { customer.setUserId(4L); return null; }).when(entityManager).refresh(customer);
+        assertThrows(com.turnero.api.exception.UnauthorizedException.class,
+                () -> customerService.prepareAuthenticatedBooking(1L, 2L, 3L));
+        verify(customerRepository, never()).save(any());
+        verify(customerRepository, never()).findEmailMatches(any(), any());
+        verify(customerRepository, never()).findContactMatchesForUpdate(any(), any(), any());
+        assertEquals(CustomerStatus.INACTIVE, customer.getStatus());
+    }
+
+    @Test
+    void authenticatedBookingObservesBlockSetWhileWaiting() {
+        var business = com.turnero.api.model.Business.builder().id(1L)
+                .status(com.turnero.api.model.enums.BusinessStatus.ACTIVE).build();
+        Customer customer = Customer.builder().id(2L).businessId(1L).userId(3L)
+                .status(CustomerStatus.INACTIVE).build();
+        when(customerWriteLock.acquire(1L)).thenReturn(business);
+        when(customerRepository.findByIdAndBusinessIdForUpdate(2L, 1L)).thenReturn(Optional.of(customer));
+        doAnswer(call -> { customer.setPublicBookingBlocked(true); return null; }).when(entityManager).refresh(customer);
+        assertThrows(com.turnero.api.exception.CustomerBookingBlockedException.class,
+                () -> customerService.prepareAuthenticatedBooking(1L, 2L, 3L));
+        verify(customerRepository, never()).save(any());
+        assertEquals(CustomerStatus.INACTIVE, customer.getStatus());
+    }
+
+    @Test
     void saveCustomer_shouldSaveAndReturnCustomer() {
         Customer customer = new Customer();
         customer.setName("Candela");

@@ -1633,3 +1633,12 @@ GET `/api/v1/customer/businesses/{slug}/appointments` usa titularidad explícita
 y negocio, cookie CUSTOMER y una proyección propia sin notas ni contactos. El contrato de
 paginación, la migración y la asignación futura de TURN-122 se documentan en
 [turnos propios y titularidad](../referencias/turnos-propios-titularidad.md).
+
+## Reserva con sesión cliente — TURN-122
+
+POST `/api/v1/customer/businesses/{slug}/appointments` utiliza exclusivamente la ficha de la
+sesión CUSTOMER y guarda titularidad y turno en una sola transacción. Reutiliza las reglas de
+reserva invitada; el cuerpo no puede elegir ficha ni titular. Contrato, errores, locks y decisión
+provisional de mantener la vinculación en el login de TURN-120 en
+[reserva autenticada](../referencias/turnos-propios-titularidad.md#reserva-autenticada--turn-122--b3).
+La distribución de responsabilidades requiere validación con el líder antes de integrar el PR.

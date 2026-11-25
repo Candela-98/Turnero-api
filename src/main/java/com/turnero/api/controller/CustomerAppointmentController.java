@@ -2,6 +2,10 @@ package com.turnero.api.controller;
 
 import com.turnero.api.auth.CustomerSessionCookie;
 import com.turnero.api.dto.CustomerAppointmentPageResponseDto;
+import com.turnero.api.dto.CustomerAppointmentRequestDto;
+import com.turnero.api.dto.PublicAppointmentResponseDto;
+import com.turnero.api.service.CustomerAppointmentBookingService;
+import jakarta.validation.Valid;
 import com.turnero.api.service.CustomerAppointmentReadService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,6 +24,18 @@ import org.springframework.web.bind.annotation.*;
 public class CustomerAppointmentController {
     private final CustomerAppointmentReadService appointments;
     private final CustomerSessionCookie sessionCookie;
+    private final CustomerAppointmentBookingService booking;
+
+    @Operation(summary = "Crear una reserva con la ficha de la sesión cliente",
+            description = "No acepta ficha ni titular en el cuerpo. Reutiliza las reglas de reserva pública. "
+                    + "201 creado; 400 cuerpo inválido; 401 sesión inválida; 403 negocio o ficha bloqueados; "
+                    + "404 recurso inexistente; 409 horario no disponible. Horario local del negocio.")
+    @PostMapping
+    public ResponseEntity<PublicAppointmentResponseDto> create(@PathVariable String slug,
+            @Valid @RequestBody CustomerAppointmentRequestDto body, HttpServletRequest request) {
+        return ResponseEntity.status(201).header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(booking.createCustomerAppointment(slug, sessionCookie.requiredToken(request), body));
+    }
 
     @Operation(summary = "Consultar turnos propios del negocio",
             description = "Titularidad explícita por identidad y negocio. Colección {data,page}, página desde 0, "

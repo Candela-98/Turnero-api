@@ -25,4 +25,6 @@ public interface CustomerService {
     void deleteCustomer(Long id);
 
     Customer findOrCreateCustomerForBusiness(Long businessId, String name, String email, String phoneNumber);
+
+    Customer prepareAuthenticatedBooking(Long businessId, Long customerId, Long userId);
 }
